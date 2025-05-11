@@ -7,7 +7,7 @@ interface ButtonProps {
 export const SolidMainButton = ({text, onPress, ...props}: ButtonProps)=>{
     return (
         <TouchableOpacity {...props} onPress={onPress} className="flex items-center gap-4 bg-[#F75F15] p-4 w-full rounded-full">
-            <Text className="text-white" style={{fontFamily: 'HankenGrotesk_500Medium'}}>{text}</Text>
+            <Text className="text-white text-lg" style={{fontFamily: 'HankenGrotesk_700Bold'}}>{text}</Text>
         </TouchableOpacity>
     )
 }
@@ -15,7 +15,7 @@ export const SolidMainButton = ({text, onPress, ...props}: ButtonProps)=>{
 export const SolidLightButton = ({text, onPress, ...props}: ButtonProps)=>{
     return (
         <TouchableOpacity {...props} onPress={onPress} className="flex items-center gap-4 bg-orange-200 p-4 w-full rounded-full">
-            <Text className="text-[#A53F0E]" style={{fontFamily: 'HankenGrotesk_500Medium'}}>{text}</Text>
+            <Text className="text-[#A53F0E] text-lg" style={{fontFamily: 'HankenGrotesk_700Bold'}}>{text}</Text>
         </TouchableOpacity>
     )
 }

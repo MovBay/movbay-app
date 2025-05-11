@@ -6,6 +6,8 @@ import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
 import 'react-native-reanimated';
 import "../global.css"
+import { KeyboardProvider } from "react-native-keyboard-controller";
+
 
 import { useColorScheme } from '@/hooks/useColorScheme';
 import {
@@ -57,17 +59,19 @@ export default function RootLayout() {
 
   return (
     <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-      <QueryClientProvider client={queryClient}>
+      {/* <QueryClientProvider client={queryClient}> */}
+        <KeyboardProvider>
+          <GestureHandlerRootView>
+            <Stack>
+              <Stack.Screen name="(noaccess)" options={{ headerShown: false }} />
+              <Stack.Screen name="(access)" options={{ headerShown: false }} />
+              <Stack.Screen name="+not-found" />
+            </Stack>
+            <StatusBar style="auto" />
+          </GestureHandlerRootView>
+        </KeyboardProvider>
 
-        <GestureHandlerRootView>
-          <Stack>
-            <Stack.Screen name="(noaccess)" options={{ headerShown: false }} />
-            <Stack.Screen name="(access)" options={{ headerShown: false }} />
-            <Stack.Screen name="+not-found" />
-          </Stack>
-          <StatusBar style="auto" />
-        </GestureHandlerRootView>
-      </QueryClientProvider>
+      {/* </QueryClientProvider> */}
     </ThemeProvider>
   );
 }
