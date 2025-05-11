@@ -9,13 +9,12 @@ const InitialScreen = () => {
         source={require("../../assets/images/icon2.png")}
         alt="Movbay Logo"
         style={{
-          width: 250,
-          height: 250,
-          marginBottom: 25
+          width: 200,
+          height: 200,
         }}
       />
       <ActivityIndicator
-        size={45}
+        size={30}
         animating={true}
         color={'white'}
       />

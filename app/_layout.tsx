@@ -18,11 +18,21 @@ import {
   HankenGrotesk_900Black
 } from "@expo-google-fonts/hanken-grotesk"
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import {
+  QueryClient,
+  QueryClientProvider,
+  focusManager,
+} from "@tanstack/react-query";
 
 // Prevent the splash screen from auto-hiding before asset loading is complete.
 SplashScreen.preventAutoHideAsync();
 
 export default function RootLayout() {
+
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: 2 } },
+  });
+
   const colorScheme = useColorScheme();
   const [loaded] = useFonts({
     SpaceMono: require('../assets/fonts/SpaceMono-Regular.ttf'),
@@ -47,14 +57,17 @@ export default function RootLayout() {
 
   return (
     <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-      <GestureHandlerRootView>
-        <Stack>
-          <Stack.Screen name="(noaccess)" options={{ headerShown: false }} />
-          <Stack.Screen name="(access)" options={{ headerShown: false }} />
-          <Stack.Screen name="+not-found" />
-        </Stack>
-        <StatusBar style="auto" />
-      </GestureHandlerRootView>
+      <QueryClientProvider client={queryClient}>
+
+        <GestureHandlerRootView>
+          <Stack>
+            <Stack.Screen name="(noaccess)" options={{ headerShown: false }} />
+            <Stack.Screen name="(access)" options={{ headerShown: false }} />
+            <Stack.Screen name="+not-found" />
+          </Stack>
+          <StatusBar style="auto" />
+        </GestureHandlerRootView>
+      </QueryClientProvider>
     </ThemeProvider>
   );
 }
