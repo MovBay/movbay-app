@@ -1,12 +1,15 @@
 import { ActivityIndicator, StyleSheet, View, Image } from "react-native";
 import React from "react";
+import { StatusBar } from "expo-status-bar";
 
 const InitialScreen = () => {
   
   return (
     <View style={styles.container}>
+      <StatusBar style='light'/>
+      
       <Image
-        source={require("../../assets/images/icon2.png")}
+        source={require("../../assets/images/logo.png")}
         alt="Movbay Logo"
         style={{
           width: 200,

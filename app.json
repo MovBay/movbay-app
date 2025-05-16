@@ -7,11 +7,6 @@
     "icon": "./assets/images/icon.png",
     "scheme": "myapp",
     "userInterfaceStyle": "automatic",
-    "splash": {
-      "image": "./assets/images/splash-icon.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#F75F15"
-    },
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": true
@@ -30,7 +25,15 @@
     },
     "plugins": [
       "expo-router",
-      "expo-font"
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/images/splash-icon.png",
+          "imageWidth": 200,
+          "resizeMode": "contain",
+          "backgroundColor": "#F75F15"
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true
@@ -40,7 +43,7 @@
         "origin": false
       },
       "eas": {
-        "projectId": "59f9d1cf-f987-426b-9d36-8524ebb310a6"
+        "projectId": "c3097a2b-8e82-467a-a0a5-196aab16c2e2"
       }
     }
   }
