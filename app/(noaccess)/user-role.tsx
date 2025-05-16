@@ -7,26 +7,28 @@ import { router } from 'expo-router'
 import { Image } from 'react-native'
 import { StyleSheet } from 'react-native'
 import MaterialIcons from '@expo/vector-icons/MaterialIcons'
+import { SolidInactiveButton, SolidMainButton } from '@/components/btns/CustomButtoms'
+import Animated, { FadeInDown } from 'react-native-reanimated'
 
 
 const userRole= () => {
 
     const [active, setActive] = useState(0);
   return (
-    <SafeAreaView className='flex-1 flex w-full bg-white '>
+    <SafeAreaView className='flex-1 flex w-full bg-white'>
         <StatusBar style='dark'/>
 
-        <View className='px-7 mt-10'>
+        <View className='px-7 mt-10 flex-1'>
             <OnboardArrowHeader onPressBtn={()=>router.back()}/>
-            <Text className='text-2xl ' style={{fontFamily: 'HankenGrotesk_600SemiBold', width: '50%'}}>How would you like to use MovBay?</Text>
+            <Text className='text-2xl w-[70%] pt-5' style={{fontFamily: 'HankenGrotesk_600SemiBold'}}>How would you like to use MovBay?</Text>
 
 
-            <View className='flex flex-col gap-5 mt-10'>
+            <View className='flex flex-col gap-1 mt-5'>
                 <Pressable className='' onPress={() => setActive(1)}>
 
-                    <View style={active === 1 ? styles.activeStyle : styles.inactiveStyle} className='mb-5 relative'>
+                    <Animated.View style={active === 1 ? styles.activeStyle : styles.inactiveStyle} entering={FadeInDown.duration(300).springify()} className='mb-5 relative'>
                         {active === 1 && 
-                            <View className='absolute top-10 right-5 bg-[#F75F15] rounded-full w-7 h-7 flex items-center justify-center'>
+                            <View className='absolute top-5 right-5 bg-[#F75F15] rounded-full w-6 h-6 flex items-center justify-center'>
                                 <MaterialIcons name='check' size={15} color='white'/>
                             </View>
                         }
@@ -46,9 +48,45 @@ const userRole= () => {
                                 Buy or sell products, book couriers, and track orders.
                             </Text>
                         </View>
-                    </View>
+                    </Animated.View>
+                </Pressable>
+
+                <Pressable className='' onPress={() => setActive(2)}>
+
+                    <Animated.View style={active === 2 ? styles.activeStyle : styles.inactiveStyle} entering={FadeInDown.duration(300).delay(200).springify()} className='mb-5 relative'>
+                        
+                        {active === 2 && 
+                            <View className='absolute top-5 right-5 bg-[#F75F15] rounded-full w-6 h-6 flex items-center justify-center'>
+                                <MaterialIcons name='check' size={15} color='white'/>
+                            </View>
+                        }
+                        <View>
+                            <Image 
+                                source={require('../../assets/images/user.png')} 
+                                style={{
+                                    width: 50,
+                                    height: 50,
+                                }}
+                            />
+                        </View>
+
+                        <View className='pt-3'>
+                            <Text className='text-2xl' style={{fontFamily: 'HankenGrotesk_600SemiBold'}}>Rider (Courier Delivery Only)</Text>
+                            <Text className='text-base text-neutral-500' style={{fontFamily: 'HankenGrotesk_400Regular'}}>
+                                Deliver packages and earn. Requires a separate rider account.
+                            </Text>
+                        </View>
+                    </Animated.View>
                 </Pressable>
             </View>
+        </View>
+
+        {/* Button container positioned at the bottom */}
+        <View className='px-7 mb-8'>
+            {active === 0 && <SolidInactiveButton text='Proceed'/>}
+            {active === 1 && <SolidMainButton text='Proceed' onPress={()=>router.push('/user-register')}/>}
+            {active === 2 && <SolidMainButton text='Proceed' onPress={()=>router.push('/rider-register')}/>}
+            
         </View>
 
     </SafeAreaView>

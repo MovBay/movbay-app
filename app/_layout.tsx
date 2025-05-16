@@ -59,7 +59,7 @@ export default function RootLayout() {
 
   return (
     <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-      {/* <QueryClientProvider client={queryClient}> */}
+      <QueryClientProvider client={queryClient}>
         <KeyboardProvider>
           <GestureHandlerRootView>
             <Stack>
@@ -71,7 +71,7 @@ export default function RootLayout() {
           </GestureHandlerRootView>
         </KeyboardProvider>
 
-      {/* </QueryClientProvider> */}
+      </QueryClientProvider>
     </ThemeProvider>
   );
 }

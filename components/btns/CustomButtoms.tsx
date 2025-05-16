@@ -1,5 +1,5 @@
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
-import { Image, Text, TouchableOpacity } from "react-native";
+import { Image, Pressable, Text, TouchableOpacity } from "react-native";
 import Ionicons from '@expo/vector-icons/Ionicons';
 
 
@@ -12,6 +12,14 @@ export const SolidMainButton = ({text, onPress, ...props}: ButtonProps)=>{
         <TouchableOpacity {...props} onPress={onPress} className="flex items-center gap-4 bg-[#F75F15] p-4 w-full rounded-full">
             <Text className="text-white text-lg" style={{fontFamily: 'HankenGrotesk_700Bold'}}>{text}</Text>
         </TouchableOpacity>
+    )
+}
+
+export const SolidInactiveButton = ({text, ...props}: ButtonProps)=>{
+    return (
+        <Pressable {...props} className="flex items-center gap-4 bg-[#F2F2F2] p-4 w-full rounded-full">
+            <Text className="text-neutral-500 text-lg" style={{fontFamily: 'HankenGrotesk_700Bold'}}>{text}</Text>
+        </Pressable>
     )
 }
 
