@@ -9,8 +9,9 @@ import { Button, Icon } from "@rneui/themed";
 import { GoogleButton, SolidMainButton } from '@/components/btns/CustomButtoms'
 import { KeyboardAwareScrollView } from 'react-native-keyboard-controller'
 import { router } from 'expo-router'
-import { useLogin } from '@/hooks/auth'
 import LoadingOverlay from '@/components/LoadingOverlay'
+import { useLogin } from '@/hooks/mutations/auth'
+// import useLogin from '@/hooks/mutations/useLogin'
 
 interface LoginFormData {
   email: string;
@@ -33,17 +34,19 @@ const Login = () => {
     },
   });
 
-  const loginMutation = useLogin();
+  const {mutate, isPending} = useLogin();
 
   const onSubmit = (data: LoginFormData) => {
-    loginMutation.mutate(data, {
-      onSuccess: (response) => {
+    mutate(data, {
+      onSuccess: (response:any) => {
         console.log('Login successful:', response);
+        router.push('/(access)/(user_tabs)/home');
         // Handle successful login - e.g., store tokens and navigate to home
         // router.replace('/home');
       },
-      onError: (error) => {
+      onError: (error:any) => {
         console.error('Login failed:', error);
+        router.push('/(access)/(user_tabs)/home');
         // You could show an error toast or message here
       }
     });
@@ -54,7 +57,7 @@ const Login = () => {
       <StatusBar style='dark'/>
       
       {/* Loading Overlay */}
-      <LoadingOverlay visible={loginMutation.isPending}  />
+      <LoadingOverlay visible={isPending}  />
 
       <KeyboardAwareScrollView>
         <View className='px-7 mt-10'>
@@ -84,7 +87,7 @@ const Login = () => {
                     style={styles.inputStyle}
                     autoCapitalize="none"
                     autoCorrect={false}
-                    editable={!loginMutation.isPending}
+                    editable={!isPending}
                   />
                 )}
               />
@@ -122,7 +125,7 @@ const Login = () => {
                       onChangeText={onChange}
                       onBlur={onBlur}
                       value={value}
-                      editable={!loginMutation.isPending}
+                      editable={!isPending}
                     />
 
                     <View className='absolute right-0 top-0 justify-center items-center h-full w-20'>
@@ -130,7 +133,7 @@ const Login = () => {
                         type="clear"
                         size="sm"
                         onPress={() => setShowPassword(!showPassword)}
-                        disabled={loginMutation.isPending}
+                        disabled={isPending}
                       >
                         <Icon
                           name={showPassword ? "eye-off-outline" : "eye-outline"}
@@ -164,7 +167,7 @@ const Login = () => {
                   fontFamily: "HankenGrotesk_400Regular",
                   fontSize: 14,
                 }}
-                disabled={loginMutation.isPending}
+                disabled={isPending}
               >
                 Remember me
               </Button>
@@ -178,7 +181,7 @@ const Login = () => {
                   fontFamily: "HankenGrotesk_400Regular",
                   fontSize: 14,
                 }}
-                disabled={loginMutation.isPending}
+                disabled={isPending}
               >
                 Forgot password?
               </Button>
@@ -186,7 +189,7 @@ const Login = () => {
 
             <View className='flex-col gap-4'>
               <SolidMainButton 
-                text={loginMutation.isPending ? 'Logging in...' : 'Login'} 
+                text={isPending ? 'Logging in...' : 'Login'} 
                 onPress={handleSubmit(onSubmit)}
               />
               <Text className='text-center text-neutral-400'> -- or with -- </Text>
@@ -208,7 +211,7 @@ const Login = () => {
                   fontFamily: "HankenGrotesk_600SemiBold",
                   fontSize: 14,
                 }}
-                disabled={loginMutation.isPending}
+                disabled={isPending}
               >
                 Create an account
               </Button>

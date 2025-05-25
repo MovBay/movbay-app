@@ -34,6 +34,7 @@ const UserRegister = () => {
 
     const onSubmit = (data: any) => {
         console.log(data);
+        router.push("/otp-screen")
     }
   return (
     <SafeAreaView className='flex-1 flex w-full bg-white '>

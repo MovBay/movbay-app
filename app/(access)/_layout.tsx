@@ -8,8 +8,10 @@ const StackPagesLayout = () => {
         headerShown: false,
         }}
     >
-        <Stack.Screen name="(tabs)" />
-        <Stack.Screen name="(stacks)" />
+        <Stack.Screen name="(user_tabs)" />
+        <Stack.Screen name="(rider_tabs)" />
+        <Stack.Screen name="(rider_stacks)" />
+        <Stack.Screen name="(user_stacks)" />
     </Stack>
   )
 }
