@@ -11,6 +11,8 @@ import { KeyboardAwareScrollView } from 'react-native-keyboard-controller'
 import { router } from 'expo-router'
 import LoadingOverlay from '@/components/LoadingOverlay'
 import { useLogin } from '@/hooks/mutations/auth'
+import { useToast } from "react-native-toast-notifications";
+import AsyncStorage from '@react-native-async-storage/async-storage'
 // import useLogin from '@/hooks/mutations/useLogin'
 
 interface LoginFormData {
@@ -20,6 +22,7 @@ interface LoginFormData {
 
 const Login = () => {
   const [showPassword, setShowPassword] = React.useState(false);
+  const toast = useToast();
 
   // ========= REACT HOOK FORM =========
   const {
@@ -34,22 +37,74 @@ const Login = () => {
     },
   });
 
-  const {mutate, isPending} = useLogin();
+  const {mutate, isPending, } = useLogin();
+  // const loginMutation = useLogin();
 
   const onSubmit = (data: LoginFormData) => {
-    mutate(data, {
-      onSuccess: (response:any) => {
-        console.log('Login successful:', response);
-        router.push('/(access)/(user_tabs)/home');
-        // Handle successful login - e.g., store tokens and navigate to home
-        // router.replace('/home');
-      },
-      onError: (error:any) => {
-        console.error('Login failed:', error);
-        router.push('/(access)/(user_tabs)/home');
-        // You could show an error toast or message here
-      }
-    });
+    try {
+      mutate(data, {
+
+        onSuccess: (response: any) => {
+          console.log('Login successful:', response?.data?.usertype);
+          AsyncStorage.setItem('movebay_token', response?.data?.token?.access);
+          AsyncStorage.setItem('movebay_usertype', response?.data?.usertype);
+          let userType = response?.data?.usertype
+          reset()
+
+          if(userType === 'Rider') {
+            toast.show('Login Successfull', { type: "success" });
+            console.log('Login successful:', response?.data?.usertype, response?.data?.token?.access);
+            router.push('/(access)/(rider_tabs)/riderHome');
+          }
+
+
+          if(userType === 'User') {
+            toast.show('Login Successful', { type: "success" });
+            console.log('Login successful:', response?.data?.usertype, response?.data?.token?.access);
+            router.push('/(access)/(user_tabs)/home');
+            // router.push('/verified');
+          }
+          
+        },
+        onError: (error: any) => {
+          console.log('Login failed:', error.response.data.error);
+          
+          let errorMessage = 'Login failed. Please try again.';
+          let noAccountFound = error.response.data.error
+          
+          try {
+            if (error?.response?.data?.detail) {
+              errorMessage = error.response.data.detail;
+            } 
+
+            if (error?.response?.data?.message) {
+              errorMessage = error.response.data.message;
+            } 
+            
+            if (error?.message) {
+              errorMessage = error.message;
+            }
+            
+            if (noAccountFound) {
+              errorMessage = error.response.data.error;
+            }
+
+            
+            if (typeof errorMessage !== 'string') {
+              errorMessage = 'Login failed. Please try again.';
+            }
+            
+            toast.show(errorMessage, { type: "danger" });
+          } catch (toastError) {
+            console.error('Toast error:', toastError);
+            toast.show('Login failed. Please try again.', { type: "danger" });
+          }
+        }
+      });
+    } catch (error) {
+      console.error('Login error:', error);
+      toast.show('An unexpected error occurred.', { type: "danger" });
+    }
   };
 
   return (

@@ -25,6 +25,8 @@ import {
   QueryClientProvider,
   focusManager,
 } from "@tanstack/react-query";
+import MaterialIcons from '@expo/vector-icons/MaterialIcons';
+import { ToastProvider } from 'react-native-toast-notifications';
 
 // Prevent the splash screen from auto-hiding before asset loading is complete.
 SplashScreen.preventAutoHideAsync();
@@ -59,19 +61,43 @@ export default function RootLayout() {
 
   return (
     <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-      <QueryClientProvider client={queryClient}>
-        <KeyboardProvider>
-          <GestureHandlerRootView>
-            <Stack>
-              <Stack.Screen name="(noaccess)" options={{ headerShown: false }} />
-              <Stack.Screen name="(access)" options={{ headerShown: false }} />
-              <Stack.Screen name="+not-found" />
-            </Stack>
-            <StatusBar style="auto" />
-          </GestureHandlerRootView>
-        </KeyboardProvider>
+      <ToastProvider
+        placement="top"
+        offset={50}
+        textStyle={{
+          fontFamily: "HankenGrotesk_500Medium",
+          width: "90%",
+        }}
 
-      </QueryClientProvider>
+          dangerIcon={
+            <MaterialIcons
+              name="dangerous"
+              size={20}
+              color={"#fff"}
+              
+            />
+          }
+          successIcon={
+            <MaterialIcons name="check" size={20} color="#fff" />
+          }
+          warningIcon={
+            <MaterialIcons name="warning" size={20} color="#fff" />
+          }
+        >
+          <QueryClientProvider client={queryClient}>
+            <KeyboardProvider>
+              <GestureHandlerRootView>
+                <Stack>
+                  <Stack.Screen name="(noaccess)" options={{ headerShown: false }} />
+                  <Stack.Screen name="(access)" options={{ headerShown: false }} />
+                  <Stack.Screen name="+not-found" />
+                </Stack>
+                <StatusBar style="auto" />
+              </GestureHandlerRootView>
+            </KeyboardProvider>
+
+          </QueryClientProvider>
+      </ToastProvider>
     </ThemeProvider>
   );
 }

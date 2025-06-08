@@ -9,10 +9,15 @@ import { Button, Icon } from "@rneui/themed";
 import { SolidMainButton } from '@/components/btns/CustomButtoms'
 import { KeyboardAwareScrollView } from 'react-native-keyboard-controller'
 import { router } from 'expo-router'
+import { Toast } from 'react-native-toast-notifications'
+import { useRegistration } from '@/hooks/mutations/auth'
+import LoadingOverlay from '@/components/LoadingOverlay'
 
 
 const UserRegister = () => {
   const [showPassword, setShowPassword] = useState(false);
+
+  const registrationMutation = useRegistration();
 
     // ========= REACT HOOK FORM =========
     const {
@@ -22,23 +27,78 @@ const UserRegister = () => {
         reset,
     } = useForm({
         defaultValues: {
-            fullName: "",
+            fullname: "",
             username: "",
             email: "",
-            phone: "",
+            phone_number: "",
             password: "",
-            confirmPassword: "",
+            password2: "",
         },
     });
 
 
     const onSubmit = (data: any) => {
-        console.log(data);
-        router.push("/otp-screen")
+        const form_data = {
+            fullname: data.fullname,
+            username: data.username,
+            email: data.email,
+            phone_number: data.phone_number,
+            password: data.password,
+            password2: data.password2,
+            user_type: "User",
+        };
+
+        try{
+        registrationMutation.mutate(form_data, {
+            onSuccess: async (response) => {
+                Toast.show("Registration successful!", {
+                    type: "success",
+                });
+                router.replace("/otp-screen");
+                console.log(response);
+            },
+
+            onError: (error: any) => {
+                console.log(error.response);
+                if (error.response.data.email) {
+                    Toast.show(error.response.data.email, {
+                        type: "danger",
+                    });
+                } 
+
+                if (error.response.data.password) {
+                    Toast.show(error.response.data.password, {
+                        type: "danger",
+                    });
+                } 
+
+
+                if (error.response.data.phone_number) {
+                    Toast.show(error.response.data.phone_number, {
+                        type: "danger",
+                    });
+                } 
+
+                
+                // if (error.request) {
+                //     Toast.show("Network error, please try again later.", {
+                //         type: "danger",
+                //     });
+                // } else {
+                //     Toast.show("An unexpected error occurred.", {
+                //         type: "danger",
+                //     });
+                // }
+            },
+        });
+        }catch(error){
+            console.log(error);
+        }
     }
   return (
     <SafeAreaView className='flex-1 flex w-full bg-white '>
         <StatusBar style='dark'/>
+        <LoadingOverlay visible={registrationMutation.isPending}/>
 
         <KeyboardAwareScrollView>
             <View className='px-7 mt-10 pb-10'>
@@ -48,7 +108,7 @@ const UserRegister = () => {
                     <View className='mb-5'>
                         <Text style={styles.titleStyle}>Full Name</Text>
                         <Controller
-                            name="fullName"
+                            name="fullname"
                             control={control}
                             rules={{
                                 required: "Full name is required",
@@ -71,7 +131,7 @@ const UserRegister = () => {
 
                         <ErrorMessage
                         errors={errors}
-                        name="fullName"
+                        name="fullname"
                         render={({ message }) => (
                             <Text className="pl-2 pt-3 text-sm text-red-600">
                             {message}
@@ -150,10 +210,10 @@ const UserRegister = () => {
                         />
                     </View>
 
-                         <View className='mb-5'>
+                    <View className='mb-5'>
                         <Text style={styles.titleStyle}>Phone Number</Text>
                         <Controller
-                            name="phone"
+                            name="phone_number"
                             control={control}
                             rules={{
                                 required: "Phone Number is required",
@@ -161,7 +221,7 @@ const UserRegister = () => {
                             render={({ field: { onChange, onBlur, value } }) => (
 
                                 <TextInput 
-                                    placeholder='E.g - 08094422763'
+                                    placeholder='E.g - +2348094422763'
                                     placeholderTextColor={"#AFAFAF"}
                                     onChangeText={onChange}
                                     onBlur={onBlur}
@@ -176,7 +236,7 @@ const UserRegister = () => {
 
                         <ErrorMessage
                         errors={errors}
-                        name="phone"
+                        name="phone_number"
                         render={({ message }) => (
                             <Text className="pl-2 pt-3 text-sm text-red-600">
                             {message}
@@ -241,7 +301,7 @@ const UserRegister = () => {
                     <View className='mb-5'>
                         <Text style={styles.titleStyle}>Confirm Password</Text>
                         <Controller
-                            name="confirmPassword"
+                            name="password2"
                             control={control}
                             rules={{
                                 required: "Confirm password is required",
@@ -280,7 +340,7 @@ const UserRegister = () => {
                         />
                         <ErrorMessage
                             errors={errors}
-                            name="confirmPassword"
+                            name="password2"
                             render={({ message }) => (
                                 <Text className="pl-2 pt-3 text-sm text-red-600">
                                     {message}

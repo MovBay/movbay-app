@@ -16,6 +16,7 @@ export const post_requests = async (url: string, data: any, token = "") => {
   return response;
 };
 
+
 export const post_request_with_image = async (
   url: string,
   data: any,

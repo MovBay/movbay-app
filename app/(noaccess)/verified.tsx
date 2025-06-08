@@ -40,7 +40,7 @@ const Verified = () => {
             >
                 <SolidMainButton 
                     text='Proceed' 
-                    onPress={() => router.replace('/(access)/(user_tabs)/home')}
+                    onPress={() => router.replace('/login')}
                 />
                 
             </Animated.View>

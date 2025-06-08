@@ -46,13 +46,13 @@ export const OnboardArrowHeader = ({onPressBtn}: ButtonProps)=>{
 
 export const OnboardArrowTextHeader = ({onPressBtn}: ButtonProps)=>{
     return (
-        <View className="mb-5">
+        <View className="">
             <Button
                     type="solid"
                     size="sm"
                     onPress={onPressBtn}
                     buttonStyle={{
-                        backgroundColor: "#FEEEE6",
+                        backgroundColor: "#F6F6F6",
                         borderRadius: 100,
                         width: 40,
                         height: 40,
@@ -60,10 +60,11 @@ export const OnboardArrowTextHeader = ({onPressBtn}: ButtonProps)=>{
                 >
                 <MaterialIcons
                     name={'chevron-left'}
-                    size={20}
-                    color={"#F75F15"}
+                    size={25}
+                    color={"black"}
                 />
             </Button>
+            
         </View>
     )
 }

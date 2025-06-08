@@ -1,4 +1,5 @@
 import { SolidLightButton, SolidMainButton } from '@/components/btns/CustomButtoms'
+import AsyncStorage from '@react-native-async-storage/async-storage'
 import { router } from 'expo-router'
 import { StatusBar } from 'expo-status-bar'
 import React from 'react'
@@ -9,6 +10,17 @@ import { SafeAreaView } from 'react-native-safe-area-context'
 const { width, height } = Dimensions.get('window')
 
 const OnBoardingPage = () => {
+
+    const handleRedirectSignup = async () => {
+      await AsyncStorage.setItem("movebay_onboarding", "true");
+      router.replace("/user-role");
+    };
+    const handleRedirectLogin = async () => {
+      await AsyncStorage.setItem("movebay_onboarding", "true");
+      router.replace("/login");
+    };
+
+
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar style='dark'/>
@@ -44,11 +56,11 @@ const OnBoardingPage = () => {
         >
           <SolidMainButton 
             text='Get Started' 
-            onPress={() => router.push('/user-role')}
+            onPress={() => handleRedirectSignup()}
           />
           <SolidLightButton 
             text='Login' 
-            onPress={() => router.push('/login')}
+            onPress={() => handleRedirectLogin()}
           />
         </Animated.View>
       </View>

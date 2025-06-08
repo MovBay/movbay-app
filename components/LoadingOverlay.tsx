@@ -15,7 +15,7 @@ const LoadingOverlay: React.FC<LoadingOverlayProps> = ({
   return (
     <View style={styles.container}>
       <View style={styles.overlay}>
-        <ActivityIndicator size="large" color="#F75F15" />
+        <ActivityIndicator size="small" color="#F75F15" />
         {/* <Text style={styles.message}>{message}</Text> */}
       </View>
     </View>
@@ -36,8 +36,8 @@ const styles = StyleSheet.create({
   },
   overlay: {
     backgroundColor: 'white',
-    padding: 10,
-    borderRadius: 10,
+    padding: 6,
+    borderRadius: 5,
     alignItems: 'center',
     shadowColor: '#000',
     shadowOffset: {

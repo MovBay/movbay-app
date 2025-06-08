@@ -11,14 +11,18 @@ import { GoogleButton, SolidMainButton } from '@/components/btns/CustomButtoms'
 import { KeyboardAwareScrollView } from 'react-native-keyboard-controller'
 import { router } from 'expo-router'
 import LoadingOverlay from '@/components/LoadingOverlay'
-import { useLogin } from '@/hooks/mutations/auth'
+import { useActivate, useLogin } from '@/hooks/mutations/auth'
+import { Toast, useToast } from 'react-native-toast-notifications'
 // import useLogin from '@/hooks/mutations/useLogin'
 
 interface OtpData {
   otp: string;
+  email: string;
 }
 
 const OtpScreen = () => {
+
+  const toast = useToast();
 
   // ========= REACT HOOK FORM =========
   const {
@@ -28,24 +32,99 @@ const OtpScreen = () => {
     reset,
   } = useForm<OtpData>({
     defaultValues: {
+      email: "",
       otp: "",
     },
   });
 
-  const {mutate, isPending} = useLogin();
+  const {mutate, isPending} = useActivate();
 
   const onSubmit = (data: OtpData) => {
-    router.push('/verified');
+    try {
+      mutate(data, {
+
+        onSuccess: (response: any) => {
+          console.log('Login successful:', response?.data);
+          toast.show('Verified successfully!', { type: "success" });  
+          reset();
+          router.replace('/verified');        
+        },
+        onError: (error: any) => {
+          console.log('Login failed:', error.response.data);
+          
+          let errorMessage = 'Login failed. Please try again.';
+          
+          try {
+            if (error?.response?.data?.message) {
+              errorMessage = error.response.data.message;
+            } 
+
+            if (typeof errorMessage !== 'string') {
+              errorMessage = 'Login failed. Please try again.';
+            }
+            
+            toast.show(errorMessage, { type: "danger" });
+          } catch (toastError) {
+            console.error('Toast error:', toastError);
+            toast.show('Login failed. Please try again.', { type: "danger" });
+          }
+        }
+      });
+    } catch (error) {
+      console.error('Login error:', error);
+      Toast.show('An unexpected error occurred.', { type: "danger" });
+    }
+    // router.push('/verified');
   };
 
   return (
     <SafeAreaView className='flex-1 flex w-full bg-white'>
       <StatusBar style='dark'/>
+      <LoadingOverlay visible={isPending}  />
       
       <KeyboardAwareScrollView>
         <View className='px-7 mt-10'>
-          <OnboardHeader text='OTP Verification' description="Enter the 4 digit number sent to your email address provided earlier"/>
+          <OnboardHeader text='OTP Verification' description="Enter the 5 digit number sent to your email address provided earlier"/>
           <View className='pt-10'>
+
+            <View className='mb-5'>
+              <Text style={styles.titleStyle}>Email Address</Text>
+              <Controller
+                name="email"
+                control={control}
+                rules={{
+                  required: "Email is required",
+                  pattern: {
+                    value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i,
+                    message: "Invalid email address"
+                  }
+                }}
+                render={({ field: { onChange, onBlur, value } }) => (
+                  <TextInput 
+                    placeholder='E.g - johndoe@gmail.com'
+                    placeholderTextColor={"#AFAFAF"}
+                    onChangeText={onChange}
+                    onBlur={onBlur}
+                    value={value}
+                    keyboardType="email-address"
+                    style={styles.inputStyle}
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                    editable={!isPending}
+                  />
+                )}
+              />
+            
+              <ErrorMessage
+                errors={errors}
+                name="email"
+                render={({ message }) => (
+                  <Text className="pl-2 pt-3 text-sm text-red-600">
+                    {message}
+                  </Text>
+                )}
+              />
+            </View>
 
             <View className='mb-5'>
               <Controller
@@ -56,13 +135,13 @@ const OtpScreen = () => {
                 }}
                 render={({ field: { onChange, onBlur, value } }) => (
                   <TextInput 
-                    placeholder='E.g - 123456'
+                    placeholder='E.g - 12345'
                     placeholderTextColor={"#AFAFAF"}
                     onChangeText={onChange}
                     onBlur={onBlur}
                     value={value}
                     keyboardType="number-pad"
-                    maxLength={6}
+                    maxLength={5}
                     style={styles.inputStyle}
                     autoCapitalize="none"
                     autoCorrect={false}
@@ -84,7 +163,7 @@ const OtpScreen = () => {
 
             <View className='flex-col gap-4'>
               <SolidMainButton 
-                text={isPending ? 'Verifying...' : 'Verify'} 
+                text={'Verify'} 
                 onPress={handleSubmit(onSubmit)}
               />
             </View>
