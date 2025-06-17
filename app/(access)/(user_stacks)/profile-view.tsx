@@ -19,6 +19,7 @@ import { SolidMainButton } from '@/components/btns/CustomButtoms';
 const ProfileView = () => {
   const {mutate, isPending} = useLogout();
   const queryCLient = useQueryClient();
+  
   const handleLogout = async () => {
     mutate();
     await queryCLient.clear();

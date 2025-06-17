@@ -1,7 +1,7 @@
-import { View, Text, Image } from 'react-native'
+import { View, Text, Image, ActivityIndicator } from 'react-native'
 import React from 'react'
 import { useQueryClient } from '@tanstack/react-query';
-import { useLogout } from '@/hooks/mutations/auth';
+import { useLogout, useProfile } from '@/hooks/mutations/auth';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { router } from 'expo-router';
 import { Pressable } from 'react-native';
@@ -16,7 +16,9 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 
 const Profile = () => {
   const {mutate, isPending} = useLogout();
+  const {profile, isLoading} = useProfile()
   const queryCLient = useQueryClient();
+  
   const handleLogout = async () => {
     mutate();
     await queryCLient.clear();
@@ -26,6 +28,9 @@ const Profile = () => {
     await AsyncStorage.removeItem("movebay_onboarding");
     router.replace("/login");
   };
+
+
+  console.log('This is the data', profile?.data);
 
 
   return (
@@ -40,17 +45,22 @@ const Profile = () => {
               <Text className='text-2xl' style={{fontFamily: 'HankenGrotesk_500Medium'}}>My Profile</Text>
               <Text className='text-lg' style={{fontFamily: 'HankenGrotesk_400Regular'}}>Manage your account, orders, and preferences.</Text>
 
+              {isLoading ? <View className='m-auto pt-10 pb-5'><ActivityIndicator size={'small'} color={'#F75F15'} /></View> :
               <View className='flex-col justify-center items-center mt-6'>
-                <View className='flex w-24 h-24 rounded-full bg-gray-300 justify-center items-center mt-4'>
-                  <Image source={require('../../../assets/images/profile.png')} style={{objectFit: 'cover', width: '100%', height: '100%'}}/>
+                <View className='flex w-24 h-24 rounded-full bg-gray-100 justify-center items-center mt-4 overflow-hidden'>
+                  {profile?.data?.profile_picture === null ? 
+                    <MaterialIcons name='person-2' size={50} color={'gray'} />
+                    :
+                    <Image source={{uri: profile?.data?.profile_picture}} style={{objectFit: 'cover', width: '100%', height: '100%'}}/>
+                  }
                 </View>
                 <View>
-                  <Text className='text-lg mt-2 text-center' style={{fontFamily: 'HankenGrotesk_600SemiBold'}}>Sunday Kingsley Uchenna</Text>
-                  <Text className='text-base text-gray-500 text-center' style={{fontFamily: 'HankenGrotesk_400Regular'}}>@iamkvisuals</Text>
+                  <Text className='text-lg mt-2 text-center' style={{fontFamily: 'HankenGrotesk_600SemiBold'}}>{profile?.data?.fullname}</Text>
+                  <Text className='text-base text-gray-500 text-center' style={{fontFamily: 'HankenGrotesk_400Regular'}}>@{profile?.data?.username}</Text>
                 </View>
                 <View className='flex-row items-center gap-1 py-2 pb-4'>
                   <MaterialIcons name='location-pin' size={20} color={'#EA4335'}/>
-                  <Text className='text-base' style={{fontFamily: 'HankenGrotesk_400Regular'}}>Port Harcourt, Nigeria</Text>
+                  <Text className='text-base' style={{fontFamily: 'HankenGrotesk_400Regular'}}>{profile?.data?.address === null ? 'N/A' : profile?.data?.address}</Text>
                 </View>
 
                 <Pressable className='flex-row items-center gap-1 p-2.5 px-6 rounded-full bg-[#FEEEE6]' onPress={() => router.push('/profile-edit')}>
@@ -58,6 +68,7 @@ const Profile = () => {
                   <Text className='text-base text-[#A53F0E]' style={{fontFamily: 'HankenGrotesk_500Medium'}}>Edit</Text>
                 </Pressable>
               </View>
+              }
 
               <View>
                 <Pressable onPress={() => router.push('/profile-view')} className='flex-row items-center justify-between mt-3 bg-neutral-100 rounded-lg p-3'>
@@ -80,12 +91,12 @@ const Profile = () => {
                   <Ionicons name='chevron-forward-outline' size={20} color={'#0F0F0F'}/>
                 </Pressable>
 
-                <Pressable onPress={() => router.push('/')} className='flex-row items-center justify-between mt-3 bg-neutral-100 rounded-lg p-3'>
+                <Pressable onPress={() => router.push('/profile-view')} className='flex-row items-center justify-between mt-3 bg-neutral-100 rounded-lg p-3'>
                   <View className='flex-row items-center gap-3 '>
                     <View className='w-10 h-10 bg-gray-200 rounded-full justify-center items-center'>
                       <Ionicons name='settings-outline' size={18} color={'#0F0F0F'}/>
                     </View>
-                    <Text className='text-lg' style={{fontFamily: 'HankenGrotesk_600SemiBold'}}>Profile Info</Text>
+                    <Text className='text-lg' style={{fontFamily: 'HankenGrotesk_600SemiBold'}}>Settings</Text>
                   </View>
                   <Ionicons name='chevron-forward-outline' size={20} color={'#0F0F0F'}/>
                 </Pressable>

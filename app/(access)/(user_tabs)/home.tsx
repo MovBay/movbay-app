@@ -1,16 +1,20 @@
 import Products from '@/components/Products'
 import { products, shopCategory, statusShopData } from '@/constants/datas';
+import { useProfile } from '@/hooks/mutations/auth';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
+import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useState } from 'react';
-import { FlatList, RefreshControl } from 'react-native';
+import { ActivityIndicator, FlatList, RefreshControl } from 'react-native';
 import {Image, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function HomeScreen() {
+
+  const {profile, isLoading} = useProfile()
   const [activeCategoryId, setActiveCategoryId] = useState(shopCategory[0]?.id);
   const [isRefetchingByUser, setIsRefetchingByUser] = useState(false);
   const ItemSeparator = () => <View style={{ height: 15 }} />;
@@ -30,15 +34,19 @@ export default function HomeScreen() {
   const ListHeaderComponent = () => (
     <View className='px-6 pt-5'>
       <View className='flex-row items-center justify-between'>
-        <View className='flex-row gap-4 items-center'>
-          <View className='w-12 h-12 rounded-full bg-gray-300 justify-center items-center flex'>
-            <Image 
-              source={require('../../../assets/images/profile.png')} 
-              style={{width: '100%', height: '100%',  objectFit: 'cover'}}
-            />
+
+        {isLoading ? <View className='pt-4'><ActivityIndicator size={'small'} color={'#F75F15'}/></View> : 
+          <View className='flex-row gap-4 items-center'>
+            <Pressable onPress={()=>router.push('/profile')} className='flex w-12 h-12 rounded-full bg-gray-100 justify-center items-center mt-4 overflow-hidden'>
+              {profile?.data?.profile_picture === null ? 
+                <MaterialIcons name='person-2' size={50} color={'gray'} />
+                :
+                <Image source={{uri: profile?.data?.profile_picture}} style={{objectFit: 'cover', width: '100%', height: '100%'}}/>
+              }
+            </Pressable>
+            <Text style={{fontFamily: 'HankenGrotesk_600SemiBold'}} className='text-lg'>Hi, @{profile?.data?.username}!</Text>
           </View>
-          <Text style={{fontFamily: 'HankenGrotesk_600SemiBold'}} className='text-lg'>Hi, iamkvisuals!</Text>
-        </View>
+        }
 
         <View className='flex-row gap-3 items-center'>
           <Pressable className='bg-neutral-100 w-fit relative flex justify-center items-center rounded-full p-2.5'>

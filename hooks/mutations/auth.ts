@@ -1,6 +1,6 @@
 
-import { useQuery, useMutation } from "@tanstack/react-query";
-import { post_requests } from "../helpers/axios_helpers";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { get_requests, post_requests, put_request_with_image } from "../helpers/axios_helpers";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 
@@ -34,10 +34,61 @@ export const useActivate = () => {
 export const useLogout = () => {
   const logoutMutation = useMutation({
     mutationFn: async () => {
-      const token = (await AsyncStorage.getItem("easyretail_token")) || "";
+      const token = (await AsyncStorage.getItem("movebay_token")) || "";
       return post_requests("/logout", {}, token);
     },
   });
 
   return logoutMutation;
 };
+
+
+
+export const useProfile = () => {
+  const { data, isLoading, isError, isFetched, refetch } = useQuery({
+    queryKey: ["profile"],
+    queryFn: async () => {
+      const token = (await AsyncStorage.getItem("movebay_token")) || "";
+      return get_requests("/users/profile/", token);
+    },
+  });
+
+  return {
+    profile: data,
+    isLoading,
+    isError,
+    isFetched,
+    refetch,
+  };
+};
+
+
+// export const useUpdateUserProfile = () => {
+//   const updateAddress = useMutation({
+//     mutationFn: async ({data }: { id: string; data: any }) => {
+//       const token = (await AsyncStorage.getItem("movebay_token")) || "";
+//       return put_request_with_image(`/users/profile/`, data, token);
+//     },
+//   });
+
+//   return updateAddress;
+// };
+
+
+export const useUpdateUserProfile = () => {
+  const queryClient = useQueryClient()
+
+  const updateProfile = useMutation({
+    mutationFn: async (data: FormData) => {
+      const token = (await AsyncStorage.getItem("movebay_token")) || ""
+      return put_request_with_image(`/users/profile/`, data, token)
+    },
+    onSuccess: () => {
+      // Refetch profile data after successful update
+      queryClient.invalidateQueries({ queryKey: ["user-profile"] })
+      queryClient.invalidateQueries({ queryKey: ["profile"] })
+    },
+  })
+
+  return updateProfile
+}

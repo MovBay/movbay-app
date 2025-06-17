@@ -11,17 +11,28 @@ const StackPagesLayout = () => {
             const token = await AsyncStorage.getItem("movebay_token");
             const userType = await AsyncStorage.getItem("movebay_usertype");
 
+            console.log('Thi is token', token)
+
             if (token) {
               if(token && userType){
                 if(userType === "User"){
                   router.replace("/home");
                   return;
-                }else if(userType === "Rider"){
+                }
+                else if(userType === "Rider"){
                   router.replace("/riderHome");
                   return;
                 }
               }
             }
+
+
+            // if (token) {
+            //   router.replace("/home");
+            //   return
+            // }
+
+
             if (onboarded) {
               router.replace("/login");
               return;

@@ -45,26 +45,23 @@ const Login = () => {
       mutate(data, {
 
         onSuccess: (response: any) => {
-          console.log('Login successful:', response?.data?.usertype);
           AsyncStorage.setItem('movebay_token', response?.data?.token?.access);
-          AsyncStorage.setItem('movebay_usertype', response?.data?.usertype);
-          let userType = response?.data?.usertype
+          AsyncStorage.setItem('movebay_usertype', response?.data?.user_type);
+          let userType = response?.data?.user_type
+          console.log('Login successful:', response?.data?.user_type, response?.data?.token?.access);
           reset()
 
           if(userType === 'Rider') {
             toast.show('Login Successfull', { type: "success" });
-            console.log('Login successful:', response?.data?.usertype, response?.data?.token?.access);
+            console.log('Login successful:', response?.data?.user_type, response?.data?.token?.access);
             router.push('/(access)/(rider_tabs)/riderHome');
           }
 
 
           if(userType === 'User') {
             toast.show('Login Successful', { type: "success" });
-            console.log('Login successful:', response?.data?.usertype, response?.data?.token?.access);
             router.push('/(access)/(user_tabs)/home');
-            // router.push('/verified');
           }
-          
         },
         onError: (error: any) => {
           console.log('Login failed:', error.response.data.error);

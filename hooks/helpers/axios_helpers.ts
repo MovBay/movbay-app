@@ -83,25 +83,40 @@ export const put_requests = async (url: string, data: any, token = "") => {
   return response;
 };
 
-export const put_request_with_image = async (
-  url: string,
-  data: any,
-  token = ""
-) => {
-  let headers = {};
-  if (token !== "") {
-    headers = {
-      Authorization: `Bearer ${token}`,
-    };
+// export const put_request_with_image = async (
+//   url: string,
+//   data: any,
+//   token = ""
+// ) => {
+//   let headers = {};
+//   if (token !== "") {
+//     headers = {
+//       Authorization: `Bearer ${token}`,
+//     };
+//   }
+
+//   const response = await axios.put(
+//     `${process.env.EXPO_PUBLIC_BACKEND_URL}${url}`,
+//     data,
+//     { headers: { ...headers, "Content-Type": "multipart/form-data" } }
+//   );
+//   return response;
+// };
+
+
+
+export const put_request_with_image = async (url: string, data: FormData, token = "") => {
+  const headers: any = {
+    "Content-Type": "multipart/form-data",
   }
 
-  const response = await axios.put(
-    `${process.env.EXPO_PUBLIC_BACKEND_URL}${url}`,
-    data,
-    { headers: { ...headers, "Content-Type": "multipart/form-data" } }
-  );
-  return response;
-};
+  if (token !== "") {
+    headers.Authorization = `Bearer ${token}`
+  }
+
+  const response = await axios.put(`${process.env.EXPO_PUBLIC_BACKEND_URL}${url}`, data, { headers })
+  return response
+}
 
 export const patch_requests = async (url: string, data: any, token = "") => {
   let headers = {};

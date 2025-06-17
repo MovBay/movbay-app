@@ -10,7 +10,7 @@ interface ButtonProps {
 export const SolidMainButton = ({text, onPress, ...props}: ButtonProps)=>{
     return (
         <TouchableOpacity {...props} onPress={onPress} className="flex items-center gap-4 bg-[#F75F15] p-4 w-full rounded-full">
-            <Text className="text-white text-lg" style={{fontFamily: 'HankenGrotesk_700Bold'}}>{text}</Text>
+            <Text className="text-white text-base" style={{fontFamily: 'HankenGrotesk_700Bold'}}>{text}</Text>
         </TouchableOpacity>
     )
 }
@@ -18,7 +18,7 @@ export const SolidMainButton = ({text, onPress, ...props}: ButtonProps)=>{
 export const SolidInactiveButton = ({text, ...props}: ButtonProps)=>{
     return (
         <Pressable {...props} className="flex items-center gap-4 bg-[#F2F2F2] p-4 w-full rounded-full">
-            <Text className="text-neutral-500 text-lg" style={{fontFamily: 'HankenGrotesk_700Bold'}}>{text}</Text>
+            <Text className="text-neutral-500 text-base" style={{fontFamily: 'HankenGrotesk_700Bold'}}>{text}</Text>
         </Pressable>
     )
 }
@@ -26,7 +26,7 @@ export const SolidInactiveButton = ({text, ...props}: ButtonProps)=>{
 export const SolidLightButton = ({text, onPress, ...props}: ButtonProps)=>{
     return (
         <TouchableOpacity {...props} onPress={onPress} className="flex items-center gap-4 bg-[#FEEEE6] p-4 w-full rounded-full">
-            <Text className="text-[#A53F0E] text-lg" style={{fontFamily: 'HankenGrotesk_700Bold'}}>{text}</Text>
+            <Text className="text-[#A53F0E] text-base" style={{fontFamily: 'HankenGrotesk_700Bold'}}>{text}</Text>
         </TouchableOpacity>
     )
 }
@@ -43,7 +43,7 @@ export const GoogleButton = ({text, onPress, ...props}: ButtonProps)=>{
                     height: 24,
                 }}
             />
-            <Text className="text-black text-lg" style={{fontFamily: 'HankenGrotesk_700Bold'}}>{text}</Text>
+            <Text className="text-black text-base" style={{fontFamily: 'HankenGrotesk_700Bold'}}>{text}</Text>
         </TouchableOpacity>
     )
 }

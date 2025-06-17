@@ -59,7 +59,7 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
-        name="sell"
+        name="(drawer)"
         options={{
           title: 'Sell',
            tabBarIcon: ({ focused }) => (
