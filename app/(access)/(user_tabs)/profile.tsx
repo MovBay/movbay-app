@@ -1,5 +1,5 @@
 import { View, Text, Image, ActivityIndicator } from 'react-native'
-import React from 'react'
+import React, { useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query';
 import { useLogout, useProfile } from '@/hooks/mutations/auth';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -11,6 +11,10 @@ import { StatusBar } from 'expo-status-bar';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import Ionicons from '@expo/vector-icons/Ionicons';
+import { Modal } from 'react-native';
+import { TouchableOpacity } from 'react-native';
+import { SolidLightButton, SolidMainButton } from '@/components/btns/CustomButtoms';
+
 
 
 
@@ -30,8 +34,15 @@ const Profile = () => {
   };
 
 
-  console.log('This is the data', profile?.data);
+  const [showDialog, setShowDialog] = useState(false);
 
+  const handlePress = () => {
+    setShowDialog(true);
+  };
+
+  const closeDialog = () => {
+    setShowDialog(false);
+  };
 
   return (
     <SafeAreaView className='flex-1 bg-white'>
@@ -71,7 +82,7 @@ const Profile = () => {
               }
 
               <View>
-                <Pressable onPress={() => router.push('/profile-view')} className='flex-row items-center justify-between mt-3 bg-neutral-100 rounded-lg p-3'>
+                <Pressable onPress={() => router.push('/(access)/(user_stacks)/profile-view')} className='flex-row items-center justify-between mt-3 bg-neutral-100 rounded-lg p-3'>
                   <View className='flex-row items-center gap-3 '>
                     <View className='w-10 h-10 bg-gray-200 rounded-full justify-center items-center'>
                       <Ionicons name='person-outline' size={18} color={'#0F0F0F'}/>
@@ -91,7 +102,7 @@ const Profile = () => {
                   <Ionicons name='chevron-forward-outline' size={20} color={'#0F0F0F'}/>
                 </Pressable>
 
-                <Pressable onPress={() => router.push('/profile-view')} className='flex-row items-center justify-between mt-3 bg-neutral-100 rounded-lg p-3'>
+                <Pressable onPress={() => router.push('/(access)/(user_stacks)/settings')} className='flex-row items-center justify-between mt-3 bg-neutral-100 rounded-lg p-3'>
                   <View className='flex-row items-center gap-3 '>
                     <View className='w-10 h-10 bg-gray-200 rounded-full justify-center items-center'>
                       <Ionicons name='settings-outline' size={18} color={'#0F0F0F'}/>
@@ -170,13 +181,45 @@ const Profile = () => {
           {/* Fixed Delete Button at Bottom */}
           <View className='px-7 pb-4 pt-2 bg-white border-t border-gray-100'>
             <Pressable
-              onPress={handleLogout}
+              onPress={handlePress}
               className='bg-red-500 p-4 rounded-full'
             >
               <Text className='text-white text-lg text-center' style={{fontFamily: 'HankenGrotesk_600SemiBold'}}>Delete MovBay</Text>
             </Pressable>
           </View>
         </View>
+
+
+        <Modal
+          visible={showDialog}
+          transparent={true}
+          animationType="fade"
+          onRequestClose={closeDialog}
+        >
+          <View className='flex-1 justify-center items-center bg-black/50'>
+            <View className='bg-white rounded-2xl p-6 mx-6 w-[80%]'>
+              <View className='items-center'>
+                <Image source={require('../../../assets/images/delete.png')} style={{width: 150, height: 150}}/>
+              </View>
+              <Text className='text-2xl text-center mb-2' style={{fontFamily: 'HankenGrotesk_600SemiBold'}}>
+                Delete MovBay
+              </Text>
+              <Text className='text-neutral-500 text-center mb-6 w-[90%] m-auto ' style={{fontFamily: 'HankenGrotesk_500Medium'}}>
+                Are you sure you want to delete MovBay, if yes please note that all information would be deleted
+              </Text>
+
+              <View className='flex-row items-center justify-between'>
+                <View className='w-[49%]'>
+                  <SolidLightButton onPress={closeDialog} text='Cancle'/>
+                </View>
+
+                <View className='w-[49%]'>
+                  <SolidMainButton onPress={closeDialog} text='Delete'/>
+                </View>
+              </View>
+            </View>
+          </View>
+      </Modal>
     </SafeAreaView>
   )
 }

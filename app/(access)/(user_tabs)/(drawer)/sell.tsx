@@ -1,4 +1,4 @@
-import { SolidLightButton, SolidMainButton } from '@/components/btns/CustomButtoms';
+import {SolidMainButton } from '@/components/btns/CustomButtoms';
 import { DrawerHeader } from '@/components/btns/DrawerHeader';
 import { useGetStore } from '@/hooks/mutations/sellerAuth';
 import Ionicons from '@expo/vector-icons/Ionicons';
@@ -6,8 +6,7 @@ import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { DrawerActions, useNavigation } from '@react-navigation/native';
 import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { useState } from 'react';
-import { ActivityIndicator, Image, Modal } from 'react-native';
+import { ActivityIndicator, Image } from 'react-native';
 import { Pressable, View } from 'react-native';
 import {Text } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
@@ -16,15 +15,11 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 const Sell =()=> {
 
   const navigation = useNavigation()
-
   const openDrawer = () => {
     navigation.dispatch(DrawerActions.openDrawer())
   }
-  const [isEmpty, setIsEmpty] = useState(false)
   const {storeData, isLoading} = useGetStore()
 
-  console.log('This is data new', storeData?.data)
-  
   return (
     <SafeAreaView className='flex-1 bg-white '>
       <StatusBar style='dark'/>

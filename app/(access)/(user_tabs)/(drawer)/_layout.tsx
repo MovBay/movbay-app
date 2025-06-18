@@ -32,7 +32,7 @@ function CustomDrawerContent() {
             styles.drawerItem,
             isActive('/sell') && styles.activeDrawerItem
           ]}
-          onPress={() => router.push('/sell')}
+          onPress={() => router.push('/(access)/(user_tabs)/(drawer)/sell')}
         >
           <MaterialIcons 
             name="dashboard" 
@@ -54,7 +54,7 @@ function CustomDrawerContent() {
             styles.drawerItem,
             isActive('/products') && styles.activeDrawerItem
           ]}
-          onPress={() => router.push('/products')}
+          onPress={() => router.push('/(access)/(user_tabs)/(drawer)/products')}
         >
           <MaterialIcons 
             name="inventory" 
@@ -77,7 +77,7 @@ function CustomDrawerContent() {
             styles.drawerItem,
             isActive('/orders') && styles.activeDrawerItem
           ]}
-          onPress={() => router.push('/orders')}
+          onPress={() => router.push('/(access)/(user_tabs)/(drawer)/orders')}
         >
           <MaterialIcons 
             name="shopping-bag" 
@@ -87,7 +87,7 @@ function CustomDrawerContent() {
           <Text 
             style={[
               styles.drawerText,
-              isActive('/store') && styles.activeDrawerText
+              isActive('/orders') && styles.activeDrawerText
             ]}
           >
             Orders
@@ -99,7 +99,7 @@ function CustomDrawerContent() {
             styles.drawerItem,
             isActive('/store') && styles.activeDrawerItem
           ]}
-          onPress={() => router.push('/store')}
+          onPress={() => router.push('/(access)/(user_tabs)/(drawer)/store')}
         >
           <MaterialIcons 
             name="storefront" 
@@ -113,6 +113,29 @@ function CustomDrawerContent() {
             ]}
           >
             Store
+          </Text>
+        </Pressable>
+
+
+        <Pressable 
+          style={[
+            styles.drawerItem,
+            isActive('/profile-s') && styles.activeDrawerItem
+          ]}
+          onPress={() => router.push('/(access)/(user_tabs)/(drawer)/profile-s')}
+        >
+          <MaterialIcons 
+            name="people-alt" 
+            size={20} 
+            color={isActive('/profile-s') ? "#F75F15" : "#5F5F5F"} 
+          />
+          <Text 
+            style={[
+              styles.drawerText,
+              isActive('/profile-s') && styles.activeDrawerText
+            ]}
+          >
+            Store Profile
           </Text>
         </Pressable>
       </View>

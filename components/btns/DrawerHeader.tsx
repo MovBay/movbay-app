@@ -19,3 +19,15 @@ export const DrawerHeader = ({onPress}: ButtonProps)=>{
         </View>
     )
 }
+
+
+export const DrawerHeaderMany = ({onPress}: ButtonProps)=>{
+    return (
+
+        <View className='flex-row items-center justify-between'>
+            <Pressable onPress={onPress} className='bg-gray-100 w-fit relative flex justify-center items-center rounded-full p-3'>
+                <MaterialIcons name='menu' size={20}/>
+            </Pressable>
+        </View>
+    )
+}

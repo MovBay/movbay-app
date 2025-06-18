@@ -193,6 +193,15 @@ const StoreCreate = () => {
                 if(error?.response?.data?.cac){
                     toast.show('No CAC Document submitted', {type: 'danger'})
                 }
+
+                if(error?.response?.data?.address1){
+                    toast.show('Address1 is needed', {type: 'danger'})
+                }
+
+                if(error?.response?.data?.address2){
+                    toast.show('Address2 is needed', {type: 'danger'})
+                }
+
                 else if(error?.response?.data?.nin){
                     toast.show('No NIN Document submitted', {type: 'danger'})
                 }

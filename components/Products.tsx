@@ -7,27 +7,26 @@ import { router } from 'expo-router';
 
 interface ProductsProps {
   id: string;
-  name: string;
-  price: number;
-  slashPrice: number;
+  title: string;
+  original_price: number;
+  discounted_price: number;
   description: string;
-  image: any;
-  reviews: {
-    id: number;
-    username: string;
-    date: string;
-    review: string;
-  }[];
+  product_images: any
+  // reviews: {
+  //   id: number;
+  //   username: string;
+  //   date: string;
+  //   review: string;
+  // }[];
 
 }
 const Products = ({
     id,
-    name,
-    price,
-    slashPrice,
+    title,
+    original_price,
+    discounted_price,
     description,
-    image,
-    reviews,
+    product_images,
 }: ProductsProps) => {
 
 
@@ -44,7 +43,7 @@ const Products = ({
         >
           <View className='w-full h-52 bg-slate-200 rounded-3xl relative'>
             <Image 
-                source={image}
+                source={{uri: product_images[0]?.image_url}}
                 style={{width: '100%', height: '100%', objectFit: 'cover', borderRadius: 16}}
             />
 
@@ -58,10 +57,10 @@ const Products = ({
           </View>
           <View>
               <View>
-                <Text className='text-base' style={{fontFamily: 'HankenGrotesk_500Medium'}}>{name.slice(0, 35)}...</Text>
+                <Text className='text-base' style={{fontFamily: 'HankenGrotesk_500Medium'}}>{title.slice(0, 35)}...</Text>
                 <View className='flex-row items-center gap-3'>
-                  <Text className='text-lg pt-2' style={{fontFamily: 'HankenGrotesk_600SemiBold'}}>₦ {price.toLocaleString()}</Text>
-                  <Text className='text-base pt-2 italic line-through text-neutral-500' style={{fontFamily: 'HankenGrotesk_500Medium'}}>₦ {slashPrice.toLocaleString()}</Text>
+                  <Text className='text-lg pt-2' style={{fontFamily: 'HankenGrotesk_600SemiBold'}}>₦ {original_price.toLocaleString()}</Text>
+                  <Text className='text-base pt-2 italic line-through text-neutral-500' style={{fontFamily: 'HankenGrotesk_500Medium'}}>₦ {discounted_price.toLocaleString()}</Text>
                 </View>
               </View>
           </View>
