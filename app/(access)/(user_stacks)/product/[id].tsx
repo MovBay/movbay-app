@@ -111,10 +111,10 @@ const Product = () => {
                                                 onPress={() => openImagePreview(index)}
                                                 style={{ 
                                                     width: (screenWidth - 50) / 3 - 5, // 3 images per row with gaps
-                                                    height: 120,
+                                                    height: 100,
                                                     marginBottom: 8
                                                 }}
-                                                className='overflow-hidden rounded-md'
+                                                className='overflow-hidden rounded-md bg-gray-50 border border-gray-100'
                                             >
                                                 <Image 
                                                     source={{uri: singleData?.image_url}} 

@@ -1,5 +1,5 @@
-import { View, Text, Image, Pressable, ActivityIndicator } from 'react-native'
-import React from 'react'
+import { View, Text, Image, Pressable, ActivityIndicator, Modal, FlatList } from 'react-native'
+import React, { useState } from 'react'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { router, useLocalSearchParams } from 'expo-router'
 import { products } from '@/constants/datas'
@@ -8,13 +8,36 @@ import MaterialIcons from '@expo/vector-icons/MaterialIcons'
 import Ionicons from '@expo/vector-icons/Ionicons'
 import { SolidLightButton, SolidMainButton } from '@/components/btns/CustomButtoms'
 import { useGetSingleUserProducts } from '@/hooks/mutations/sellerAuth'
+import { Dimensions } from 'react-native'
+
+const { width: screenWidth } = Dimensions.get('window')
 
 const UserProduct = () => {
     const { id } = useLocalSearchParams<{ id: string }>()
-
     const {userSingleProductData, isLoading} = useGetSingleUserProducts(id)
-
     const eachData = userSingleProductData?.data
+
+       const [selectedImageIndex, setSelectedImageIndex] = useState(0)
+        const [isImagePreviewVisible, setIsImagePreviewVisible] = useState(false)
+
+    const openImagePreview = (index: number) => {
+        setSelectedImageIndex(index)
+        setIsImagePreviewVisible(true)
+    }
+
+    const closeImagePreview = () => {
+        setIsImagePreviewVisible(false)
+    }
+
+    const renderImageItem = ({ item, index }: { item: any, index: number }) => (
+        <View style={{ width: screenWidth, height: screenWidth, justifyContent: 'center', alignItems: 'center' }}>
+            <Image 
+                source={{ uri: item?.image_url }} 
+                style={{ width: '95%', height: '95%', borderRadius: 10, objectFit: 'cover' }}
+                resizeMode="contain"
+            />
+        </View>
+    )
 
     console.log('This is single user data', userSingleProductData?.data)
 
@@ -64,6 +87,72 @@ const UserProduct = () => {
                                     <Text className='text-sm' style={{fontFamily: 'HankenGrotesk_500Medium'}}>(1,020)</Text>
                                 </View>
 
+                                <View className='py-4'>
+                                    <View className='flex-row flex-wrap gap-2'>
+                                        {eachData?.product_images?.map((singleData: any, index: number) => (
+                                            <Pressable 
+                                                key={index} 
+                                                onPress={() => openImagePreview(index)}
+                                                style={{ 
+                                                    width: (screenWidth - 50) / 3 - 5, // 3 images per row with gaps
+                                                    height: 100,
+                                                    marginBottom: 8
+                                                }}
+                                                className='overflow-hidden rounded-md bg-gray-50 border border-gray-100'
+                                            >
+                                                <Image 
+                                                    source={{uri: singleData?.image_url}} 
+                                                    style={{width: '100%', height: '100%'}}
+                                                    resizeMode="cover"
+                                                />
+                                            </Pressable>
+                                        ))}
+                                    </View>
+                                </View>
+
+                                {/* Image Preview Modal */}
+                                <Modal
+                                    visible={isImagePreviewVisible}
+                                    transparent={true}
+                                    animationType="fade"
+                                    onRequestClose={closeImagePreview}
+                                >
+                                    <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.9)' }}>
+                                        <SafeAreaView style={{ flex: 1 }}>
+                                            <View style={{ flex: 1 }}>
+                                                {/* Header */}
+                                                <View className='flex-row justify-between items-center p-4'>
+                                                    <Text className='text-white text-lg' style={{fontFamily: 'HankenGrotesk_600SemiBold'}}>
+                                                        {selectedImageIndex + 1} of {eachData?.product_images?.length}
+                                                    </Text>
+                                                    <Pressable onPress={closeImagePreview} className='p-2'>
+                                                        <Ionicons name='close' size={30} color='white' />
+                                                    </Pressable>
+                                                </View>
+
+                                                {/* Image Carousel */}
+                                                <FlatList
+                                                    data={eachData?.product_images}
+                                                    renderItem={renderImageItem}
+                                                    horizontal
+                                                    pagingEnabled
+                                                    showsHorizontalScrollIndicator={false}
+                                                    initialScrollIndex={selectedImageIndex}
+                                                    getItemLayout={(data, index) => ({
+                                                        length: screenWidth,
+                                                        offset: screenWidth * index,
+                                                        index,
+                                                    })}
+                                                    onMomentumScrollEnd={(event) => {
+                                                        const index = Math.round(event.nativeEvent.contentOffset.x / screenWidth)
+                                                        setSelectedImageIndex(index)
+                                                    }}
+                                                />
+                                            </View>
+                                        </SafeAreaView>
+                                    </View>
+                                </Modal>
+
                                 <View className='pt-2'>
                                     <View className='pt-5 pb-3 border-b border-neutral-200'>
                                         <Text className='text-xl' style={{fontFamily: 'HankenGrotesk_600SemiBold'}}>Description</Text>
@@ -78,7 +167,7 @@ const UserProduct = () => {
 
             {/* Fixed buttons at the bottom */}
             {!isLoading && (
-                <View className='absolute bottom-0 left-0 right-0 bg-white border-t border-neutral-200 px-5 py-10'>
+                <View className='absolute bottom-0 left-0 right-0 bg-white border-t border-neutral-200 px-5 py-6'>
                     <View className='flex-row gap-3 justify-center'>
                         <View className='w-[50%]'>
                             <SolidLightButton text='Save as Draft'/>
