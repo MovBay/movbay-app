@@ -9,16 +9,77 @@ import Ionicons from '@expo/vector-icons/Ionicons'
 import { SolidLightButton, SolidMainButton } from '@/components/btns/CustomButtoms'
 import { useGetSingleUserProducts } from '@/hooks/mutations/sellerAuth'
 import { Dimensions } from 'react-native'
+import ProductSkeleton from '@/components/ProductSkeleton'
+import { ResizeMode, Video } from 'expo-av'
 
 const { width: screenWidth } = Dimensions.get('window')
+
+
+// Video Modal Component
+const VideoModal = ({
+  visible,
+  onClose,
+  videoUrl,
+}: {
+  visible: boolean
+  onClose: () => void
+  videoUrl: string | null
+}) => {
+  const [status, setStatus] = useState({})
+
+  if (!visible || !videoUrl) return null
+
+  return (
+    <Modal visible={visible} transparent={true} animationType="fade" onRequestClose={onClose}>
+      <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.9)" }}>
+        <SafeAreaView style={{ flex: 1 }}>
+          <View style={{ flex: 1 }}>
+            <View className="flex-row justify-between items-center p-4">
+              <Text className="text-white text-lg" style={{ fontFamily: "HankenGrotesk_600SemiBold" }}>
+                Product Video
+              </Text>
+              <Pressable onPress={onClose} className="p-2">
+                <Ionicons name="close" size={30} color="white" />
+              </Pressable>
+            </View>
+
+            <View style={{ flex: 1, justifyContent: "center", alignItems: "center", paddingHorizontal: 20 }}>
+              <Video
+                style={{
+                  width: screenWidth - 50,
+                  height: (screenWidth - 40) * 0.75,
+                  backgroundColor: "black",
+                  borderRadius: 10,
+                }}
+                source={{ uri: videoUrl }}
+                useNativeControls
+                resizeMode={ResizeMode.COVER}
+                isLooping
+                onPlaybackStatusUpdate={(status) => setStatus(() => status)}
+              />
+            </View>
+
+            <View className="p-4">
+              <Text className="text-white text-center text-sm" style={{ fontFamily: "HankenGrotesk_400Regular" }}>
+                Tap the video to play/pause or use the controls
+              </Text>
+            </View>
+          </View>
+        </SafeAreaView>
+      </View>
+    </Modal>
+  )
+}
 
 const UserProduct = () => {
     const { id } = useLocalSearchParams<{ id: string }>()
     const {userSingleProductData, isLoading} = useGetSingleUserProducts(id)
     const eachData = userSingleProductData?.data
 
-       const [selectedImageIndex, setSelectedImageIndex] = useState(0)
-        const [isImagePreviewVisible, setIsImagePreviewVisible] = useState(false)
+    const [selectedImageIndex, setSelectedImageIndex] = useState(0)
+    const [isImagePreviewVisible, setIsImagePreviewVisible] = useState(false)
+    const [isVideoModalVisible, setIsVideoModalVisible] = useState(false)
+    
 
     const openImagePreview = (index: number) => {
         setSelectedImageIndex(index)
@@ -29,11 +90,19 @@ const UserProduct = () => {
         setIsImagePreviewVisible(false)
     }
 
+    const openVideoModal = () => {
+        setIsVideoModalVisible(true)
+    }
+
+    const closeVideoModal = () => {
+        setIsVideoModalVisible(false)
+    }
+
     const renderImageItem = ({ item, index }: { item: any, index: number }) => (
         <View style={{ width: screenWidth, height: screenWidth, justifyContent: 'center', alignItems: 'center' }}>
             <Image 
                 source={{ uri: item?.image_url }} 
-                style={{ width: '95%', height: '95%', borderRadius: 10, objectFit: 'cover' }}
+                style={{ width: '95%', height: '70%', borderRadius: 10, objectFit: 'cover' }}
                 resizeMode="contain"
             />
         </View>
@@ -51,9 +120,8 @@ const UserProduct = () => {
                 showsVerticalScrollIndicator={false}
             >
                 {isLoading ? 
-                    <View className='justify-center items-center pt-36'>
-                        <ActivityIndicator size={'small'} color={'#F75F15'}/>
-                    </View> : 
+                    <ProductSkeleton />
+                    : 
                     <View className='pb-5'>
                         <View className='w-full h-[350px] object-cover relative'>
                             <Image style={{width: '100%', height: '100%', objectFit: 'cover'}} source={{uri: eachData?.product_images[0]?.image_url}}/>
@@ -94,7 +162,7 @@ const UserProduct = () => {
                                                 key={index} 
                                                 onPress={() => openImagePreview(index)}
                                                 style={{ 
-                                                    width: (screenWidth - 50) / 3 - 5, // 3 images per row with gaps
+                                                    width: (screenWidth - 50) / 3 - 5,
                                                     height: 100,
                                                     marginBottom: 8
                                                 }}
@@ -110,7 +178,20 @@ const UserProduct = () => {
                                     </View>
                                 </View>
 
-                                {/* Image Preview Modal */}
+
+                                {/* Watch Product Video Button */}
+                                {eachData?.video_url && (
+                                <Pressable
+                                    onPress={openVideoModal}
+                                    className="bg-[#F75F15] p-3 rounded-full mt-3 flex-row items-center justify-center gap-2"
+                                >
+                                    <Ionicons name="play-circle" size={24} color="white" />
+                                    <Text className="text-white text-base" style={{ fontFamily: "HankenGrotesk_600SemiBold" }}>
+                                    Watch Product Video
+                                    </Text>
+                                </Pressable>
+                                )}
+
                                 <Modal
                                     visible={isImagePreviewVisible}
                                     transparent={true}
@@ -120,17 +201,15 @@ const UserProduct = () => {
                                     <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.9)' }}>
                                         <SafeAreaView style={{ flex: 1 }}>
                                             <View style={{ flex: 1 }}>
-                                                {/* Header */}
                                                 <View className='flex-row justify-between items-center p-4'>
-                                                    <Text className='text-white text-lg' style={{fontFamily: 'HankenGrotesk_600SemiBold'}}>
+                                                    <Text className='text-white text-base' style={{fontFamily: 'HankenGrotesk_600SemiBold'}}>
                                                         {selectedImageIndex + 1} of {eachData?.product_images?.length}
                                                     </Text>
-                                                    <Pressable onPress={closeImagePreview} className='p-2'>
-                                                        <Ionicons name='close' size={30} color='white' />
+                                                    <Pressable onPress={closeImagePreview} className='p-2 bg-gray-200 rounded-full'>
+                                                        <Ionicons name='close' size={20} color='black' />
                                                     </Pressable>
                                                 </View>
 
-                                                {/* Image Carousel */}
                                                 <FlatList
                                                     data={eachData?.product_images}
                                                     renderItem={renderImageItem}
@@ -164,6 +243,8 @@ const UserProduct = () => {
                     </View>
                 }
             </KeyboardAwareScrollView>
+            <VideoModal visible={isVideoModalVisible} onClose={closeVideoModal} videoUrl={eachData?.video_url} />
+
 
             {/* Fixed buttons at the bottom */}
             {!isLoading && (

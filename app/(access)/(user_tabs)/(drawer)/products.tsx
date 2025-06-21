@@ -11,6 +11,7 @@ import { router } from 'expo-router'
 import { StyleSheet } from 'react-native'
 import MaterialIcons from '@expo/vector-icons/MaterialIcons'
 import Ionicons from '@expo/vector-icons/Ionicons'
+import AllProductsSkeleton from '@/components/AllProductSkeleton'
 
 const Products = () => {
     const [refreshing, setRefreshing] = useState(false)
@@ -33,18 +34,10 @@ const Products = () => {
         const query = searchQuery.toLowerCase().trim()
         
         return userData.filter((product: any) => {
-            // Search in title
             const titleMatch = product?.title?.toLowerCase().includes(query)
-            
-            // Search in category
             const categoryMatch = product?.category?.toLowerCase().includes(query)
-            
-            // Search in condition
             const conditionMatch = product?.condition?.toLowerCase().includes(query)
-            
-            // Search in description
             const descriptionMatch = product?.description?.toLowerCase().includes(query)
-            
             return titleMatch || categoryMatch || conditionMatch || descriptionMatch
         })
     }, [userData, searchQuery])
@@ -52,9 +45,7 @@ const Products = () => {
     const onRefresh = useCallback(async () => {
         setRefreshing(true)
         try {
-            // If your hook returns a refetch function, use it
             await refetch?.()
-            // Or if you need to call the hook again, you might need to trigger a re-fetch
         } catch (error) {
             console.error('Error refreshing data:', error)
         } finally {
@@ -93,9 +84,9 @@ const Products = () => {
 
           {isLoading || userProductData?.data === undefined ? 
 
-            <View className='pt-10'>
-              <ActivityIndicator size={'small'} color={'#F75F15'}/>
-            </View> :
+            <AllProductsSkeleton />
+            
+            :
             <>
               {userProductData?.data?.results?.length === 0 ? 
                 <View className='flex-1'>
@@ -168,7 +159,7 @@ const Products = () => {
                         
                         {filteredProducts.map((eachData:any, index:any)=>(
                           <Pressable onPress={()=>handleViewProduct(eachData?.id)} key={index}  className='border border-neutral-200 bg-white rounded-2xl'>
-                            <View className='w-full h-[280px] overflow-hidden rounded-2xl'>
+                            <View className='w-full h-[250px] overflow-hidden rounded-2xl'>
                               <Image source={{uri: eachData?.product_images[0]?.image_url}} style={{width: '100%', height: '100%', objectFit: 'cover'}}/>
                             </View>
 

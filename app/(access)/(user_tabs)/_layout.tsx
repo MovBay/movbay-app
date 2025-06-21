@@ -102,7 +102,7 @@ export default function TabLayout() {
               justifyContent: 'center',
               alignItems: 'center',
             }}>
-              <MaterialIcons name='wallet' size={26} color={ focused ? "#F75F15": "#5F5F5F"} />
+              <Ionicons name='wallet-outline' size={26} color={ focused ? "#F75F15": "#5F5F5F"} />
               <Text className={`text-xs ${focused ? "text-[#F75F15]": "text-[#5F5F5F]"}` } style={{fontFamily: 'HankenGrotesk_600SemiBold'}}>Wallet</Text>
             </View>
           ),

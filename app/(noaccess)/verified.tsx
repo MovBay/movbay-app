@@ -18,7 +18,7 @@ const Verified = () => {
             >
                 <Image 
                     source={require('../../assets/images/verified.png')} 
-                    style={{ width: 250, height: 250, marginBottom: 10 }}
+                    style={{ width: 200, height: 200, marginBottom: 10 }}
                 />
             </Animated.View>
 
@@ -60,7 +60,7 @@ const styles = StyleSheet.create({
     marginBottom: 40,
   },
   title: {
-    fontSize: 28,
+    fontSize: 25,
     fontWeight: '600',
     textAlign: 'center',
     color: '#1F2937',
@@ -68,10 +68,10 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   subtitle: {
-    fontSize: 16,
+    fontSize: 14,
     textAlign: 'center',
     color: '#6B7280',
-    lineHeight: 24,
+    lineHeight: 20,
     fontFamily: 'HankenGrotesk_400Regular',
     paddingHorizontal: 10,
   },

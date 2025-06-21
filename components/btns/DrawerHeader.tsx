@@ -8,7 +8,7 @@ interface ButtonProps {
 export const DrawerHeader = ({onPress}: ButtonProps)=>{
     return (
 
-        <View className='flex-row items-center justify-between pt-5'>
+        <View className='flex-row items-center justify-between pt-3 pb-3'>
             <Pressable onPress={onPress} className='bg-gray-100 w-fit relative flex justify-center items-center rounded-full p-3'>
                 <MaterialIcons name='menu' size={20}/>
             </Pressable>

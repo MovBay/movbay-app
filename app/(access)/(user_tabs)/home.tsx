@@ -1,6 +1,8 @@
+import AllProductSkeleton2 from "@/components/AllProductSkeleton2"
 import Products from "@/components/Products"
 import { shopCategory, statusShopData } from "@/constants/datas"
 import { useProfile } from "@/hooks/mutations/auth"
+import { useCart } from "@/context/cart-context"
 import { useGetProducts } from "@/hooks/mutations/sellerAuth"
 import Ionicons from "@expo/vector-icons/Ionicons"
 import MaterialIcons from "@expo/vector-icons/MaterialIcons"
@@ -17,22 +19,20 @@ export default function HomeScreen() {
   const { productData, isLoading: productLoading, refetch: refetchProducts } = useGetProducts()
   const allProducts = productData?.data?.results
 
+  const { cartLength, cartItems, isUpdating } = useCart()
   const [activeCategoryId, setActiveCategoryId] = useState(shopCategory[0]?.id)
   const [isRefetchingByUser, setIsRefetchingByUser] = useState(false)
   const [searchQuery, setSearchQuery] = useState("")
 
-  // Add ref for TextInput to maintain focus
   const searchInputRef = useRef<TextInput>(null)
 
   const ItemSeparator = () => <View style={{ height: 15 }} />
   const insets = useSafeAreaInsets()
 
-  // Enhanced refresh function
   async function refetchByUser() {
     setIsRefetchingByUser(true)
 
     try {
-      // Refetch both profile and products data
       await Promise.all([refetchProfile?.(), refetchProducts?.()])
     } catch (error) {
       console.error("Error refreshing data:", error)
@@ -41,13 +41,10 @@ export default function HomeScreen() {
     }
   }
 
-  // Search and filter functionality - Memoized with stable dependencies
   const filteredProducts = useMemo(() => {
     if (!allProducts) return []
 
     let filtered = allProducts
-
-    // Filter by search query
     if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase().trim()
       filtered = filtered.filter((product: any) => {
@@ -70,112 +67,124 @@ export default function HomeScreen() {
     setSearchQuery(text)
   }, [])
 
-  // Clear search
   const clearSearch = useCallback(() => {
     setSearchQuery("")
     searchInputRef.current?.focus()
   }, [])
 
-
-  const MemoizedFixedHeader = useMemo(() => (
-    <View className="px-6 py-4 bg-white border-b border-gray-100">
-      <View className="flex-row items-center justify-between">
-        {isLoading ? (
-          <View className="pt-4">
-            <ActivityIndicator size={"small"} color={"gray"} />
-          </View>
-        ) : (
-          <View className="flex-row gap-4 items-center">
-            <Pressable
-              onPress={() => router.push("/profile")}
-              className="flex w-12 h-12 rounded-full bg-gray-100 justify-center items-center overflow-hidden"
-            >
-              {profile?.data?.profile_picture === null ? (
-                <MaterialIcons name="person-2" size={50} color={"gray"} />
-              ) : (
-                <Image
-                  source={{ uri: profile?.data?.profile_picture }}
-                  style={{ objectFit: "cover", width: "100%", height: "100%" }}
-                />
-              )}
-            </Pressable>
-            <View>
-              <Text style={{ fontFamily: "HankenGrotesk_600SemiBold" }} className="text-base">
-                Hi, {profile?.data?.fullname}
-              </Text>
-              <Text style={{ fontFamily: "HankenGrotesk_500Medium" }} className="text-sm text-neutral-500">
-                @{profile?.data?.username}
-              </Text>
+  const MemoizedFixedHeader = useMemo(
+    () => (
+      <View className="px-6 py-4 bg-white border-b border-gray-100">
+        <View className="flex-row items-center justify-between">
+          {isLoading ? (
+            <View className="pt-4">
+              <ActivityIndicator size={"small"} color={"gray"} />
             </View>
+          ) : (
+            <View className="flex-row gap-4 items-center">
+              <Pressable
+                onPress={() => router.push("/profile")}
+                className="flex w-12 h-12 rounded-full bg-gray-100 justify-center items-center overflow-hidden"
+              >
+                {profile?.data?.profile_picture === null ? (
+                  <MaterialIcons name="person-2" size={30} color={"gray"} />
+                ) : (
+                  <Image
+                    source={{ uri: profile?.data?.profile_picture }}
+                    style={{ objectFit: "cover", width: "100%", height: "100%" }}
+                  />
+                )}
+              </Pressable>
+              <View>
+                <Text style={{ fontFamily: "HankenGrotesk_600SemiBold" }} className="text-base">
+                  Hi, {profile?.data?.fullname}
+                </Text>
+                <Text style={{ fontFamily: "HankenGrotesk_500Medium" }} className="text-sm text-neutral-500">
+                  @{profile?.data?.username}
+                </Text>
+              </View>
+            </View>
+          )}
+
+          <View className="flex-row gap-3 items-center">
+            <Pressable className="bg-neutral-100 w-fit relative flex justify-center items-center rounded-full p-2.5">
+              <Ionicons name="notifications-outline" color={"#0F0F0F"} size={26} />
+              <View className="absolute top-[-4px] right-[-2px] bg-red-200 justify-center items-center rounded-full p-2 py-0.5">
+                <Text style={{ fontFamily: "HankenGrotesk_500Medium" }} className="text-xs text-red-500">
+                  0
+                </Text>
+              </View>
+            </Pressable>
+
+            <Pressable
+              className="bg-neutral-100 w-fit flex justify-center relative items-center rounded-full p-2.5"
+              onPress={() => router.push("/(access)/(user_stacks)/cart")}
+            >
+              <Ionicons name="cart-outline" color={"#0F0F0F"} size={26} />
+              {/* Real-time cart length with loading indicator */}
+              <View className="absolute top-[-4px] right-[-2px] bg-red-200 justify-center items-center rounded-full p-2 py-0.5">
+                {isUpdating ? (
+                  <ActivityIndicator size="small" color="#ef4444" />
+                ) : (
+                  <Text style={{ fontFamily: "HankenGrotesk_500Medium" }} className="text-xs text-red-500">
+                    {cartLength}
+                  </Text>
+                )}
+              </View>
+            </Pressable>
+          </View>
+        </View>
+      </View>
+    ),
+    [profile, isLoading, cartLength, isUpdating],
+  ) // Added cart dependencies
+
+  // Rest of your component remains the same...
+  const MemoizedSearchHeader = useMemo(
+    () => (
+      <View className="px-6 pt-3 pb-3 bg-white">
+        <View className="flex-row items-center gap-2 justify-between">
+          <View className="bg-[#F6F6F6] px-4 rounded-full w-[85%] relative">
+            <TextInput
+              ref={searchInputRef}
+              placeholder="Search for products, stores..."
+              placeholderTextColor={"gray"}
+              style={styles.inputStyle}
+              value={searchQuery}
+              onChangeText={handleSearchChange}
+              returnKeyType="search"
+              clearButtonMode="while-editing"
+              autoCorrect={false}
+              autoCapitalize="none"
+            />
+
+            <View className="absolute right-7 top-4 justify-center items-center flex-row gap-2">
+              {searchQuery.length > 0 && (
+                <Pressable onPress={clearSearch} className="items-center justify-center w-10">
+                  <Ionicons name="close-circle" size={25} color={"gray"} />
+                </Pressable>
+              )}
+              <Ionicons name="search" size={20} color={"gray"} />
+            </View>
+          </View>
+
+          <Pressable className="bg-[#F6F6F6] justify-center items-center flex-col rounded-full p-3.5">
+            <Ionicons name="filter" size={20} color={"gray"} />
+          </Pressable>
+        </View>
+
+        {/* Search Results Info */}
+        {searchQuery.length > 0 && (
+          <View className="pt-3 pb-2">
+            <Text style={{ fontFamily: "HankenGrotesk_500Medium" }} className="text-sm text-neutral-600">
+              {filteredProducts.length} result{filteredProducts.length !== 1 ? "s" : ""} for "{searchQuery}"
+            </Text>
           </View>
         )}
-
-        <View className="flex-row gap-3 items-center">
-          <Pressable className="bg-neutral-100 w-fit relative flex justify-center items-center rounded-full p-2.5">
-            <Ionicons name="notifications-outline" color={"#0F0F0F"} size={26} />
-            <View className="absolute top-[-4px] right-[-2px] bg-red-200 justify-center items-center rounded-full p-2 py-0.5">
-              <Text style={{ fontFamily: "HankenGrotesk_500Medium" }} className="text-xs text-red-500">
-                0
-              </Text>
-            </View>
-          </Pressable>
-
-          <Pressable className="bg-neutral-100 w-fit flex justify-center relative items-center rounded-full p-2.5">
-            <Ionicons name="cart-outline" color={"#0F0F0F"} size={26} />
-            <View className="absolute top-[-4px] right-[-2px] bg-red-200 justify-center items-center rounded-full p-2 py-0.5">
-              <Text style={{ fontFamily: "HankenGrotesk_500Medium" }} className="text-xs text-red-500">
-                0
-              </Text>
-            </View>
-          </Pressable>
-        </View>
       </View>
-    </View>
-  ), [profile, isLoading]); // Dependencies for memoization
-
-  // Search Header Component - Memoized to prevent unnecessary re-renders
-  const MemoizedSearchHeader = useMemo(() => (
-    <View className="px-6 pt-3 pb-3 bg-white">
-      <View className="flex-row items-center gap-2 justify-between">
-        <View className="bg-[#F6F6F6] px-4 rounded-full w-[85%] relative">
-          <TextInput
-            ref={searchInputRef}
-            placeholder="Search for products, stores..."
-            placeholderTextColor={"gray"}
-            style={styles.inputStyle}
-            value={searchQuery}
-            onChangeText={handleSearchChange}
-            returnKeyType="search"
-            clearButtonMode="while-editing"
-            autoCorrect={false}
-            autoCapitalize="none"
-          />
-
-          <View className="absolute right-7 top-4 justify-center items-center flex-row gap-2">
-            {searchQuery.length > 0 && (
-              <Pressable onPress={clearSearch} className="items-center justify-center w-10">
-                <Ionicons name="close-circle" size={25} color={"gray"} />
-              </Pressable>
-            )}
-            <Ionicons name="search" size={20} color={"gray"} />
-          </View>
-        </View>
-
-        <Pressable className="bg-[#F6F6F6] justify-center items-center flex-col rounded-full p-3.5">
-          <Ionicons name="filter" size={20} color={"gray"} />
-        </Pressable>
-      </View>
-
-      {/* Search Results Info */}
-      {searchQuery.length > 0 && (
-        <View className="pt-3 pb-2">
-          <Text style={{ fontFamily: "HankenGrotesk_500Medium" }} className="text-sm text-neutral-600">
-            {filteredProducts.length} result{filteredProducts.length !== 1 ? "s" : ""} for "{searchQuery}"
-          </Text>
-        </View>
-      )}
-    </View>
-  ), [searchQuery, handleSearchChange, clearSearch, filteredProducts]); // Dependencies for memoization
+    ),
+    [searchQuery, handleSearchChange, clearSearch, filteredProducts],
+  )
 
   // Content Header component for categories and status (only shown when not searching)
   const ContentHeader = useCallback(() => {
@@ -189,7 +198,7 @@ export default function HomeScreen() {
             horizontal
             showsHorizontalScrollIndicator={false}
             data={statusShopData}
-            keyExtractor={(item, index) => `status-${item.name}-${index}`} // More unique key
+            keyExtractor={(item, index) => `status-${item.name}-${index}`}
             renderItem={({ item }) => (
               <Animated.View className="mr-5" entering={FadeInDown.duration(500).springify()}>
                 <View className="w-24 h-24 border border-dashed border-red-500 p-1.5 rounded-full justify-center items-center flex">
@@ -285,6 +294,7 @@ export default function HomeScreen() {
     [searchQuery, clearSearch],
   )
 
+
   return (
     <SafeAreaView className="flex-1 flex w-full bg-white">
       <StatusBar style="dark" />
@@ -292,9 +302,7 @@ export default function HomeScreen() {
       {MemoizedSearchHeader}
 
       {productLoading ? (
-        <View className="flex-1 justify-center items-center">
-          <ActivityIndicator size={"large"} color={"#F75F15"} />
-        </View>
+        <AllProductSkeleton2 />
       ) : (
         <FlatList
           refreshControl={

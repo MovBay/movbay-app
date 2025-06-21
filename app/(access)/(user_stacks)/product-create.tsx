@@ -154,21 +154,28 @@ const ProductCreate = () => {
     const watchedDeliveryAvailable = deliveryAvailable;
 
     const pickProductImages = async () => {
-        if (productImages.length >= 4) {
+        const remainingSlots = 4 - productImages.length;
+        if (remainingSlots <= 0) {
             toast.show('Maximum 4 images allowed', { type: 'warning' });
             return;
         }
 
         let result = await ImagePicker.launchImageLibraryAsync({
             mediaTypes: ['images'],
-            allowsEditing: true,
-            aspect: [1, 1],
-            quality: 0.8,
-            allowsMultipleSelection: false,
+            allowsEditing: false,
+            aspect: [4, 3],
+            quality: 1,
+            allowsMultipleSelection: true,
+            selectionLimit: remainingSlots,
         });
 
-        if (!result.canceled) {
-            setProductImages(prev => [...prev, result.assets[0].uri]);
+        if (!result.canceled && result.assets) {
+            const newImageUris = result.assets.map(asset => asset.uri);
+            setProductImages(prev => [...prev, ...newImageUris]);
+            const count = newImageUris.length;
+            toast.show(`${count} image${count > 1 ? 's' : ''} added successfully`, { 
+                type: 'success' 
+            });
         }
     };
 
@@ -189,28 +196,21 @@ const ProductCreate = () => {
     };
 
     const onSubmit = (data: any) => {
-        // Validation for required fields
         if (productImages.length === 0) {
             toast.show('Please add at least one product image', { type: 'danger' });
             return;
         }
-
-        // Create FormData object
         const formData = new FormData();
-        
-        // Add text fields
         Object.keys(data).forEach(key => {
             if (data[key] && data[key] !== "") {
                 formData.append(key, data[key]);
             }
         });
 
-        // Add boolean fields
         formData.append('pickup_available', pickupAvailable.toString());
         formData.append('delivery_available', deliveryAvailable.toString());
         formData.append('auto_post_to_story', autoPostToStory.toString());
 
-        // Add product images - append to both 'images' and 'product_images' fields
         productImages.forEach((imageUri, index) => {
             const filename = imageUri.split('/').pop();
             const match = /\.(\w+)$/.exec(filename || '');
@@ -298,7 +298,6 @@ const ProductCreate = () => {
                         
 
                         <View className='mt-6 flex-col'>
-
                            <Text className='text-xl pt-4 pb-3' style={{fontFamily: 'HankenGrotesk_600SemiBold'}}>Pricing & Stock</Text>
 
                             {/* Product Title */}

@@ -64,7 +64,7 @@ const Login = () => {
           }
         },
         onError: (error: any) => {
-          console.log('Login failed:', error.response.data.error);
+          console.log('Login failed:', error.response.detail);
           
           let errorMessage = 'Login failed. Please try again.';
           let noAccountFound = error.response.data.error
@@ -83,7 +83,7 @@ const Login = () => {
             }
             
             if (noAccountFound) {
-              errorMessage = error.response.data.error;
+              errorMessage = 'Invalid Credentials';
             }
 
             
@@ -241,7 +241,7 @@ const Login = () => {
 
             <View className='flex-col gap-4'>
               <SolidMainButton 
-                text={isPending ? 'Logging in...' : 'Login'} 
+                text={'Login'} 
                 onPress={handleSubmit(onSubmit)}
               />
               <Text className='text-center text-neutral-400'> -- or with -- </Text>
