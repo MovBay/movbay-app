@@ -47,7 +47,7 @@ const Profile = () => {
   return (
     <SafeAreaView className='flex-1 bg-white'>
       <StatusBar style='dark'/>
-        <LoadingOverlay visible={isPending}  />
+      <LoadingOverlay visible={isPending}  />
 
         <View className='flex-1'>
           <KeyboardAwareScrollView className='flex-1' contentContainerStyle={{paddingHorizontal: 28, paddingTop: 24, paddingBottom: 20}}>

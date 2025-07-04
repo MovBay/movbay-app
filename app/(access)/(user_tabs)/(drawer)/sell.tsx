@@ -106,7 +106,7 @@ const Sell =()=> {
     
                 <View className='pt-5'>
                   <Text className='text-xl' style={{fontFamily: 'HankenGrotesk_600SemiBold'}}>{storeData?.data?.name}</Text>
-                  <Text className='text-base pt-1 text-neutral-500' style={{fontFamily: 'HankenGrotesk_400Regular'}}>We sell all kinds of gadget from mobile phones, tablet and laptops to all accessories needed</Text>
+                  <Text className='text-base pt-1 text-neutral-500' style={{fontFamily: 'HankenGrotesk_400Regular'}}>{storeData?.data?.description}</Text>
                 </View>
               </Animated.View>
     
@@ -146,7 +146,7 @@ const Sell =()=> {
                   <Text className='text-base pt-2.5' style={{fontFamily: 'HankenGrotesk_500Medium'}}>Earnings This Month</Text>
                 </View>
     
-                <Pressable className='bg-gray-100  p-5 rounded-2xl w-[49%]'>
+                <Pressable className='bg-gray-100  p-5 rounded-2xl w-[49%]' onPress={()=>router.push('/(access)/(user_stacks)/user_story_post')}>
                   <MaterialIcons name='add' size={25} style={{margin: 'auto'}}/>
                   <Text className='text-base pt-1 text-center' style={{fontFamily: 'HankenGrotesk_500Medium'}}>Post on story</Text>
                 </Pressable>

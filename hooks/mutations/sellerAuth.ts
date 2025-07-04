@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { get_requests, post_request_with_image, put_request_with_image } from "../helpers/axios_helpers";
+import { get_requests, post_request_with_image, post_requests, put_request_with_image } from "../helpers/axios_helpers";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 
@@ -146,21 +146,97 @@ export const useCreateProduct = () => {
 }
 
 
-// {
-//     "images": [],
-//     "product_images": [],
-//     "title": "",
-//     "category": "",
-//     "brand": "",
-//     "description": "",
-//     "product_video": null,
-//     "original_price": null,
-//     "discounted_price": null,
-//     "condition": null,
-//     "stock_available": null,
-//     "size": "",
-//     "pickup_available": false,
-//     "delivery_available": false,
-//     "delivery_type": null,
-//     "auto_post_to_story": false
-// }
+
+// ================== PAYMENTs HOOK ================
+
+export const useGetWalletDetails = () => {
+  const { data, isLoading, isError, isFetched, refetch } = useQuery({
+    queryKey: ["wallet"],
+    queryFn: async () => {
+      const token = (await AsyncStorage.getItem("movebay_token")) || "";
+      return get_requests("/wallet/", token);
+    },
+  });
+
+  return {
+    walletData: data,
+    isLoading,
+    isError,
+    isFetched,
+    refetch,
+  };
+};
+
+export const useFundWallet = () => {
+  const queryClient = useQueryClient()
+  const fundWalletMutation = useMutation({
+    mutationFn: async (data: any) => {
+      const token = (await AsyncStorage.getItem("movebay_token")) || ""
+      return post_requests("/payment/fund-wallet/", data, token)
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["wallet"] })
+    },
+  });
+
+  return fundWalletMutation;
+};
+
+
+
+// ==================== CEATING STORY ==================
+export const useCreateStory = () => {
+  const queryClient = useQueryClient()
+
+  const createStory = useMutation({
+    mutationFn: async (id: string | number) => {
+      const token = (await AsyncStorage.getItem("movebay_token")) || ""
+      return post_requests(`/status/${id}/`, {}, token)
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["status"] })
+    },
+  })
+
+  return createStory
+}
+
+export const useGetStoreStatus = () => {
+  const { data, isLoading, isError, isFetched, refetch } = useQuery({
+    queryKey: ["stores"],
+    queryFn: async () => {
+      const token = (await AsyncStorage.getItem("movebay_token")) || "";
+      return get_requests("/stores/", token);
+    },
+  });
+
+  return {
+    storeStatusData: data,
+    isLoading,
+    isError,
+    isFetched,
+    refetch,
+  };
+};
+
+
+
+export const useGetSingleStatus = (id: any) => {
+  const { data, isLoading, isError, isFetched, refetch } = useQuery({
+    queryKey: ["status", id],
+    queryFn: async () => {
+      const token = (await AsyncStorage.getItem("movebay_token")) || "";
+      return get_requests(`/status/${id}/`, token);
+    },
+    enabled: !!id,
+  });
+
+  return {
+    singleStatusData: data,
+    isLoading,
+    isError,
+    isFetched,
+    refetch,
+  };
+};
+

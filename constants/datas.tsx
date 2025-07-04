@@ -58,6 +58,11 @@ export const shopCategory = [
         id: 5,
         name: 'Sports'
     },
+
+    {
+        id: 6,
+        name: 'Car'
+    },
 ]
 
 

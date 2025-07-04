@@ -39,7 +39,7 @@ const Products = ({
       <Pressable onPress={()=>handleViewProduct(id)}>
         <Animated.View 
             className='w-full relative'
-            entering={FadeInDown.duration(500).delay(400).springify()}
+            entering={FadeInDown.duration(400).delay(200).springify()}
         >
           <View className='w-full h-52 bg-slate-200 rounded-3xl relative'>
             <Image 

@@ -19,7 +19,6 @@ import { SolidMainButton } from '@/components/btns/CustomButtoms';
 const ProfileView = () => {
 
   const {isLoading, profile} = useProfile()
-    console.log('This is the data', profile?.data);
   
 
   return (

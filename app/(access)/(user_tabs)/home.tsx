@@ -1,39 +1,48 @@
+"use client"
+
 import AllProductSkeleton2 from "@/components/AllProductSkeleton2"
 import Products from "@/components/Products"
-import { shopCategory, statusShopData } from "@/constants/datas"
+import { shopCategory } from "@/constants/datas"
 import { useProfile } from "@/hooks/mutations/auth"
 import { useCart } from "@/context/cart-context"
-import { useGetProducts } from "@/hooks/mutations/sellerAuth"
+import { useGetProducts, useGetStoreStatus } from "@/hooks/mutations/sellerAuth"
 import Ionicons from "@expo/vector-icons/Ionicons"
 import MaterialIcons from "@expo/vector-icons/MaterialIcons"
 import { router } from "expo-router"
 import { StatusBar } from "expo-status-bar"
-import { useState, useMemo, useCallback, useRef } from "react"
+import { useState, useMemo, useCallback, useRef, useEffect } from "react"
 import { ActivityIndicator, FlatList, RefreshControl } from "react-native"
 import { Image, Pressable, StyleSheet, Text, TextInput, View } from "react-native"
 import Animated, { FadeInDown } from "react-native-reanimated"
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context"
+import { Toast } from "react-native-toast-notifications"
 
 export default function HomeScreen() {
   const { profile, isLoading, refetch: refetchProfile } = useProfile()
   const { productData, isLoading: productLoading, refetch: refetchProducts } = useGetProducts()
   const allProducts = productData?.data?.results
-
   const { cartLength, cartItems, isUpdating } = useCart()
   const [activeCategoryId, setActiveCategoryId] = useState(shopCategory[0]?.id)
   const [isRefetchingByUser, setIsRefetchingByUser] = useState(false)
   const [searchQuery, setSearchQuery] = useState("")
-
+  const [hasInitiallyLoaded, setHasInitiallyLoaded] = useState(false)
   const searchInputRef = useRef<TextInput>(null)
 
   const ItemSeparator = () => <View style={{ height: 15 }} />
   const insets = useSafeAreaInsets()
 
+  // Set initial load flag when component mounts
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setHasInitiallyLoaded(true)
+    }, 100) // Small delay to ensure smooth initial animation
+    return () => clearTimeout(timer)
+  }, [])
+
   async function refetchByUser() {
     setIsRefetchingByUser(true)
-
     try {
-      await Promise.all([refetchProfile?.(), refetchProducts?.()])
+      await Promise.all([refetchProfile?.(), refetchProducts?.(), storeRefetch?.()])
     } catch (error) {
       console.error("Error refreshing data:", error)
     } finally {
@@ -43,8 +52,9 @@ export default function HomeScreen() {
 
   const filteredProducts = useMemo(() => {
     if (!allProducts) return []
-
     let filtered = allProducts
+
+    // Apply search filter first
     if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase().trim()
       filtered = filtered.filter((product: any) => {
@@ -60,8 +70,18 @@ export default function HomeScreen() {
       })
     }
 
+    // Apply category filter (only when not searching)
+    if (searchQuery.trim() === "" && activeCategoryId) {
+      const selectedCategory = shopCategory.find((cat) => cat.id === activeCategoryId)
+      if (selectedCategory && selectedCategory.name.toLowerCase() !== "all") {
+        filtered = filtered.filter((product: any) => {
+          return product.category?.toLowerCase() === selectedCategory.name.toLowerCase()
+        })
+      }
+    }
+
     return filtered
-  }, [allProducts, searchQuery])
+  }, [allProducts, searchQuery, activeCategoryId])
 
   const handleSearchChange = useCallback((text: string) => {
     setSearchQuery(text)
@@ -71,6 +91,16 @@ export default function HomeScreen() {
     setSearchQuery("")
     searchInputRef.current?.focus()
   }, [])
+
+  const handleCategoryPress = useCallback((categoryId: number) => {
+    setActiveCategoryId(categoryId)
+  }, [])
+
+  const { storeStatusData, isLoading: storeStatusLoading, refetch: storeRefetch } = useGetStoreStatus()
+  console.log('This is status id form home', storeStatusData?.data?.results[0]?.statuses[0]?.store)
+  const handleViewStatus = (id: string) =>{
+    router.push(`/user_status_view/${id}` as any)
+  }
 
   const MemoizedFixedHeader = useMemo(
     () => (
@@ -105,7 +135,6 @@ export default function HomeScreen() {
               </View>
             </View>
           )}
-
           <View className="flex-row gap-3 items-center">
             <Pressable className="bg-neutral-100 w-fit relative flex justify-center items-center rounded-full p-2.5">
               <Ionicons name="notifications-outline" color={"#0F0F0F"} size={26} />
@@ -115,13 +144,11 @@ export default function HomeScreen() {
                 </Text>
               </View>
             </Pressable>
-
             <Pressable
               className="bg-neutral-100 w-fit flex justify-center relative items-center rounded-full p-2.5"
               onPress={() => router.push("/(access)/(user_stacks)/cart")}
             >
               <Ionicons name="cart-outline" color={"#0F0F0F"} size={26} />
-              {/* Real-time cart length with loading indicator */}
               <View className="absolute top-[-4px] right-[-2px] bg-red-200 justify-center items-center rounded-full p-2 py-0.5">
                 {isUpdating ? (
                   <ActivityIndicator size="small" color="#ef4444" />
@@ -137,9 +164,8 @@ export default function HomeScreen() {
       </View>
     ),
     [profile, isLoading, cartLength, isUpdating],
-  ) // Added cart dependencies
+  )
 
-  // Rest of your component remains the same...
   const MemoizedSearchHeader = useMemo(
     () => (
       <View className="px-6 pt-3 pb-3 bg-white">
@@ -157,7 +183,6 @@ export default function HomeScreen() {
               autoCorrect={false}
               autoCapitalize="none"
             />
-
             <View className="absolute right-7 top-4 justify-center items-center flex-row gap-2">
               {searchQuery.length > 0 && (
                 <Pressable onPress={clearSearch} className="items-center justify-center w-10">
@@ -167,13 +192,10 @@ export default function HomeScreen() {
               <Ionicons name="search" size={20} color={"gray"} />
             </View>
           </View>
-
           <Pressable className="bg-[#F6F6F6] justify-center items-center flex-col rounded-full p-3.5">
             <Ionicons name="filter" size={20} color={"gray"} />
           </Pressable>
         </View>
-
-        {/* Search Results Info */}
         {searchQuery.length > 0 && (
           <View className="pt-3 pb-2">
             <Text style={{ fontFamily: "HankenGrotesk_500Medium" }} className="text-sm text-neutral-600">
@@ -193,27 +215,87 @@ export default function HomeScreen() {
     return (
       <View className="px-6 bg-white">
         {/* Status Shop Data - Horizontal FlatList */}
-        <View className="pt-3">
-          <FlatList
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            data={statusShopData}
-            keyExtractor={(item, index) => `status-${item.name}-${index}`}
-            renderItem={({ item }) => (
-              <Animated.View className="mr-5" entering={FadeInDown.duration(500).springify()}>
-                <View className="w-24 h-24 border border-dashed border-red-500 p-1.5 rounded-full justify-center items-center flex">
-                  <Image source={item?.image} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+        <View className="pt-1">
+          {storeStatusLoading ? (
+            <View className="flex-row items-center justify-center py-4">
+              <ActivityIndicator size="small" color="#F75F15" />
+              <Text className="ml-2 text-neutral-500" style={{ fontFamily: "HankenGrotesk_500Medium" }}>
+                Loading stores...
+              </Text>
+            </View>
+          ) : (
+            <FlatList
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              data={storeStatusData?.data?.results || storeStatusData?.data || []}
+              keyExtractor={(item, index) => `status-${item.name}-${index}`}
+              renderItem={({ item, index }) => {
+                const statusCount = item?.statuses?.length || 0
+
+                return (
+                  <Pressable onPress={statusCount > 0 ? ()=>handleViewStatus(item.statuses[0]?.store): ()=>(Toast.show('No Status available', {type: 'warning'}))} className="mr-5 items-center">
+                    <View className="relative">
+                      <View
+                        className="w-24 h-24 rounded-full overflow-hidden justify-center items-center flex"
+                        style={{
+                          borderWidth: statusCount > 0 ? 2 : 0,
+                          borderColor: statusCount > 0 ? "#34A853" : "gray",
+                          borderStyle: "dotted",
+                        }}
+                      >
+                        {item?.store_image ? (
+                          <Image
+                            source={{ uri: item?.store_image }}
+                            className="rounded-full w-full h-full"
+                            style={{
+                              width: statusCount > 0 ? '90%': "100%",
+                              height: statusCount > 0 ? '90%': "100%",
+                              objectFit: "cover",
+                            }}
+                          />
+                        ) : (
+                          <View className="w-full h-full bg-gray-200 rounded-full justify-center items-center">
+                            <MaterialIcons name="store" size={30} color="gray" />
+                          </View>
+                        )}
+                      </View>
+
+                      {/* Status Count Badge */}
+                      {statusCount > 0 && (
+                        <View className="absolute top-1 -right-1 bg-[#F75F15] rounded-full min-w-[22px] h-6 justify-center items-center px-1">
+                          <Text
+                            className="text-white text-xs font-semibold"
+                            style={{ fontFamily: "HankenGrotesk_600SemiBold" }}
+                          >
+                            {statusCount > 99 ? "99+" : statusCount}
+                          </Text>
+                        </View>
+                      )}
+                    </View>
+                    <Text
+                      className="text-sm pt-2 text-neutral-600 text-center"
+                      style={{ fontFamily: "HankenGrotesk_500Medium" }}
+                    >
+                      {item?.name && item.name.length > 11
+                        ? `${item.name.slice(0, 11)}...`
+                        : item?.name || "Unknown Store"}
+                    </Text>
+                  </Pressable>
+                )
+              }}
+              ListEmptyComponent={() => (
+                <View className="flex-row items-center justify-center py-4">
+                  <Text className="text-neutral-500" style={{ fontFamily: "HankenGrotesk_500Medium" }}>
+                    No stores available
+                  </Text>
                 </View>
-                <Text className="text-sm pt-2 text-neutral-600" style={{ fontFamily: "HankenGrotesk_500Medium" }}>
-                  {item?.name.length > 11 ? `${item?.name.slice(0, 11)}...` : item?.name}
-                </Text>
-              </Animated.View>
-            )}
-            initialNumToRender={5}
-            windowSize={5}
-            maxToRenderPerBatch={5}
-            updateCellsBatchingPeriod={30}
-          />
+              )}
+              initialNumToRender={5}
+              windowSize={5}
+              maxToRenderPerBatch={5}
+              updateCellsBatchingPeriod={30}
+            />
+          )}
         </View>
 
         {/* Shop Categories - Horizontal FlatList */}
@@ -223,23 +305,31 @@ export default function HomeScreen() {
             showsHorizontalScrollIndicator={false}
             data={shopCategory}
             keyExtractor={(item) => item.id.toString()}
-            renderItem={({ item }) => (
-              <Animated.View entering={FadeInDown.duration(500).delay(200).springify()}>
-                <Pressable
-                  onPress={() => setActiveCategoryId(item.id)}
-                  className={`mr-4 border p-3 px-6 rounded-full ${
-                    activeCategoryId === item.id ? "border-orange-400 bg-orange-50" : "border-neutral-300"
-                  }`}
-                >
-                  <Text
-                    className={`text-base ${activeCategoryId === item.id ? "text-orange-600" : "text-neutral-700"}`}
-                    style={{ fontFamily: "HankenGrotesk_500Medium" }}
+            renderItem={({ item, index }) => {
+              // Only animate on initial load
+              const AnimationWrapper = !hasInitiallyLoaded ? Animated.View : View
+              const animationProps = !hasInitiallyLoaded
+                ? { entering: FadeInDown.duration(500).delay(200).springify() }
+                : {}
+
+              return (
+                <AnimationWrapper {...animationProps}>
+                  <Pressable
+                    onPress={() => handleCategoryPress(item.id)}
+                    className={`mr-4 border p-3 px-6 rounded-full ${
+                      activeCategoryId === item.id ? "border-orange-400 bg-orange-50" : "border-neutral-300"
+                    }`}
                   >
-                    {item?.name}
-                  </Text>
-                </Pressable>
-              </Animated.View>
-            )}
+                    <Text
+                      className={`text-base ${activeCategoryId === item.id ? "text-orange-600" : "text-neutral-700"}`}
+                      style={{ fontFamily: "HankenGrotesk_500Medium" }}
+                    >
+                      {item?.name}
+                    </Text>
+                  </Pressable>
+                </AnimationWrapper>
+              )
+            }}
             initialNumToRender={5}
             windowSize={5}
             maxToRenderPerBatch={5}
@@ -248,9 +338,8 @@ export default function HomeScreen() {
         </View>
       </View>
     )
-  }, [searchQuery, activeCategoryId])
+  }, [searchQuery, activeCategoryId, handleCategoryPress, hasInitiallyLoaded, storeStatusData, storeStatusLoading])
 
-  // Memoized render item to prevent unnecessary re-renders
   const renderProduct = useCallback(
     ({ item }: { item: any }) => (
       <Products
@@ -265,7 +354,6 @@ export default function HomeScreen() {
     [],
   )
 
-  // Memoized empty component
   const EmptyComponent = useCallback(
     () => (
       <View className="h-[30vh] w-full items-center justify-center">
@@ -273,7 +361,7 @@ export default function HomeScreen() {
           style={{
             fontFamily: "HankenGrotesk_500Medium",
           }}
-          className="text-lg text-gray-800"
+          className="text-lg text-gray-600"
         >
           {searchQuery.length > 0 ? `No results found for "${searchQuery}"` : "No item found"}
         </Text>
@@ -294,13 +382,11 @@ export default function HomeScreen() {
     [searchQuery, clearSearch],
   )
 
-
   return (
     <SafeAreaView className="flex-1 flex w-full bg-white">
       <StatusBar style="dark" />
       {MemoizedFixedHeader}
       {MemoizedSearchHeader}
-
       {productLoading ? (
         <AllProductSkeleton2 />
       ) : (
@@ -309,8 +395,8 @@ export default function HomeScreen() {
             <RefreshControl
               refreshing={isRefetchingByUser}
               onRefresh={refetchByUser}
-              colors={["#F75F15"]} // Android
-              tintColor={"#F75F15"} // iOS
+              colors={["#F75F15"]}
+              tintColor={"#F75F15"}
             />
           }
           showsVerticalScrollIndicator={false}

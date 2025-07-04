@@ -17,8 +17,8 @@ export const SolidMainButton = ({text, onPress, ...props}: ButtonProps)=>{
 
 export const SolidInactiveButton = ({text, ...props}: ButtonProps)=>{
     return (
-        <Pressable {...props} className="flex items-center gap-4 bg-[#F2F2F2] p-4 w-full rounded-full">
-            <Text className="text-neutral-500 text-base" style={{fontFamily: 'HankenGrotesk_700Bold'}}>{text}</Text>
+        <Pressable style={{opacity: 0.6}} {...props} className="flex items-center gap-4 bg-[#F75F15] p-4 w-full rounded-full">
+            <Text className="text-white text-base" style={{fontFamily: 'HankenGrotesk_700Bold'}}>{text}</Text>
         </Pressable>
     )
 }

@@ -183,17 +183,33 @@ const ProductCreate = () => {
         setProductImages(prev => prev.filter((_, i) => i !== index));
     };
 
-    const pickProductVideo = async () => {
-        let result = await ImagePicker.launchImageLibraryAsync({
-            mediaTypes: ['videos'],
-            allowsEditing: true,
-            quality: 0.8,
-        });
+const pickProductVideo = async () => {
+    let result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ['videos'],
+        allowsEditing: true,
+        quality: 0.8,
+    });
 
-        if (!result.canceled) {
-            setProductVideo(result.assets[0].uri);
+    if (!result.canceled && result.assets && result.assets[0]) {
+        const videoAsset = result.assets[0];
+        const videoSizeInBytes = videoAsset.fileSize;
+        
+        // Check if fileSize exists and convert to MB
+        if (videoSizeInBytes) {
+            const videoSizeInMB = videoSizeInBytes / (1024 * 1024);
+            
+            if (videoSizeInMB > 10) {
+                toast.show('Video size must be less than 10MB. Please select a smaller video.', { 
+                    type: 'danger' 
+                });
+                return;
+            }
         }
-    };
+        
+        setProductVideo(videoAsset.uri);
+        toast.show('Video added successfully', { type: 'success' });
+    }
+};
 
     const onSubmit = (data: any) => {
         if (productImages.length === 0) {
@@ -298,7 +314,7 @@ const ProductCreate = () => {
                         
 
                         <View className='mt-6 flex-col'>
-                           <Text className='text-xl pt-4 pb-3' style={{fontFamily: 'HankenGrotesk_600SemiBold'}}>Pricing & Stock</Text>
+                           <Text className='text-xl pt-4 pb-3' style={{fontFamily: 'HankenGrotesk_600SemiBold'}}>Basic Info</Text>
 
                             {/* Product Title */}
                             <View className='mb-5'>
@@ -518,7 +534,7 @@ const ProductCreate = () => {
                                                 onChangeText={onChange}
                                                 onBlur={onBlur}
                                                 value={value}
-                                                keyboardType="numeric"
+                                                keyboardType="number-pad"
                                                 style={styles.inputStyle}
                                             />
                                         )}
@@ -546,7 +562,7 @@ const ProductCreate = () => {
                                                 onChangeText={onChange}
                                                 onBlur={onBlur}
                                                 value={value}
-                                                keyboardType="numeric"
+                                                keyboardType="number-pad"
                                                 style={styles.inputStyle}
                                             />
                                         )}
@@ -571,7 +587,7 @@ const ProductCreate = () => {
                                                 onChangeText={onChange}
                                                 onBlur={onBlur}
                                                 value={value}
-                                                keyboardType="numeric"
+                                                keyboardType="number-pad"
                                                 style={styles.inputStyle}
                                             />
                                         )}
