@@ -183,15 +183,14 @@ export const useFundWallet = () => {
 };
 
 
-
 // ==================== CEATING STORY ==================
 export const useCreateStory = () => {
   const queryClient = useQueryClient()
 
   const createStory = useMutation({
-    mutationFn: async (id: string | number) => {
+    mutationFn: async (data: any) => {
       const token = (await AsyncStorage.getItem("movebay_token")) || ""
-      return post_requests(`/status/${id}/`, {}, token)
+      return post_request_with_image(`/status/`, data, token)
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["status"] })

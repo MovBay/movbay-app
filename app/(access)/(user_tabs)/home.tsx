@@ -97,7 +97,7 @@ export default function HomeScreen() {
   }, [])
 
   const { storeStatusData, isLoading: storeStatusLoading, refetch: storeRefetch } = useGetStoreStatus()
-  console.log('This is status id form home', storeStatusData?.data?.results[0]?.statuses[0]?.store)
+  console.log('This is status id form home', storeStatusData?.data?.results[0])
   const handleViewStatus = (id: string) =>{
     router.push(`/user_status_view/${id}` as any)
   }
@@ -208,13 +208,11 @@ export default function HomeScreen() {
     [searchQuery, handleSearchChange, clearSearch, filteredProducts],
   )
 
-  // Content Header component for categories and status (only shown when not searching)
   const ContentHeader = useCallback(() => {
     if (searchQuery.length > 0) return null
 
     return (
       <View className="px-6 bg-white">
-        {/* Status Shop Data - Horizontal FlatList */}
         <View className="pt-1">
           {storeStatusLoading ? (
             <View className="flex-row items-center justify-center py-4">
@@ -224,16 +222,21 @@ export default function HomeScreen() {
               </Text>
             </View>
           ) : (
+
+            <>
+
             <FlatList
               horizontal
               showsHorizontalScrollIndicator={false}
-              data={storeStatusData?.data?.results || storeStatusData?.data || []}
+              data={(storeStatusData?.data?.results || storeStatusData?.data || []).filter((item: any) => 
+                item?.statuses?.length > 0
+              )}
               keyExtractor={(item, index) => `status-${item.name}-${index}`}
               renderItem={({ item, index }) => {
                 const statusCount = item?.statuses?.length || 0
 
                 return (
-                  <Pressable onPress={statusCount > 0 ? ()=>handleViewStatus(item.statuses[0]?.store): ()=>(Toast.show('No Status available', {type: 'warning'}))} className="mr-5 items-center">
+                  <Pressable onPress={()=>handleViewStatus(item.statuses[0]?.store)} className="mr-5 items-center">
                     <View className="relative">
                       <View
                         className="w-24 h-24 rounded-full overflow-hidden justify-center items-center flex"
@@ -284,9 +287,12 @@ export default function HomeScreen() {
                 )
               }}
               ListEmptyComponent={() => (
-                <View className="flex-row items-center justify-center py-4">
-                  <Text className="text-neutral-500" style={{ fontFamily: "HankenGrotesk_500Medium" }}>
-                    No stores available
+                <View className="py-4">
+                  <View className="bg-neutral-200 w-[65px] h-[65px] rounded-full flex justify-center items-center mb-2">
+                    <MaterialIcons name="picture-in-picture" size={25} color={"gray"} />
+                  </View>
+                  <Text className="text-neutral-600 text-sm" style={{ fontFamily: "HankenGrotesk_500Medium" }}>
+                    No status yet
                   </Text>
                 </View>
               )}
@@ -295,6 +301,8 @@ export default function HomeScreen() {
               maxToRenderPerBatch={5}
               updateCellsBatchingPeriod={30}
             />
+
+            </>
           )}
         </View>
 
