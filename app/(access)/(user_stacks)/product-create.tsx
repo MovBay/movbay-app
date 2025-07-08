@@ -296,7 +296,7 @@ const pickProductVideo = async () => {
                     className='flex-1' 
                     contentContainerStyle={{
                         paddingHorizontal: 28, 
-                        paddingTop: 24, 
+                        paddingTop: 2, 
                         paddingBottom: 20
                     }}
                     showsVerticalScrollIndicator={false}

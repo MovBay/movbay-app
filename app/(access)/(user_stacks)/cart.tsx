@@ -1,3 +1,5 @@
+"use client"
+
 import { View, Text, Image, TouchableOpacity, Modal } from "react-native"
 import { useCallback, useState, useEffect } from "react"
 import { router } from "expo-router"
@@ -8,12 +10,12 @@ import { KeyboardAwareScrollView } from "react-native-keyboard-controller"
 import MaterialIcons from "@expo/vector-icons/MaterialIcons"
 import { OnboardArrowTextHeader } from "@/components/btns/OnboardHeader"
 import { SolidMainButton } from "@/components/btns/CustomButtoms"
-import Animated, { 
-  FadeInDown, 
-  FadeIn, 
-  FadeOut, 
-  useSharedValue, 
-  useAnimatedStyle, 
+import Animated, {
+  FadeInDown,
+  FadeIn,
+  FadeOut,
+  useSharedValue,
+  useAnimatedStyle,
   withTiming,
   withSpring
 } from "react-native-reanimated"
@@ -63,8 +65,12 @@ const Cart = () => {
   const confirmRemoveItem = async () => {
     if (itemToRemove) {
       await removeFromCart(itemToRemove)
-      setRemoveModalVisible(false)
-      setItemToRemove(null)
+      removeModalOpacity.value = withTiming(0, { duration: 200 })
+      removeModalScale.value = withTiming(0.8, { duration: 200 })
+      setTimeout(() => {
+        setRemoveModalVisible(false)
+        setItemToRemove(null)
+      }, 200)
     }
   }
 
@@ -76,7 +82,29 @@ const Cart = () => {
   // Confirm clear cart
   const confirmClearCart = async () => {
     await clearCart()
-    setClearCartModalVisible(false)
+    clearModalOpacity.value = withTiming(0, { duration: 200 })
+    clearModalScale.value = withTiming(0.8, { duration: 200 })
+    setTimeout(() => {
+      setClearCartModalVisible(false)
+    }, 200)
+  }
+
+  // Close remove modal with smooth animation
+  const closeRemoveModal = () => {
+    removeModalOpacity.value = withTiming(0, { duration: 200 })
+    removeModalScale.value = withTiming(0.8, { duration: 200 })
+    setTimeout(() => {
+      setRemoveModalVisible(false)
+    }, 200)
+  }
+
+  // Close clear cart modal with smooth animation
+  const closeClearCartModal = () => {
+    clearModalOpacity.value = withTiming(0, { duration: 200 })
+    clearModalScale.value = withTiming(0.8, { duration: 200 })
+    setTimeout(() => {
+      setClearCartModalVisible(false)
+    }, 200)
   }
 
   // Animate remove modal
@@ -84,9 +112,6 @@ const Cart = () => {
     if (removeModalVisible) {
       removeModalOpacity.value = withTiming(1, { duration: 200 })
       removeModalScale.value = withSpring(1, { damping: 15, stiffness: 150 })
-    } else {
-      removeModalOpacity.value = withTiming(0, { duration: 150 })
-      removeModalScale.value = withTiming(0.8, { duration: 150 })
     }
   }, [removeModalVisible])
 
@@ -95,9 +120,6 @@ const Cart = () => {
     if (clearCartModalVisible) {
       clearModalOpacity.value = withTiming(1, { duration: 200 })
       clearModalScale.value = withSpring(1, { damping: 15, stiffness: 150 })
-    } else {
-      clearModalOpacity.value = withTiming(0, { duration: 150 })
-      clearModalScale.value = withTiming(0.8, { duration: 150 })
     }
   }, [clearCartModalVisible])
 
@@ -120,13 +142,44 @@ const Cart = () => {
     transform: [{ scale: clearModalScale.value }],
   }))
 
+  // Function to truncate title if longer than 20 characters
+  const truncateTitle = (title: string) => {
+    if (title.length > 20) {
+      return title.substring(0, 20) + "..."
+    }
+    return title
+  }
+
+  // Handle checkout - prepare cart data for next screen
+  const handleCheckout = () => {
+    // Structure cart data according to API format
+    const cartData = {
+      items: cartItems.map(item => ({
+        store: item?.store?.id,
+        product: item?.id,
+        product_name: item.title,
+        amount: item.discounted_price || item.price,
+        quantity: item.quantity
+      })),
+      total_amount: totalAmount,
+      cart_summary: {
+        total_items: cartLength,
+        subtotal: totalAmount,
+      }
+    }
+    router.push({
+      pathname: "/(access)/(user_stacks)/delivery_details",
+      params: { cartData: JSON.stringify(cartData) }
+    })
+  }
+
   // Remove Item Modal
   const RemoveItemModal = () => (
     <Modal
       animationType="none"
       transparent={true}
       visible={removeModalVisible}
-      onRequestClose={() => setRemoveModalVisible(false)}
+      onRequestClose={closeRemoveModal}
     >
       <Animated.View 
         style={[removeModalBackdropStyle]}
@@ -150,10 +203,9 @@ const Cart = () => {
               Are you sure you want to remove this item from your cart?
             </Text>
           </View>
-
           <View className="flex-row gap-3">
             <TouchableOpacity
-              onPress={() => setRemoveModalVisible(false)}
+              onPress={closeRemoveModal}
               className="flex-1 bg-gray-100 py-3 rounded-full items-center"
             >
               <Text className="text-gray-700 font-semibold" style={{ fontFamily: "HankenGrotesk_600SemiBold" }}>
@@ -181,7 +233,7 @@ const Cart = () => {
       animationType="none"
       transparent={true}
       visible={clearCartModalVisible}
-      onRequestClose={() => setClearCartModalVisible(false)}
+      onRequestClose={closeClearCartModal}
     >
       <Animated.View 
         style={[clearModalBackdropStyle]}
@@ -205,10 +257,9 @@ const Cart = () => {
               Are you sure you want to remove all items from your cart?
             </Text>
           </View>
-
           <View className="flex-row gap-3 pt-4">
             <TouchableOpacity
-              onPress={() => setClearCartModalVisible(false)}
+              onPress={closeClearCartModal}
               className="flex-1 bg-gray-100 py-3 rounded-full items-center"
             >
               <Text className="text-gray-700 font-semibold" style={{ fontFamily: "HankenGrotesk_600SemiBold" }}>
@@ -244,51 +295,48 @@ const Cart = () => {
           <Text className="text-white text-xs font-semibold">New Arrival</Text>
         </View>
       )}
-
       <View className="flex-row items-center">
         {/* Product Image */}
-        <View className="bg-blue-500 rounded-xl p-3 mr-4">
-          <Image source={{ uri: item.image }} className="w-16 h-16 rounded-lg" resizeMode="contain" />
+        <View className="mr-4">
+          <Image 
+            source={{ uri: item.image }}
+            className="w-20 h-20 rounded-lg"
+            resizeMode="cover"
+          />
         </View>
-
         {/* Product Details */}
         <View className="flex-1">
           <Text
-            className="text-base font-semibold text-gray-800 mb-1"
-            style={{ fontFamily: "HankenGrotesk_600SemiBold" }}
+            className="text-sm font-semibold text-gray-800"
+            style={{ fontFamily: "HankenGrotesk_400Regular" }}
             numberOfLines={2}
           >
-            {item.title}
+            {truncateTitle(item.title)}
           </Text>
-
-          <Text className="text-lg font-bold text-gray-900 mb-3" style={{ fontFamily: "HankenGrotesk_700Bold" }}>
+          <Text className="text-lg font-bold text-gray-900 mb-1" style={{ fontFamily: "HankenGrotesk_600SemiBold" }}>
             {formatPrice(item.discounted_price || item.price)}
           </Text>
-
           {/* Quantity Controls */}
           <View className="flex-row items-center justify-between">
             <View className="flex-row items-center">
               <TouchableOpacity
                 onPress={() => updateQuantity(item.id, item.quantity - 1)}
-                className="w-8 h-8 rounded-full border border-gray-300 items-center justify-center"
+                className="w-6 h-6 rounded-full border border-gray-300 items-center justify-center"
                 disabled={isUpdating || item.quantity <= 1}
               >
-                <MaterialIcons name="remove" size={16} color="#666" />
+                <MaterialIcons name="remove" size={14} color="#666" />
               </TouchableOpacity>
-
               <Text className="mx-4 text-lg font-semibold" style={{ fontFamily: "HankenGrotesk_600SemiBold" }}>
                 {item.quantity}
               </Text>
-
               <TouchableOpacity
                 onPress={() => updateQuantity(item.id, item.quantity + 1)}
-                className="w-8 h-8 rounded-full border border-gray-300 items-center justify-center"
+                className="w-6 h-6  rounded-full border border-gray-300 items-center justify-center"
                 disabled={isUpdating}
               >
-                <MaterialIcons name="add" size={16} color="#666" />
+                <MaterialIcons name="add" size={14} color="#666" />
               </TouchableOpacity>
             </View>
-
             {/* Delete Button */}
             <TouchableOpacity
               onPress={() => handleRemoveItem(item.id)}
@@ -303,11 +351,13 @@ const Cart = () => {
     </Animated.View>
   )
 
+  console.log('This is cart data', cartItems)
+
   return (
     <SafeAreaView className="flex-1 bg-gray-50">
       <StatusBar style="dark" />
       <LoadingOverlay visible={isLoading} />
-
+      
       {/* Modals */}
       <RemoveItemModal />
       <ClearCartModal />
@@ -335,7 +385,6 @@ const Cart = () => {
             >
               <Ionicons name="cart-outline" size={35} color={"#F75F15"} />
             </Animated.View>
-
             <Animated.View className="w-[60%]" entering={FadeInDown.duration(500).delay(200).springify()}>
               <Text className="text-xl pt-3 text-center" style={{ fontFamily: "HankenGrotesk_600SemiBold" }}>
                 Cart Empty
@@ -347,7 +396,6 @@ const Cart = () => {
                 Your cart's feeling lonely. Start adding what you love.
               </Text>
             </Animated.View>
-
             <Animated.View className="w-[50%] pt-5" entering={FadeInDown.duration(500).delay(400).springify()}>
               <SolidMainButton text="Start Shopping" onPress={() => router.push("/(access)/(user_tabs)/home")} />
             </Animated.View>
@@ -362,7 +410,7 @@ const Cart = () => {
               {cartItems.map((item, index) => renderCartItem(item, index))}
               <View className="h-20" />
             </KeyboardAwareScrollView>
-
+            
             {/* Checkout Section */}
             <Animated.View
               entering={FadeInDown.duration(500).delay(300).springify()}
@@ -379,8 +427,7 @@ const Cart = () => {
                   {formatPrice(totalAmount)}
                 </Text>
               </View>
-
-              <SolidMainButton text="Checkout" onPress={() => router.push("/")} />
+              <SolidMainButton text="Checkout" onPress={handleCheckout} />
             </Animated.View>
           </View>
         )}

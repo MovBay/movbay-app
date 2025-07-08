@@ -77,18 +77,17 @@ const VideoModal = ({
               <Text className="text-white text-lg" style={{ fontFamily: "HankenGrotesk_600SemiBold" }}>
                 Product Video
               </Text>
-              <Pressable onPress={onClose} className="p-2 bg-gray-300 rounded-full">
-                <Ionicons name="close" size={20} color="black" />
+              <Pressable onPress={onClose} className="p-2 bg-neutral-600 rounded-full">
+                <Ionicons name="close" size={16} color="white" />
               </Pressable>
             </View>
 
             <View style={{ flex: 1, justifyContent: "center", alignItems: "center", paddingHorizontal: 20 }}>
               <Video
                 style={{
-                  width: screenWidth - 50,
-                  height: (screenWidth - 40) * 0.75,
+                  width: screenWidth - 10,
+                  height: (screenWidth - 0),
                   backgroundColor: "black",
-                  borderRadius: 10,
                 }}
                 source={{ uri: videoUrl }}
                 useNativeControls
@@ -171,7 +170,7 @@ const Product = () => {
     <View style={{ width: screenWidth, height: screenWidth, justifyContent: "center", alignItems: "center" }}>
       <Image
         source={{ uri: item?.image_url }}
-        style={{ width: "95%", height: "90%", borderRadius: 10, objectFit: "cover" }}
+        style={{ width: "100%", height: "90%", objectFit: "cover" }}
         resizeMode="contain"
       />
     </View>
@@ -194,16 +193,16 @@ const Product = () => {
 
               <Pressable
                 onPress={() => router.back()}
-                className="absolute top-4 left-5 bg-white p-3 rounded-full justify-center items-center flex"
+                className="absolute top-4 left-5 bg-white/80 p-2.5 rounded-full justify-center items-center flex"
               >
-                <MaterialIcons name="chevron-left" size={25} color={"black"} />
+                <MaterialIcons name="chevron-left" size={20} color={"black"} />
               </Pressable>
 
-              <Pressable className="absolute top-4 right-5  bg-white p-3 rounded-full justify-center items-center flex">
-                <MaterialIcons name="question-mark" size={22} color={"black"} />
+              <Pressable className="absolute top-4 right-5  bg-white/80 p-2.5 rounded-full justify-center items-center flex">
+                <MaterialIcons name="question-mark" size={20} color={"black"} />
               </Pressable>
-              <View className="bg-white rounded-full p-3 px-4 right-3 bottom-3 absolute z-50">
-                <Text className="text-lg" style={{ fontFamily: "HankenGrotesk_600SemiBold" }}>
+              <View className="bg-white/50 rounded-full p-2 px-3 right-3 bottom-3 absolute z-50">
+                <Text className="text-sm" style={{ fontFamily: "HankenGrotesk_600SemiBold" }}>
                   {eachData?.stock_available}
                 </Text>
               </View>
@@ -213,47 +212,64 @@ const Product = () => {
               <View className="flex-row justify-between items-center">
                 <View className="flex-row gap-2">
                   <MaterialIcons size={20} name="location-pin" />
-                  <Text className="text-base " style={{ fontFamily: "HankenGrotesk_400Regular" }}>
-                    {eachData?.store?.address1}
-                  </Text>
+                  {eachData?.store?.address1.length > 20 ? (
+                    <Text className="text-base " style={{ fontFamily: "HankenGrotesk_400Regular" }}>
+                      { eachData?.store?.address1.slice(0, 20)}...
+                    </Text>
+                    ) :
+                    (
+                      <Text className="text-base " style={{ fontFamily: "HankenGrotesk_400Regular" }}>
+                        { eachData?.store?.address1}
+                      </Text>
+                    )
+                  }
                 </View>
 
-                <View className="bg-blue-100 flex-row justify-center gap-2 items-center p-1.5 px-2 my-2 rounded-full">
+
+              {eachData?.verified  === true ? 
+                <View className="bg-blue-100 flex-row justify-center gap-1 items-center p-1.5 px-2 my-2 rounded-full">
                   <MaterialIcons name="verified" size={15} color={"#4285F4"} />
                   <Text className="text-[#4285F4] text-sm" style={{ fontFamily: "HankenGrotesk_400Regular" }}>
-                    Verified Seller
+                     Verified
                   </Text>
+                </View>: 
+                <View className="bg-red-50 flex-row justify-center gap-1 items-center p-1.5 px-2 my-2 rounded-full">
+                    <MaterialIcons name="sentiment-very-dissatisfied" size={15} color={"red"} />
+                    <Text className="text-red-600 text-sm" style={{ fontFamily: "HankenGrotesk_400Regular" }}>
+                      Unverified
+                    </Text>
                 </View>
+              }
               </View>
 
               <View className="pt-2">
-                <Text className="text-xl" style={{ fontFamily: "HankenGrotesk_600SemiBold" }}>
+                <Text className="text-2xl font-bold" style={{ fontFamily: "HankenGrotesk_600SemiBold" }}>
                   {eachData?.title}
                 </Text>
-                <View className="flex-row justify-between pt-3">
+                <View className="flex-row justify-between">
                   <View className="flex-row items-center gap-3">
-                    <Text className="text-2xl pt-2" style={{ fontFamily: "HankenGrotesk_600SemiBold" }}>
+                    <Text className="text-lg pt-2" style={{ fontFamily: "HankenGrotesk_500Medium" }}>
                       ₦ {eachData?.original_price.toLocaleString()}
                     </Text>
                     <Text
-                      className="text-xl pt-2 italic line-through text-neutral-500"
+                      className="text-base pt-2 italic line-through text-neutral-500"
                       style={{ fontFamily: "HankenGrotesk_500Medium" }}
                     >
                       ₦ {eachData?.discounted_price.toLocaleString()}
                     </Text>
                   </View>
 
-                  <Pressable className="bg-neutral-200 p-3 rounded-full flex justify-center items-center">
-                    <Ionicons name="share-outline" size={25} />
+                  <Pressable className="bg-neutral-100 p-2 rounded-full flex justify-center items-center">
+                    <Ionicons name="share-outline" size={20} />
                   </Pressable>
                 </View>
 
-                <View className="flex-row gap-3 pt-2 border-b border-neutral-200 pb-3">
+                <View className="flex-row gap-3 border-b border-neutral-200 pb-3">
                   <View className="flex-row">
-                    <MaterialIcons name="star" size={20} color={"#FBBC05"} />
-                    <MaterialIcons name="star" size={20} color={"#FBBC05"} />
-                    <MaterialIcons name="star" size={20} color={"#FBBC05"} />
-                    <MaterialIcons name="star" size={20} color={"#FBBC05"} />
+                    <MaterialIcons name="star" size={14} color={"#FBBC05"} />
+                    <MaterialIcons name="star" size={14} color={"#FBBC05"} />
+                    <MaterialIcons name="star" size={14} color={"#FBBC05"} />
+                    <MaterialIcons name="star" size={14} color={"#FBBC05"} />
                   </View>
                   <Text className="text-sm" style={{ fontFamily: "HankenGrotesk_500Medium" }}>
                     (1,020)
@@ -287,10 +303,10 @@ const Product = () => {
                   {eachData?.video_url && (
                     <Pressable
                       onPress={openVideoModal}
-                      className="bg-[#F75F15] p-3 rounded-full mt-3 flex-row items-center justify-center gap-2"
+                      className="bg-[#FEEEE6] p-3 rounded-full mt-3 flex-row items-center justify-center gap-2"
                     >
-                      <Ionicons name="play-circle" size={24} color="white" />
-                      <Text className="text-white text-base" style={{ fontFamily: "HankenGrotesk_600SemiBold" }}>
+                      <Ionicons name="play-circle" size={24} color="#A53F0E" />
+                      <Text className="text-[#A53F0E] text-base" style={{ fontFamily: "HankenGrotesk_600SemiBold" }}>
                         Watch Product Video
                       </Text>
                     </Pressable>
@@ -308,11 +324,11 @@ const Product = () => {
                     <SafeAreaView style={{ flex: 1 }}>
                       <View style={{ flex: 1 }}>
                         <View className="flex-row justify-between items-center p-4">
-                          <Text className="text-white text-lg" style={{ fontFamily: "HankenGrotesk_600SemiBold" }}>
+                          <Text className="text-white text-sm" style={{ fontFamily: "HankenGrotesk_600SemiBold" }}>
                             {selectedImageIndex + 1} of {eachData?.product_images?.length}
                           </Text>
                           <Pressable onPress={closeImagePreview} className="p-2">
-                            <Ionicons name="close" size={30} color="white" />
+                            <Ionicons name="close" size={20} color="white" />
                           </Pressable>
                         </View>
 
@@ -346,7 +362,7 @@ const Product = () => {
                   </View>
 
                   <View className="pt-5">
-                    <Text className="text-xl" style={{ fontFamily: "HankenGrotesk_600SemiBold" }}>
+                    <Text className="text-lg" style={{ fontFamily: "HankenGrotesk_600SemiBold" }}>
                       Color Variation
                     </Text>
                     <View className="flex-row gap-3 items-center">
@@ -364,10 +380,10 @@ const Product = () => {
                     </View>
 
                     <View className="pt-5 pb-3 border-b border-neutral-200">
-                      <Text className="text-xl" style={{ fontFamily: "HankenGrotesk_600SemiBold" }}>
+                      <Text className="text-lg" style={{ fontFamily: "HankenGrotesk_600SemiBold" }}>
                         Description
                       </Text>
-                      <Text className="text-lg pt-2" style={{ fontFamily: "HankenGrotesk_400Regular" }}>
+                      <Text className="text-base pt-2" style={{ fontFamily: "HankenGrotesk_400Regular" }}>
                         {eachData?.description}
                       </Text>
                     </View>

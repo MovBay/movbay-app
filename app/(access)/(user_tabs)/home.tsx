@@ -31,11 +31,10 @@ export default function HomeScreen() {
   const ItemSeparator = () => <View style={{ height: 15 }} />
   const insets = useSafeAreaInsets()
 
-  // Set initial load flag when component mounts
   useEffect(() => {
     const timer = setTimeout(() => {
       setHasInitiallyLoaded(true)
-    }, 100) // Small delay to ensure smooth initial animation
+    }, 100)
     return () => clearTimeout(timer)
   }, [])
 
@@ -97,7 +96,6 @@ export default function HomeScreen() {
   }, [])
 
   const { storeStatusData, isLoading: storeStatusLoading, refetch: storeRefetch } = useGetStoreStatus()
-  console.log('This is status id form home', storeStatusData?.data?.results[0])
   const handleViewStatus = (id: string) =>{
     router.push(`/user_status_view/${id}` as any)
   }

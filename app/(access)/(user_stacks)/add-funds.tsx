@@ -20,18 +20,24 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { WebView } from 'react-native-webview';
 
+interface PaymentData {
+  payment_method: string
+  provider_name: string
+}
+
 const AddFunds = () => {
     const {mutate, isPending} = useFundWallet()
     const [showDialog, setShowDialog] = useState(false);
     const [showPaystack, setShowPaystack] = useState(false);
+    const [selectedPaymentMethod, setSelectedPaymentMethod] = useState("card");
 
-    type PaymentData = {
+    type PaymentResult = {
         payStackUrl: string;
         accessCode: string;
         reference: string;
     } | null;
     
-    const [paymentData, setPaymentData] = useState<PaymentData>(null);
+    const [paymentData, setPaymentData] = useState<PaymentResult>(null);
     
     // Function to format amount with commas
     const formatAmount = (amount: string) => {
@@ -40,6 +46,54 @@ const AddFunds = () => {
         if (!numericValue) return '';
         return new Intl.NumberFormat('en-US').format(parseInt(numericValue));
     };
+
+    // Payment method mapping
+    const getPaymentMethodData = (methodId: string): PaymentData => {
+        const paymentMethods: { [key: string]: PaymentData } = {
+            card: {
+                payment_method: "card",
+                provider_name: "paystack",
+            },
+            transfer: {
+                payment_method: "bank_transfer",
+                provider_name: "paystack",
+            },
+        }
+        return paymentMethods[methodId] || paymentMethods["card"]
+    }
+
+    const PaymentOption = ({ id, title, subtitle, icon, recommended = false }: any) => (
+        <TouchableOpacity
+            onPress={() => setSelectedPaymentMethod(id)}
+            className={`flex-row items-center justify-between p-4 border rounded-lg mb-3 ${
+                selectedPaymentMethod === id ? "border-orange-500" : "border-gray-200"
+            }`}
+        >
+            <View className="flex-row items-center flex-1">
+                <View className="w-10 h-10 bg-gray-100 rounded-lg items-center justify-center mr-3">
+                    <Text className="text-lg">{icon}</Text>
+                </View>
+                <View className="flex-1">
+                    <View className="flex-row items-center">
+                        <Text className="text-base font-medium text-gray-900">{title}</Text>
+                        {recommended && (
+                            <View className="ml-2 bg-green-100 px-2 py-1 rounded-full">
+                                <Text className="text-xs text-green-600 font-medium">Recommended</Text>
+                            </View>
+                        )}
+                    </View>
+                    <Text className="text-sm text-gray-500 mt-1">{subtitle}</Text>
+                </View>
+            </View>
+            <View
+                className={`w-5 h-5 rounded-full border-2 ${
+                    selectedPaymentMethod === id ? "border-orange-500 bg-orange-500" : "border-gray-300"
+                }`}
+            >
+                {selectedPaymentMethod === id && <View className="w-2 h-2 bg-white rounded-full m-auto" />}
+            </View>
+        </TouchableOpacity>
+    )
 
     const handlePress = () => {
         setShowDialog(true);
@@ -66,10 +120,14 @@ const AddFunds = () => {
 
     const onSubmit = (data: any) => {
         closeDialog()
+        
+        // Get payment method data
+        const paymentMethodData = getPaymentMethodData(selectedPaymentMethod);
+        
         const form_data = {
             amount: data.amount,
-            provider_name: 'paystack',
-            payment_method: 'card',
+            provider_name: paymentMethodData.provider_name,
+            payment_method: paymentMethodData.payment_method,
         };
         
         try{
@@ -148,23 +206,37 @@ const AddFunds = () => {
                             <OnboardArrowTextHeader onPressBtn={()=>router.back()}/>
                             <Text className='text-2xl text-center m-auto' style={{fontFamily: 'HankenGrotesk_600SemiBold'}}>Add Funds</Text>
                         </View>
-                        <View className='mt-8 flex-col gap-4'>
-                            <TouchableOpacity onPress={handlePress} className='flex-row items-center justify-between border-t border-neutral-100 pt-5'>
-                                <View className='flex-row gap-3 items-center'>
-                                    <View>
-                                        <MaterialIcons name='credit-card' size={25}/>
-                                    </View>
-                                    <Text className='text-lg font-semibold' style={{fontFamily: 'HankenGrotesk_600SemiBold'}}>Card</Text>
-                                </View>
-                                <Ionicons name='chevron-forward' size={17} color={'gray'}/>
-                            </TouchableOpacity>  
-                            <TouchableOpacity className='flex-row justify-between border-y border-neutral-100 py-5'>
-                                <View className='flex-row gap-3 items-center'>
-                                    <MaterialIcons name='document-scanner' size={25}/>
-                                    <Text className='text-lg font-semibold' style={{fontFamily: 'HankenGrotesk_600SemiBold'}}>Bank Transfer</Text>
-                                </View>
-                                <Ionicons name='chevron-forward' size={17} color={'gray'}/>
-                            </TouchableOpacity>             
+                        
+                        {/* Payment Methods Section */}
+                        <View className="mt-8 mb-6">
+                            <Text className="text-lg font-semibold mb-4" style={{ fontFamily: "HankenGrotesk_600SemiBold" }}>
+                                Payment Method
+                            </Text>
+                            <PaymentOption
+                                id="card"
+                                title="Card Payment"
+                                subtitle="Make payment with bank debit cards"
+                                icon="💳"
+                                recommended={true}
+                            />
+                            <PaymentOption
+                                id="transfer"
+                                title="Bank Transfer"
+                                subtitle="Make payment with bank transfer"
+                                icon="🏦"
+                            />
+                        </View>
+
+                        {/* Promotional Message */}
+                        <View className="bg-orange-50 p-4 rounded-lg mb-6">
+                            <Text className="text-orange-600 text-sm">
+                                Add funds to your MovBay wallet—fast, safe, and fully protected!
+                            </Text>
+                        </View>
+
+                        {/* Add Funds Button */}
+                        <View className='mt-4'>
+                            <SolidMainButton onPress={handlePress} text='Add Funds'/>
                         </View>
                     </View>
                 </KeyboardAwareScrollView>

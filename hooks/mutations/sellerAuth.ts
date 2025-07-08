@@ -239,3 +239,24 @@ export const useGetSingleStatus = (id: any) => {
   };
 };
 
+
+// ====================== ORDERS ====================
+
+export const useCreateOrder = () => {
+  const queryClient = useQueryClient()
+
+  const createOrder = useMutation({
+    mutationFn: async (data: any) => {
+      const token = (await AsyncStorage.getItem("movebay_token")) || ""
+      return post_requests(`/payment/purchase-product/`, data, token)
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["order"] })
+    },
+  })
+
+  return createOrder
+}
+
+
+// https://api.movbay.com/purchase-product/
