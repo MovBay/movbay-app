@@ -21,6 +21,7 @@ const Sell =()=> {
     navigation.dispatch(DrawerActions.openDrawer())
   }
   const {storeData, refetch, isLoading} = useGetStore()
+  console.log('Store Data:', storeData)
   
   // State for pull-to-refresh
   const [refreshing, setRefreshing] = useState(false);
@@ -62,8 +63,8 @@ const Sell =()=> {
               </Animated.View>
 
               <Animated.View className='w-[60%]' entering={FadeInDown.duration(500).delay(200).springify()}>
-                <Text className='text-xl pt-3 text-center' style={{fontFamily: 'HankenGrotesk_600SemiBold'}}>Create Your Store</Text>
-                <Text className='text-base  text-center text-neutral-600 pt-2' style={{fontFamily: 'HankenGrotesk_400Regular'}}>
+                <Text className='text-lg pt-3 text-center' style={{fontFamily: 'HankenGrotesk_600SemiBold'}}>Create Your Store</Text>
+                <Text className='text-sm  text-center text-neutral-600 pt-2' style={{fontFamily: 'HankenGrotesk_400Regular'}}>
                   Start selling in minutes. Create a store and reach thousands of buyers nearby.
                 </Text>
               </Animated.View>
@@ -77,8 +78,8 @@ const Sell =()=> {
               <DrawerHeader onPress={openDrawer}/>
     
               <Animated.View className='pt-5' entering={FadeInDown.duration(500).springify()}>
-                <Text className='text-xl' style={{fontFamily: 'HankenGrotesk_600SemiBold'}}>Welcome back, {storeData?.data?.name}!</Text>
-                <Text className='text-base' style={{fontFamily: 'HankenGrotesk_400Regular'}}>Manage your products, orders, and earnings here.</Text>
+                <Text className='text-lg' style={{fontFamily: 'HankenGrotesk_600SemiBold'}}>Welcome back, {storeData?.data?.name}!</Text>
+                <Text className='text-sm' style={{fontFamily: 'HankenGrotesk_400Regular'}}>Manage your products, orders, and earnings here.</Text>
               </Animated.View>
     
               <Animated.View className='bg-gray-100 mt-5 rounded-2xl p-5' entering={FadeInDown.duration(500).delay(200).springify()}>
@@ -95,66 +96,66 @@ const Sell =()=> {
     
                   <View>
                       <Text className='text-2xl text-center' style={{fontFamily: 'HankenGrotesk_600SemiBold'}}>{storeData?.data?.followers_count}</Text>
-                      <Text className='text-base text-center' style={{fontFamily: 'HankenGrotesk_400Regular'}}>Followers</Text>
+                      <Text className='text-sm text-center' style={{fontFamily: 'HankenGrotesk_400Regular'}}>Followers</Text>
                   </View>
     
                   <View>
-                      <Text className='text-xl text-center' style={{fontFamily: 'HankenGrotesk_600SemiBold'}}>5-Star</Text>
-                      <Text className='text-base text-center' style={{fontFamily: 'HankenGrotesk_400Regular'}}>Badge</Text>
+                      <Text className='text-lg text-center' style={{fontFamily: 'HankenGrotesk_600SemiBold'}}>5-Star</Text>
+                      <Text className='text-sm text-center' style={{fontFamily: 'HankenGrotesk_400Regular'}}>Badge</Text>
                   </View>
                 </View>
     
                 <View className='pt-5'>
-                  <Text className='text-xl' style={{fontFamily: 'HankenGrotesk_600SemiBold'}}>{storeData?.data?.name}</Text>
-                  <Text className='text-base pt-1 text-neutral-500' style={{fontFamily: 'HankenGrotesk_400Regular'}}>{storeData?.data?.description}</Text>
+                  <Text className='text-lg' style={{fontFamily: 'HankenGrotesk_600SemiBold'}}>{storeData?.data?.name}</Text>
+                  <Text className='text-sm pt-1 text-neutral-500' style={{fontFamily: 'HankenGrotesk_400Regular'}}>{storeData?.data?.description}</Text>
                 </View>
               </Animated.View>
     
               <Animated.View className='flex-row justify-between pt-5' entering={FadeInDown.duration(500).delay(400).springify()}>
                 <View className='bg-[#e5eefd] p-5 rounded-2xl w-[49%]'>
                   <View className='flex-row justify-between'>
-                    <Text style={{fontFamily: 'HankenGrotesk_500Medium'}} className='text-xl text-purple-600'>{storeData?.data?.product_count}</Text>
+                    <Text style={{fontFamily: 'HankenGrotesk_500Medium'}} className='text-lg text-purple-600'>{storeData?.data?.product_count}</Text>
                     <View className='flex-row gap-1 items-center'>
                       <Ionicons name='trending-up' color={'green'} size={15}/>
-                      <Text className='text-green-700 text-base' style={{fontFamily: 'HankenGrotesk_500Medium'}}>0%</Text>
+                      <Text className='text-green-700 text-sm' style={{fontFamily: 'HankenGrotesk_500Medium'}}>0%</Text>
                     </View>
                   </View>
-                  <Text className='text-base pt-2.5' style={{fontFamily: 'HankenGrotesk_500Medium'}}>Product Listed</Text>
+                  <Text className='text-sm pt-2.5' style={{fontFamily: 'HankenGrotesk_500Medium'}}>Product Listed</Text>
                 </View>
     
                 <View className='bg-[#FFF7EB] p-5 rounded-2xl w-[49%]'>
                   <View className='flex-row justify-between'>
-                    <Text style={{fontFamily: 'HankenGrotesk_500Medium'}} className='text-xl text-orange-500'>{storeData?.data?.order_count}</Text>
+                    <Text style={{fontFamily: 'HankenGrotesk_500Medium'}} className='text-lg text-orange-500'>{storeData?.data?.order_count}</Text>
                     <View className='flex-row gap-1 items-center'>
                       <Ionicons name='trending-down' color={'red'} size={15}/>
-                      <Text className='text-red-500 text-base' style={{fontFamily: 'HankenGrotesk_500Medium'}}>0%</Text>
+                      <Text className='text-red-500 text-sm' style={{fontFamily: 'HankenGrotesk_500Medium'}}>0%</Text>
                     </View>
                   </View>
-                  <Text className='text-base pt-2.5' style={{fontFamily: 'HankenGrotesk_500Medium'}}>Orders This Week</Text>
+                  <Text className='text-sm pt-2.5' style={{fontFamily: 'HankenGrotesk_500Medium'}}>Orders This Week</Text>
                 </View>
               </Animated.View>
     
               <Animated.View className='flex-row justify-between pt-5 pb-20' entering={FadeInDown.duration(500).delay(600).springify()}>
                 <View className='bg-[#F3EBFF] p-5 rounded-2xl w-[49%]'>
                   <View className='flex-row justify-between'>
-                    <Text style={{fontFamily: 'HankenGrotesk_500Medium'}} className='text-xl text-purple-600'>₦182,000</Text>
+                    <Text style={{fontFamily: 'HankenGrotesk_500Medium'}} className='text-lg text-purple-600'>₦182,000</Text>
                     <View className='flex-row gap-1 items-center'>
                       <Ionicons name='trending-up' color={'green'} size={15}/>
-                      <Text className='text-green-700 text-base' style={{fontFamily: 'HankenGrotesk_500Medium'}}>28%</Text>
+                      <Text className='text-green-700 text-sm' style={{fontFamily: 'HankenGrotesk_500Medium'}}>28%</Text>
                     </View>
                   </View>
-                  <Text className='text-base pt-2.5' style={{fontFamily: 'HankenGrotesk_500Medium'}}>Earnings This Month</Text>
+                  <Text className='text-sm pt-2.5' style={{fontFamily: 'HankenGrotesk_500Medium'}}>Earnings This Month</Text>
                 </View>
     
                 <Pressable className='bg-gray-100  p-5 rounded-2xl w-[49%]' onPress={()=>router.push('/(access)/(user_stacks)/user_story_post')}>
                   <MaterialIcons name='add' size={25} style={{margin: 'auto'}}/>
-                  <Text className='text-base pt-1 text-center' style={{fontFamily: 'HankenGrotesk_500Medium'}}>Post on story</Text>
+                  <Text className='text-sm pt-1 text-center' style={{fontFamily: 'HankenGrotesk_500Medium'}}>Post on story</Text>
                 </Pressable>
               </Animated.View>
     
               <Pressable className='absolute bottom-10 right-8 bg-[#F75F15] p-6 rounded-full border-4 border-gray-200'>
                 <MaterialIcons name='motorcycle' size={30} color={'white'} style={{margin: 'auto'}}/>
-                <Text className='text-base text-white text-center' style={{fontFamily: 'HankenGrotesk_500Medium'}}>Courier</Text>
+                <Text className='text-sm text-white text-center' style={{fontFamily: 'HankenGrotesk_500Medium'}}>Courier</Text>
               </Pressable>
             </View>
           }

@@ -259,4 +259,66 @@ export const useCreateOrder = () => {
 }
 
 
-// https://api.movbay.com/purchase-product/
+// ========== SELLERS ORDERS ============
+
+export const useGetNewOrders = () => {
+  const { data, isLoading, isError, isFetched, refetch } = useQuery({
+    queryKey: ["new-orders"],
+    queryFn: async () => {
+      const token = (await AsyncStorage.getItem("movebay_token")) || "";
+      return get_requests("/orders/?status=new", token);
+    },
+  });
+
+  return {
+    newOrdersData: data,
+    isLoading,
+    isError,
+    isFetched,
+    refetch,
+  };
+};
+
+// =========== USERS ORDER ============
+export const useGetUserOrders = () => {
+  const { data, isLoading, isError, isFetched, refetch } = useQuery({
+    queryKey: ["order"],
+    queryFn: async () => {
+      const token = (await AsyncStorage.getItem("movebay_token")) || "";
+      return get_requests("/order/user/", token);
+    },
+  });
+
+  return {
+    newUserOrdersData: data,
+    isLoading,
+    isError,
+    isFetched,
+    refetch,
+  };
+};
+
+
+
+
+// ============= SEND ORDER TOKEN ============
+export const useSendToken = () => {
+  const queryClient = useQueryClient()
+
+  const sendToken = useMutation({
+    mutationFn: async (data: any) => {
+      const token = (await AsyncStorage.getItem("movebay_token")) || ""
+      return post_requests(`/fcm-token/`, data, token)
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["token"] })
+    },
+  })
+
+  return sendToken
+}
+
+
+// getting the order history for the buyer
+
+// https://api.movbay.com/orders/?status=new

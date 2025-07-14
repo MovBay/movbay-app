@@ -210,7 +210,6 @@ const CustomPicker = ({
 const DeliveryDetails = () => {
   const { cartData } = useLocalSearchParams()
   const [parsedCartData, setParsedCartData] = useState<CartData | null>(null)
-  const [useAlternativeRecipient, setUseAlternativeRecipient] = useState(false)
   const [useAddressBook, setUseAddressBook] = useState(false)
   const [selectedAddressId, setSelectedAddressId] = useState("")
   const [availableCities, setAvailableCities] = useState<City[]>([])
@@ -263,7 +262,7 @@ const DeliveryDetails = () => {
 
   // Delivery method options
   const deliveryMethodOptions = [
-    { label: "MovBay Express", value: "MovBay_Express" },
+    { label: "MovBay Express", value: "MovBay_Dispatch" },
     { label: "Speedy Dispatch", value: "Speedy_Dispatch" },
     { label: "Pickup Hub", value: "Pickup_Hub" },
   ]
@@ -310,26 +309,18 @@ const DeliveryDetails = () => {
     }
   }, [setValue])
 
-  // Handle alternative recipient toggle
-  const handleAlternativeRecipientToggle = useCallback((value: boolean) => {
-    setUseAlternativeRecipient(value)
-    if (!value) {
-      const altFields: (keyof FormData)[] = ["alternativeFullName", "alternativePhone", "alternativeEmail"]
-      altFields.forEach(field => setValue(field, ""))
-    }
-  }, [setValue])
-
-  // Phone number validation
+  // Phone number validation - must start with +234
   const phoneValidation = {
     required: "Phone Number is required",
     pattern: {
-      value: /^[+]?[0-9\s\-()]{10,}$/,
-      message: "Please enter a valid phone number",
+      value: /^\+234[0-9]{10}$/,
+      message: "Phone number must start with +234",
     },
   }
 
-  // Email validation
+  // Email validation - now required
   const emailValidation = {
+    required: "Email Address is required",
     pattern: {
       value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i,
       message: "Please enter a valid email address",
@@ -367,14 +358,15 @@ const DeliveryDetails = () => {
         delivery_method: data.deliveryMethod,
         full_name: data.recipientFullName,
         phone_number: data.recipientPhone,
-        email: data.recipientEmail || "",
-        landmark: data.landmark || "",
+        email: data.recipientEmail,
+        landmark: data.landmark,
         delivery_address: data.streetAddress,
         city: getCityName(data.city, data.state),
         state: getStateName(data.state),
-        alternative_address: data.streetAddress, // You might want to modify this
-        alternative_name: useAlternativeRecipient ? data.alternativeFullName : "",
-        alternative_email: useAlternativeRecipient ? data.alternativeEmail || "" : "",
+        alternative_address: data.streetAddress,
+        alternative_name: data.alternativeFullName,
+        alternative_phone: data.alternativePhone,
+        alternative_email: data.alternativeEmail,
         postal_code: parseInt(data.postalCode) || 0,
       }
 
@@ -385,14 +377,6 @@ const DeliveryDetails = () => {
         total_amount: parsedCartData.total_amount,
         cart_summary: parsedCartData.cart_summary,
       }
-
-      console.log("Combined Data:", combinedData)
-      
-      toast.show("Delivery details saved successfully!", {
-        type: "success",
-        placement: "top",
-      })
-
       // Navigate to delivery summary with combined data
       router.push({
         pathname: "/(access)/(user_stacks)/delivery_details_summary",
@@ -427,7 +411,7 @@ const DeliveryDetails = () => {
             {/* Header */}
             <View className="flex-row items-center gap-2">
               <OnboardArrowTextHeader onPressBtn={() => router.back()} />
-              <Text className="text-2xl text-center m-auto" style={{ fontFamily: "HankenGrotesk_600SemiBold" }}>
+              <Text className="text-xl text-center m-auto" style={{ fontFamily: "HankenGrotesk_600SemiBold" }}>
                 Delivery Details
               </Text>
             </View>
@@ -445,7 +429,7 @@ const DeliveryDetails = () => {
               />
 
               {/* Recipient Information */}
-              <Text className="text-xl pb-3" style={{ fontFamily: "HankenGrotesk_600SemiBold" }}>
+              <Text className="text-lg pb-3" style={{ fontFamily: "HankenGrotesk_600SemiBold" }}>
                 Recipient Information
               </Text>
               
@@ -462,7 +446,7 @@ const DeliveryDetails = () => {
 
               <CustomInput
                 label="Phone Number"
-                placeholder="e.g +234 803 123 4567"
+                placeholder="e.g +2348031234567"
                 name="recipientPhone"
                 control={control}
                 rules={phoneValidation}
@@ -471,61 +455,55 @@ const DeliveryDetails = () => {
               />
 
               <CustomInput
-                label="Email Address (Optional)"
-                placeholder='e.g. "smith@gmail.com"'
+                label="Email Address"
+                placeholder='e.g. "recipient@gmail.com"'
                 name="recipientEmail"
                 control={control}
                 rules={emailValidation}
                 keyboardType="email-address"
+                autoCapitalize="none"
                 errors={errors}
               />
 
-              {/* Alternative Recipient Information */}
-              <Text className="text-xl pb-3" style={{ fontFamily: "HankenGrotesk_600SemiBold" }}>
+              {/* Alternative Recipient Information - Now Required */}
+              <Text className="text-lg pb-3 mt-2 pt-6 border-t border-neutral-200" style={{ fontFamily: "HankenGrotesk_600SemiBold" }}>
                 Alternative Recipient Information
               </Text>
               
-              <ToggleSwitch
-                value={useAlternativeRecipient}
-                onValueChange={handleAlternativeRecipientToggle}
-                label="Add alternative recipient"
+              <CustomInput
+                label="Full Name"
+                placeholder='e.g. "Alternative Contact Name"'
+                name="alternativeFullName"
+                control={control}
+                rules={{ required: "Alternative recipient full name is required" }}
+                keyboardType="default"
+                autoCapitalize="words"
+                errors={errors}
+              />
+              
+              <CustomInput
+                label="Phone Number"
+                placeholder="e.g +2348031234567"
+                name="alternativePhone"
+                control={control}
+                rules={phoneValidation}
+                keyboardType="phone-pad"
+                errors={errors}
+              />
+              
+              <CustomInput
+                label="Email Address"
+                placeholder='e.g. "alternative@gmail.com"'
+                name="alternativeEmail"
+                control={control}
+                rules={emailValidation}
+                keyboardType="email-address"
+                autoCapitalize="none"
+                errors={errors}
               />
 
-              {useAlternativeRecipient && (
-                <View>
-                  <CustomInput
-                    label="Full Name"
-                    placeholder='e.g. "Chinaza Eze"'
-                    name="alternativeFullName"
-                    control={control}
-                    rules={{ required: "Full Name is required" }}
-                    keyboardType="default"
-                    autoCapitalize="words"
-                    errors={errors}
-                  />
-                  <CustomInput
-                    label="Phone Number"
-                    placeholder="e.g +234 803 123 4567"
-                    name="alternativePhone"
-                    control={control}
-                    rules={phoneValidation}
-                    keyboardType="phone-pad"
-                    errors={errors}
-                  />
-                  <CustomInput
-                    label="Email Address (Optional)"
-                    placeholder='e.g. "smith@gmail.com"'
-                    name="alternativeEmail"
-                    control={control}
-                    rules={emailValidation}
-                    keyboardType="email-address"
-                    errors={errors}
-                  />
-                </View>
-              )}
-
               {/* Delivery Address */}
-              <Text className="text-xl pb-3 mt-2 pt-6 border-t border-neutral-200" style={{ fontFamily: "HankenGrotesk_600SemiBold" }}>
+              <Text className="text-lg pb-3 mt-2 pt-6 border-t border-neutral-200" style={{ fontFamily: "HankenGrotesk_600SemiBold" }}>
                 Delivery Address
               </Text>
               
@@ -535,7 +513,7 @@ const DeliveryDetails = () => {
                 label="Use from address book"
               />
 
-              {useAddressBook && (
+              {useAddressBook ? (
                 <View className="mb-5">
                   <Text style={styles.titleStyle}>Select Address</Text>
                   <View className="relative">
@@ -555,10 +533,7 @@ const DeliveryDetails = () => {
                     </View>
                   </View>
                 </View>
-              )}
-
-              {/* Address Input Fields */}
-              {(!useAddressBook || (useAddressBook && !selectedAddressId)) && (
+              ) : (
                 <>
                   <CustomInput
                     label="Street Address"
@@ -575,6 +550,7 @@ const DeliveryDetails = () => {
                     placeholder='e.g. "Opposite Zenith Bank"'
                     name="landmark"
                     control={control}
+                    rules={{ required: "Landmark is required" }}
                     keyboardType="default"
                     autoCapitalize="words"
                     errors={errors}
@@ -605,10 +581,11 @@ const DeliveryDetails = () => {
                     errors={errors}
                   />
                   <CustomInput
-                    label="Postal Code (Optional)"
+                    label="Postal Code"
                     placeholder='e.g. "100001"'
                     name="postalCode"
                     control={control}
+                    rules={{ required: "Postal Code is required" }}
                     keyboardType="number-pad"
                     errors={errors}
                   />
@@ -642,7 +619,7 @@ const styles = StyleSheet.create({
   },
   titleStyle: {
     fontFamily: "HankenGrotesk_500Medium",
-    fontSize: 14,
+    fontSize: 12,
     color: "#3A3541",
     paddingBottom: 8,
     paddingTop: 6,

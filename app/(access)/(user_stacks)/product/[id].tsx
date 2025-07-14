@@ -1,5 +1,3 @@
-"use client"
-
 import { View, Text, Image, Pressable, Modal, Dimensions, FlatList, StyleSheet } from "react-native"
 import { useState } from "react"
 import { SafeAreaView } from "react-native-safe-area-context"
@@ -9,11 +7,12 @@ import { KeyboardAwareScrollView } from "react-native-keyboard-controller"
 import MaterialIcons from "@expo/vector-icons/MaterialIcons"
 import Ionicons from "@expo/vector-icons/Ionicons"
 import { SolidLightButton, SolidMainButton } from "@/components/btns/CustomButtoms"
-import { useGetSingleProducts } from "@/hooks/mutations/sellerAuth"
+import { useGetSingleProducts, useGetStore } from "@/hooks/mutations/sellerAuth"
 import ProductSkeleton from "@/components/ProductSkeleton"
 import LoadingOverlay from "@/components/LoadingOverlay"
 import { Video, ResizeMode } from "expo-av"
 import { useCart } from "@/context/cart-context"
+import { useProfile } from "@/hooks/mutations/auth"
 
 const { width: screenWidth } = Dimensions.get("window")
 
@@ -35,7 +34,7 @@ const CustomSuccessModal = ({ visible, onClose }: { visible: boolean; onClose: (
 
             <View className="flex-row justify-between gap-1">
               <View className="w-[49%]">
-                < SolidLightButton text="Close" onPress={onClose} />
+                <SolidLightButton text="Close" onPress={onClose} />
               </View>
               <View className="w-[49%]">
                 <SolidMainButton
@@ -119,11 +118,13 @@ const Product = () => {
 
   const { userProductData, isLoading } = useGetSingleProducts(id)
   const eachData = userProductData?.data
+  const {storeData, isLoading: storeLoading} = useGetStore()
 
   // Use the global cart context
   const { addToCart, isUpdating } = useCart()
 
-  console.log("This is Products", eachData)
+  // Check if this product belongs to the current user's store
+  const isOwnProduct = eachData?.store?.id === storeData?.data?.id
 
   const openImagePreview = (index: number) => {
     setSelectedImageIndex(index)
@@ -140,6 +141,11 @@ const Product = () => {
 
   const closeVideoModal = () => {
     setIsVideoModalVisible(false)
+  }
+
+  // Navigate back to shop
+  const handleBackToShop = () => {
+    router.push("/(access)/(user_tabs)/home")
   }
 
   // Updated handleAddToCart to use global cart context
@@ -178,13 +184,17 @@ const Product = () => {
 
   return (
     <SafeAreaView className="bg-white flex-1">
-      <KeyboardAwareScrollView className="">
-        <LoadingOverlay visible={isUpdating} />
-
+      <LoadingOverlay visible={isUpdating} />
+      
+      {/* Main Content with bottom padding to accommodate fixed buttons */}
+      <KeyboardAwareScrollView 
+        className=""
+        contentContainerStyle={{ paddingBottom: 100 }} // Add padding to prevent content from being hidden behind fixed buttons
+      >
         {isLoading || eachData === undefined ? (
           <ProductSkeleton />
         ) : (
-          <View className="pb-10">
+          <View className="pb-5">
             <View className="w-full h-[350px] object-cover relative">
               <Image
                 style={{ width: "100%", height: "100%", objectFit: "cover" }}
@@ -201,30 +211,57 @@ const Product = () => {
               <Pressable className="absolute top-4 right-5  bg-white/80 p-2.5 rounded-full justify-center items-center flex">
                 <MaterialIcons name="question-mark" size={20} color={"black"} />
               </Pressable>
-              <View className="bg-white/50 rounded-full p-2 px-3 right-3 bottom-3 absolute z-50">
-                <Text className="text-sm" style={{ fontFamily: "HankenGrotesk_600SemiBold" }}>
-                  {eachData?.stock_available}
-                </Text>
-              </View>
+              
+              {/* Owner Badge */}
+              {isOwnProduct && (
+                <View className="bg-[#4285F4] rounded-full p-2 px-4 left-3 bottom-3 absolute z-50">
+                  <Text className="text-white text-sm font-semibold" style={{ fontFamily: "HankenGrotesk_600SemiBold" }}>
+                    Your Product
+                  </Text>
+                </View>
+              )}
+              
+              {/* Stock Badge */}
+              {!isOwnProduct && (
+                <View className="bg-white/50 rounded-full p-2 px-3 right-3 bottom-3 absolute z-50">
+                  <Text className="text-sm" style={{ fontFamily: "HankenGrotesk_600SemiBold" }}>
+                    {eachData?.stock_available}
+                  </Text>
+                </View>
+              )}
             </View>
 
             <View className="px-5 pt-3">
+              {/* Owner Notice Banner */}
+              {isOwnProduct && (
+                <View className="bg-[#E8F0FE] border border-[#4285F4] rounded-lg p-4 mb-4 flex-row items-center">
+                  <MaterialIcons name="info" size={20} color="#4285F4" />
+                  <View className="ml-3 flex-1">
+                    <Text className="text-[#4285F4] text-sm font-semibold" style={{ fontFamily: "HankenGrotesk_600SemiBold" }}>
+                      This is your product
+                    </Text>
+                    <Text className="text-[#4285F4] text-sm" style={{ fontFamily: "HankenGrotesk_400Regular" }}>
+                      You're viewing a product from your store
+                    </Text>
+                  </View>
+                </View>
+              )}
+
               <View className="flex-row justify-between items-center">
                 <View className="flex-row gap-2">
                   <MaterialIcons size={20} name="location-pin" />
                   {eachData?.store?.address1.length > 20 ? (
-                    <Text className="text-base " style={{ fontFamily: "HankenGrotesk_400Regular" }}>
+                    <Text className="text-sm " style={{ fontFamily: "HankenGrotesk_400Regular" }}>
                       { eachData?.store?.address1.slice(0, 20)}...
                     </Text>
                     ) :
                     (
-                      <Text className="text-base " style={{ fontFamily: "HankenGrotesk_400Regular" }}>
+                      <Text className="text-sm " style={{ fontFamily: "HankenGrotesk_400Regular" }}>
                         { eachData?.store?.address1}
                       </Text>
                     )
                   }
                 </View>
-
 
               {eachData?.verified  === true ? 
                 <View className="bg-blue-100 flex-row justify-center gap-1 items-center p-1.5 px-2 my-2 rounded-full">
@@ -243,12 +280,12 @@ const Product = () => {
               </View>
 
               <View className="pt-2">
-                <Text className="text-2xl font-bold" style={{ fontFamily: "HankenGrotesk_600SemiBold" }}>
+                <Text className="text-base font-bold" style={{ fontFamily: "HankenGrotesk_600SemiBold" }}>
                   {eachData?.title}
                 </Text>
                 <View className="flex-row justify-between">
                   <View className="flex-row items-center gap-3">
-                    <Text className="text-lg pt-2" style={{ fontFamily: "HankenGrotesk_500Medium" }}>
+                    <Text className="text-base pt-2" style={{ fontFamily: "HankenGrotesk_500Medium" }}>
                       ₦ {eachData?.original_price.toLocaleString()}
                     </Text>
                     <Text
@@ -276,6 +313,20 @@ const Product = () => {
                   </Text>
                 </View>
 
+                {/* Watch Product Video Button */}
+                  {eachData?.video_url && (
+                    <Pressable
+                      onPress={openVideoModal}
+                      className="bg-[#F75F15] p-3 rounded-full mt-3 flex-row items-center justify-center gap-2"
+                    >
+                      <Ionicons name="play-circle" size={24} color="white" />
+                      <Text className="text-white text-sm" style={{ fontFamily: "HankenGrotesk_600SemiBold" }}>
+                        Watch Product Video
+                      </Text>
+                    </Pressable>
+                  )}
+                </View>
+
                 {/* Updated Image Gallery Section */}
                 <View className="py-4">
                   <View className="flex-row flex-wrap gap-2">
@@ -299,19 +350,7 @@ const Product = () => {
                     ))}
                   </View>
 
-                  {/* Watch Product Video Button */}
-                  {eachData?.video_url && (
-                    <Pressable
-                      onPress={openVideoModal}
-                      className="bg-[#FEEEE6] p-3 rounded-full mt-3 flex-row items-center justify-center gap-2"
-                    >
-                      <Ionicons name="play-circle" size={24} color="#A53F0E" />
-                      <Text className="text-[#A53F0E] text-base" style={{ fontFamily: "HankenGrotesk_600SemiBold" }}>
-                        Watch Product Video
-                      </Text>
-                    </Pressable>
-                  )}
-                </View>
+                  
 
                 {/* Image Preview Modal */}
                 <Modal
@@ -356,13 +395,13 @@ const Product = () => {
 
                 <View className="pt-2">
                   <View className="bg-[#FEF2CD] p-3 rounded-md">
-                    <Text className="text-base text-[#977102]" style={{ fontFamily: "HankenGrotesk_600SemiBold" }}>
+                    <Text className="text-sm text-[#977102]" style={{ fontFamily: "HankenGrotesk_600SemiBold" }}>
                       Seller's delivery starts within 1–2 working days for out-of-state orders.
                     </Text>
                   </View>
 
                   <View className="pt-5">
-                    <Text className="text-lg" style={{ fontFamily: "HankenGrotesk_600SemiBold" }}>
+                    <Text className="text-base" style={{ fontFamily: "HankenGrotesk_600SemiBold" }}>
                       Color Variation
                     </Text>
                     <View className="flex-row gap-3 items-center">
@@ -380,17 +419,17 @@ const Product = () => {
                     </View>
 
                     <View className="pt-5 pb-3 border-b border-neutral-200">
-                      <Text className="text-lg" style={{ fontFamily: "HankenGrotesk_600SemiBold" }}>
+                      <Text className="text-base" style={{ fontFamily: "HankenGrotesk_600SemiBold" }}>
                         Description
                       </Text>
-                      <Text className="text-base pt-2" style={{ fontFamily: "HankenGrotesk_400Regular" }}>
+                      <Text className="text-sm pt-2" style={{ fontFamily: "HankenGrotesk_400Regular" }}>
                         {eachData?.description}
                       </Text>
                     </View>
 
                     <View className="pt-5 border-b border-gray-200 pb-5 flex-col gap-2">
                       <View className="flex-row items-center gap-2">
-                        <Text className="text-base " style={{ fontFamily: "HankenGrotesk_500Medium" }}>
+                        <Text className="text-sm " style={{ fontFamily: "HankenGrotesk_500Medium" }}>
                           Pickup Available
                         </Text>
                         {eachData?.pickup_available === true ? (
@@ -401,7 +440,7 @@ const Product = () => {
                       </View>
 
                       <View className="flex-row items-center gap-2">
-                        <Text className="text-base " style={{ fontFamily: "HankenGrotesk_500Medium" }}>
+                        <Text className="text-sm " style={{ fontFamily: "HankenGrotesk_500Medium" }}>
                           Delivery Available
                         </Text>
                         {eachData?.delivery_available === true ? (
@@ -413,7 +452,7 @@ const Product = () => {
                     </View>
 
                     <View className="bg-[#FEEEE6] p-3 rounded-md mt-3">
-                      <Text className="text-base text-[#A53F0E]" style={{ fontFamily: "HankenGrotesk_600SemiBold" }}>
+                      <Text className="text-sm text-[#A53F0E]" style={{ fontFamily: "HankenGrotesk_600SemiBold" }}>
                         Pay with wallet or card in MovBay—fast, safe, and fully protected!
                       </Text>
                     </View>
@@ -427,8 +466,13 @@ const Product = () => {
                           />
                         </View>
                         <View>
-                          <Text style={{ fontFamily: "HankenGrotesk_600SemiBold" }} className="text-lg">
+                          <Text style={{ fontFamily: "HankenGrotesk_600SemiBold" }} className="text-base">
                             {eachData?.store.name}
+                            {isOwnProduct && (
+                              <Text className="text-[#4285F4] text-sm" style={{ fontFamily: "HankenGrotesk_400Regular" }}>
+                                {" "}(Your Store)
+                              </Text>
+                            )}
                           </Text>
                           <View className="flex-row">
                             <MaterialIcons name="star" size={15} color={"#FBBC05"} />
@@ -439,24 +483,26 @@ const Product = () => {
                         </View>
                       </View>
 
-                      <Pressable className="bg-[#FEEEE6] p-3 rounded-full px-6">
-                        <Text style={{ fontFamily: "HankenGrotesk_500Medium" }} className="text-base text-[#A53F0E]">
-                          Follow
-                        </Text>
-                      </Pressable>
+                      {!isOwnProduct && (
+                        <Pressable className="bg-[#FEEEE6] p-3 rounded-full px-6">
+                          <Text style={{ fontFamily: "HankenGrotesk_500Medium" }} className="text-sm text-[#A53F0E]">
+                            Follow
+                          </Text>
+                        </Pressable>
+                      )}
                     </View>
 
                     <View className="pt-5">
-                      <Text className="text-xl" style={{ fontFamily: "HankenGrotesk_600SemiBold" }}>
+                      <Text className="text-sm" style={{ fontFamily: "HankenGrotesk_600SemiBold" }}>
                         Reviews
                       </Text>
 
                       <View>
-                        {product?.reviews.map((review, index) => (
+                        {product?.reviews?.map((review, index) => (
                           <View key={index} className="pt-3 pb-3 border-b border-neutral-200">
                             <View className="flex-row justify-between ">
                               <View>
-                                <Text style={{ fontFamily: "HankenGrotesk_500Medium" }} className="text-base">
+                                <Text style={{ fontFamily: "HankenGrotesk_500Medium" }} className="text-sm">
                                   {review?.username}
                                 </Text>
                                 <View className="flex-row">
@@ -471,24 +517,11 @@ const Product = () => {
                                 {review.date}
                               </Text>
                             </View>
-                            <Text style={{ fontFamily: "HankenGrotesk_500Medium" }} className="text-base pt-3">
+                            <Text style={{ fontFamily: "HankenGrotesk_500Medium" }} className="text-sm pt-3">
                               {review.review}
                             </Text>
                           </View>
                         ))}
-                      </View>
-                    </View>
-
-                    <View className="flex-row gap-3 justify-center pt-5">
-                      <View className="w-[50%]">
-                        <SolidLightButton text="Chat" />
-                      </View>
-
-                      <View className="w-[50%]">
-                        <SolidMainButton
-                          text="Add to Cart"
-                          onPress={handleAddToCart}
-                        />
                       </View>
                     </View>
                   </View>
@@ -499,6 +532,36 @@ const Product = () => {
         )}
       </KeyboardAwareScrollView>
 
+      {/* Fixed Action Buttons at Bottom */}
+      {!isLoading && eachData && (
+        <View style={styles.fixedBottomContainer} className="bg-neutral-50">
+          {isOwnProduct ? (
+            // Show options for own product
+            <View className="flex-row gap-3 justify-center">
+              <View className="w-[48%]">
+                <SolidLightButton text="Edit Product" onPress={() => router.push(`/(access)/(user_tabs)/(drawer)/products`)} />
+              </View>
+              <View className="w-[48%]">
+                <SolidMainButton text="Back to Shop" onPress={handleBackToShop} />
+              </View>
+            </View>
+          ) : (
+            // Show options for other products
+            <View className="flex-row gap-3 justify-center">
+              <View className="w-[48%]">
+                <SolidLightButton text="Chat" />
+              </View>
+              <View className="w-[48%]">
+                <SolidMainButton
+                  text="Add to Cart"
+                  onPress={handleAddToCart}
+                />
+              </View>
+            </View>
+          )}
+        </View>
+      )}
+
       {/* Success Modal */}
       <CustomSuccessModal visible={isSuccessModalVisible} onClose={() => setIsSuccessModalVisible(false)} />
 
@@ -508,7 +571,7 @@ const Product = () => {
   )
 }
 
-// Styles for the modal
+// Styles for the modal and fixed bottom container
 const styles = StyleSheet.create({
   modalOverlay: {
     flex: 1,
@@ -538,21 +601,32 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   modalTitle: {
-    fontSize: 20,
+    fontSize: 16,
     fontWeight: "600",
     textAlign: "center",
     marginBottom: 10,
     fontFamily: "HankenGrotesk_600SemiBold",
   },
   modalDescription: {
-    fontSize: 16,
+    fontSize: 14,
+    paddingHorizontal: 20,
     textAlign: "center",
     color: "#666",
-    marginBottom: 20,
+    marginBottom: 25,
     fontFamily: "HankenGrotesk_400Regular",
   },
   buttonContainer: {
     width: "100%",
+  },
+  // Fixed bottom container styles
+  fixedBottomContainer: {
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    right: 0,
+    paddingHorizontal: 20,
+    paddingTop: 15,
+    paddingBottom: 20,
   },
 })
 

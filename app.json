@@ -16,7 +16,8 @@
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#F75F15"
       },
-      "package": "com.bright210.movbayapp"
+      "package": "com.bright210.movbayapp",
+      "googleServicesFile": "./google-services.json"
     },
     "web": {
       "bundler": "metro",
@@ -25,6 +26,13 @@
     },
     "plugins": [
       "expo-router",
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/images/icon.png",
+          "color": "#F75F15"
+        }
+      ],
       [
         "expo-splash-screen",
         {
@@ -45,6 +53,7 @@
       "eas": {
         "projectId": "c3097a2b-8e82-467a-a0a5-196aab16c2e2"
       }
-    }
+    },
+    "owner": "bright210"
   }
 }

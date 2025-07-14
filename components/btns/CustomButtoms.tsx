@@ -1,6 +1,4 @@
-import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { Image, Pressable, Text, TouchableOpacity } from "react-native";
-import Ionicons from '@expo/vector-icons/Ionicons';
 
 
 interface ButtonProps {
@@ -10,7 +8,7 @@ interface ButtonProps {
 export const SolidMainButton = ({text, onPress, ...props}: ButtonProps)=>{
     return (
         <TouchableOpacity {...props} onPress={onPress} className="flex items-center gap-4 bg-[#F75F15] p-4 w-full rounded-full">
-            <Text className="text-white text-base" style={{fontFamily: 'HankenGrotesk_700Bold'}}>{text}</Text>
+            <Text className="text-white text-[13px]" style={{fontFamily: 'HankenGrotesk_700Bold'}}>{text}</Text>
         </TouchableOpacity>
     )
 }
@@ -18,7 +16,7 @@ export const SolidMainButton = ({text, onPress, ...props}: ButtonProps)=>{
 export const SolidInactiveButton = ({text, ...props}: ButtonProps)=>{
     return (
         <Pressable style={{opacity: 0.6}} {...props} className="flex items-center gap-4 bg-[#F75F15] p-4 w-full rounded-full">
-            <Text className="text-white text-base" style={{fontFamily: 'HankenGrotesk_700Bold'}}>{text}</Text>
+            <Text className="text-white text-[13px]" style={{fontFamily: 'HankenGrotesk_700Bold'}}>{text}</Text>
         </Pressable>
     )
 }
@@ -26,7 +24,7 @@ export const SolidInactiveButton = ({text, ...props}: ButtonProps)=>{
 export const SolidLightButton = ({text, onPress, ...props}: ButtonProps)=>{
     return (
         <TouchableOpacity {...props} onPress={onPress} className="flex items-center gap-4 bg-[#FEEEE6] p-4 w-full rounded-full">
-            <Text className="text-[#A53F0E] text-base" style={{fontFamily: 'HankenGrotesk_700Bold'}}>{text}</Text>
+            <Text className="text-[#A53F0E] text-[13px]" style={{fontFamily: 'HankenGrotesk_700Bold'}}>{text}</Text>
         </TouchableOpacity>
     )
 }
@@ -43,7 +41,7 @@ export const GoogleButton = ({text, onPress, ...props}: ButtonProps)=>{
                     height: 24,
                 }}
             />
-            <Text className="text-black text-base" style={{fontFamily: 'HankenGrotesk_700Bold'}}>{text}</Text>
+            <Text className="text-black text-[13px]" style={{fontFamily: 'HankenGrotesk_700Bold'}}>{text}</Text>
         </TouchableOpacity>
     )
 }

@@ -1,5 +1,3 @@
-"use client"
-
 import AllProductSkeleton2 from "@/components/AllProductSkeleton2"
 import Products from "@/components/Products"
 import { shopCategory } from "@/constants/datas"
@@ -15,7 +13,7 @@ import { ActivityIndicator, FlatList, RefreshControl } from "react-native"
 import { Image, Pressable, StyleSheet, Text, TextInput, View } from "react-native"
 import Animated, { FadeInDown } from "react-native-reanimated"
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context"
-import { Toast } from "react-native-toast-notifications"
+
 
 export default function HomeScreen() {
   const { profile, isLoading, refetch: refetchProfile } = useProfile()
@@ -237,7 +235,7 @@ export default function HomeScreen() {
                   <Pressable onPress={()=>handleViewStatus(item.statuses[0]?.store)} className="mr-5 items-center">
                     <View className="relative">
                       <View
-                        className="w-24 h-24 rounded-full overflow-hidden justify-center items-center flex"
+                        className="w-20 h-20 rounded-full overflow-hidden justify-center items-center flex"
                         style={{
                           borderWidth: statusCount > 0 ? 2 : 0,
                           borderColor: statusCount > 0 ? "#34A853" : "gray",
@@ -274,7 +272,7 @@ export default function HomeScreen() {
                       )}
                     </View>
                     <Text
-                      className="text-sm pt-2 text-neutral-600 text-center"
+                      className="text-xs pt-2 text-neutral-600 text-center"
                       style={{ fontFamily: "HankenGrotesk_500Medium" }}
                     >
                       {item?.name && item.name.length > 11
@@ -327,7 +325,7 @@ export default function HomeScreen() {
                     }`}
                   >
                     <Text
-                      className={`text-base ${activeCategoryId === item.id ? "text-orange-600" : "text-neutral-700"}`}
+                      className={`text-sm ${activeCategoryId === item.id ? "text-orange-600" : "text-neutral-700"}`}
                       style={{ fontFamily: "HankenGrotesk_500Medium" }}
                     >
                       {item?.name}
@@ -367,7 +365,7 @@ export default function HomeScreen() {
           style={{
             fontFamily: "HankenGrotesk_500Medium",
           }}
-          className="text-lg text-gray-600"
+          className="text-base text-gray-600"
         >
           {searchQuery.length > 0 ? `No results found for "${searchQuery}"` : "No item found"}
         </Text>
@@ -377,7 +375,7 @@ export default function HomeScreen() {
               style={{
                 fontFamily: "HankenGrotesk_500Medium",
               }}
-              className="text-base text-orange-600 bg-orange-50 p-2.5 px-5 rounded-full"
+              className="text-sm text-orange-600 bg-orange-50 p-2.5 px-5 rounded-full"
             >
               Clear search
             </Text>
@@ -387,6 +385,7 @@ export default function HomeScreen() {
     ),
     [searchQuery, clearSearch],
   )
+
 
   return (
     <SafeAreaView className="flex-1 flex w-full bg-white">

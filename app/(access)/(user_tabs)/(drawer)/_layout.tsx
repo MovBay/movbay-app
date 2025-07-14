@@ -156,7 +156,7 @@ const styles = StyleSheet.create({
   },
   drawerText: {
     marginLeft: 12,
-    fontSize: 15,
+    fontSize: 14,
     color: '#5F5F5F',
     fontFamily: 'HankenGrotesk_500Medium',
   },

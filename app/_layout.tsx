@@ -28,6 +28,19 @@ import {
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { ToastProvider } from 'react-native-toast-notifications';
 import { CartProvider } from '@/context/cart-context';
+import { NotificationProvider } from '@/context/NotificationContext';
+
+
+import "react-native-reanimated";
+import * as Notifications from "expo-notifications";
+
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldShowAlert: true,
+    shouldPlaySound: true,
+    shouldSetBadge: true,
+  }),
+});
 
 // Prevent the splash screen from auto-hiding before asset loading is complete.
 SplashScreen.preventAutoHideAsync();
@@ -61,46 +74,48 @@ export default function RootLayout() {
   }
 
   return (
-    <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-      <CartProvider>
-        <ToastProvider
-          placement="top"
-          offset={50}
-          textStyle={{
-            fontFamily: "HankenGrotesk_500Medium",
-            width: "90%",
-          }}
+    <NotificationProvider>
+      <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
+        <CartProvider>
+          <ToastProvider
+            placement="top"
+            offset={50}
+            textStyle={{
+              fontFamily: "HankenGrotesk_500Medium",
+              width: "90%",
+            }}
 
-            dangerIcon={
-              <MaterialIcons
-                name="dangerous"
-                size={20}
-                color={"#fff"}
-                
-              />
-            }
-            successIcon={
-              <MaterialIcons name="check" size={20} color="#fff" />
-            }
-            warningIcon={
-              <MaterialIcons name="warning" size={20} color="#fff" />
-            }
-          >
-            <QueryClientProvider client={queryClient}>
-              <KeyboardProvider>
-                <GestureHandlerRootView>
-                  <Stack>
-                    <Stack.Screen name="(noaccess)" options={{ headerShown: false }} />
-                    <Stack.Screen name="(access)" options={{ headerShown: false }} />
-                    <Stack.Screen name="+not-found" />
-                  </Stack>
-                  <StatusBar style="auto" />
-                </GestureHandlerRootView>
-              </KeyboardProvider>
+              dangerIcon={
+                <MaterialIcons
+                  name="dangerous"
+                  size={20}
+                  color={"#fff"}
+                  
+                />
+              }
+              successIcon={
+                <MaterialIcons name="check" size={20} color="#fff" />
+              }
+              warningIcon={
+                <MaterialIcons name="warning" size={20} color="#fff" />
+              }
+            >
+              <QueryClientProvider client={queryClient}>
+                <KeyboardProvider>
+                  <GestureHandlerRootView>
+                    <Stack>
+                      <Stack.Screen name="(noaccess)" options={{ headerShown: false }} />
+                      <Stack.Screen name="(access)" options={{ headerShown: false }} />
+                      <Stack.Screen name="+not-found" />
+                    </Stack>
+                    <StatusBar style="auto" />
+                  </GestureHandlerRootView>
+                </KeyboardProvider>
 
-            </QueryClientProvider>
-        </ToastProvider>
-      </CartProvider>
-    </ThemeProvider>
+              </QueryClientProvider>
+          </ToastProvider>
+        </CartProvider>
+      </ThemeProvider>
+    </NotificationProvider>
   );
 }

@@ -189,7 +189,7 @@ const DeliveryDetailsSummary = () => {
           {/* Header */}
           <View className="flex-row items-center gap-2 mb-6">
             <OnboardArrowTextHeader onPressBtn={() => router.back()} />
-            <Text className="text-2xl text-center m-auto" style={{ fontFamily: "HankenGrotesk_600SemiBold" }}>
+            <Text className="text-xl text-center m-auto" style={{ fontFamily: "HankenGrotesk_600SemiBold" }}>
               Delivery Details
             </Text>
           </View>
@@ -290,7 +290,7 @@ export default DeliveryDetailsSummary
 const styles = StyleSheet.create({
   sectionTitle: {
     fontFamily: "HankenGrotesk_600SemiBold",
-    fontSize: 16,
+    fontSize: 14,
     color: "#000",
     marginBottom: 4,
   },
@@ -302,7 +302,7 @@ const styles = StyleSheet.create({
   },
   valueStyle: {
     fontFamily: "HankenGrotesk_500Medium",
-    fontSize: 14,
+    fontSize: 13,
     color: "#000",
     flex: 1,
     textAlign: "right",

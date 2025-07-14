@@ -142,7 +142,6 @@ const Cart = () => {
     transform: [{ scale: clearModalScale.value }],
   }))
 
-  // Function to truncate title if longer than 20 characters
   const truncateTitle = (title: string) => {
     if (title.length > 20) {
       return title.substring(0, 20) + "..."
@@ -150,9 +149,7 @@ const Cart = () => {
     return title
   }
 
-  // Handle checkout - prepare cart data for next screen
   const handleCheckout = () => {
-    // Structure cart data according to API format
     const cartData = {
       items: cartItems.map(item => ({
         store: item?.store?.id,
@@ -191,7 +188,7 @@ const Cart = () => {
         >
           <View className="items-center mb-4">
             <View className="bg-red-100 p-3 rounded-full mb-3">
-              <MaterialIcons name="delete-outline" size={24} color="#EF4444" />
+              <MaterialIcons name="delete-outline" size={24} color="#F75F15" />
             </View>
             <Text
               className="text-xl font-semibold text-gray-900 mb-2"
@@ -241,7 +238,7 @@ const Cart = () => {
       >
         <Animated.View
           style={[clearModalContentStyle]}
-          className="bg-white rounded-2xl p-10 mx-5 w-[70%]"
+          className="bg-white rounded-2xl p-10 mx-5 w-[80%]"
         >
           <View className="items-center mb-4">
             <View className="bg-orange-100 p-3 rounded-full mb-3">
@@ -268,7 +265,7 @@ const Cart = () => {
             </TouchableOpacity>
             <TouchableOpacity
               onPress={confirmClearCart}
-              className="flex-1 bg-orange-500 py-3 rounded-full items-center"
+              className="flex-1 bg-[#F75F15] py-3 rounded-full items-center"
               disabled={isUpdating}
             >
               <Text className="text-white font-semibold" style={{ fontFamily: "HankenGrotesk_600SemiBold" }}>
@@ -300,7 +297,7 @@ const Cart = () => {
         <View className="mr-4">
           <Image 
             source={{ uri: item.image }}
-            className="w-20 h-20 rounded-lg"
+            className="w-20 h-20 rounded-base"
             resizeMode="cover"
           />
         </View>
@@ -313,7 +310,7 @@ const Cart = () => {
           >
             {truncateTitle(item.title)}
           </Text>
-          <Text className="text-lg font-bold text-gray-900 mb-1" style={{ fontFamily: "HankenGrotesk_600SemiBold" }}>
+          <Text className="text-base font-bold text-gray-900 mb-1" style={{ fontFamily: "HankenGrotesk_600SemiBold" }}>
             {formatPrice(item.discounted_price || item.price)}
           </Text>
           {/* Quantity Controls */}
@@ -326,7 +323,7 @@ const Cart = () => {
               >
                 <MaterialIcons name="remove" size={14} color="#666" />
               </TouchableOpacity>
-              <Text className="mx-4 text-lg font-semibold" style={{ fontFamily: "HankenGrotesk_600SemiBold" }}>
+              <Text className="mx-4 text-base font-semibold" style={{ fontFamily: "HankenGrotesk_600SemiBold" }}>
                 {item.quantity}
               </Text>
               <TouchableOpacity
@@ -351,7 +348,6 @@ const Cart = () => {
     </Animated.View>
   )
 
-  console.log('This is cart data', cartItems)
 
   return (
     <SafeAreaView className="flex-1 bg-gray-50">
@@ -365,12 +361,12 @@ const Cart = () => {
       <View className="px-5 pt-3 pb-4 border-b border-gray-100">
         <View className="flex-row items-center gap-2">
           <OnboardArrowTextHeader onPressBtn={() => router.back()} />
-          <Text className="text-2xl text-center m-auto" style={{ fontFamily: "HankenGrotesk_600SemiBold" }}>
+          <Text className="text-xl text-center m-auto" style={{ fontFamily: "HankenGrotesk_600SemiBold" }}>
             Cart
           </Text>
           {cartLength > 0 && (
-            <TouchableOpacity onPress={handleClearCart} className="p-2">
-              <MaterialIcons name="clear-all" size={30} color="#EF4444" />
+            <TouchableOpacity onPress={handleClearCart} className="p-2 bg-neutral-100 rounded-full ">
+              <Ionicons name="trash" size={20} color="#EF4444" />
             </TouchableOpacity>
           )}
         </View>
@@ -418,12 +414,12 @@ const Cart = () => {
             >
               <View className="flex-row justify-between items-center mb-4">
                 <Text
-                  className="text-lg font-semibold text-gray-600"
+                  className="text-base font-semibold text-gray-600"
                   style={{ fontFamily: "HankenGrotesk_600SemiBold" }}
                 >
                   Total ({cartLength} {cartLength === 1 ? "item" : "items"})
                 </Text>
-                <Text className="text-2xl font-bold text-gray-900" style={{ fontFamily: "HankenGrotesk_700Bold" }}>
+                <Text className="text-xl font-bold text-gray-900" style={{ fontFamily: "HankenGrotesk_700Bold" }}>
                   {formatPrice(totalAmount)}
                 </Text>
               </View>

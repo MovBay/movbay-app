@@ -53,8 +53,8 @@ const Profile = () => {
           <KeyboardAwareScrollView className='flex-1' contentContainerStyle={{paddingHorizontal: 28, paddingTop: 24, paddingBottom: 20}}>
             <View className=''>
 
-              <Text className='text-2xl' style={{fontFamily: 'HankenGrotesk_500Medium'}}>My Profile</Text>
-              <Text className='text-lg' style={{fontFamily: 'HankenGrotesk_400Regular'}}>Manage your account, orders, and preferences.</Text>
+              <Text className='text-xl' style={{fontFamily: 'HankenGrotesk_500Medium'}}>My Profile</Text>
+              <Text className='text-base' style={{fontFamily: 'HankenGrotesk_400Regular'}}>Manage your account, orders, and preferences.</Text>
 
               {isLoading ? <View className='m-auto pt-10 pb-5'><ActivityIndicator size={'small'} color={'#F75F15'} /></View> :
               <View className='flex-col justify-center items-center mt-6'>
@@ -66,7 +66,7 @@ const Profile = () => {
                   }
                 </View>
                 <View>
-                  <Text className='text-lg mt-2 text-center' style={{fontFamily: 'HankenGrotesk_600SemiBold'}}>{profile?.data?.fullname}</Text>
+                  <Text className='text-base mt-2 text-center' style={{fontFamily: 'HankenGrotesk_600SemiBold'}}>{profile?.data?.fullname}</Text>
                   <Text className='text-base text-gray-500 text-center' style={{fontFamily: 'HankenGrotesk_400Regular'}}>@{profile?.data?.username}</Text>
                 </View>
                 <View className='flex-row items-center gap-1 py-2 pb-4'>
@@ -82,96 +82,96 @@ const Profile = () => {
               }
 
               <View>
-                <Pressable onPress={() => router.push('/(access)/(user_stacks)/profile-view')} className='flex-row items-center justify-between mt-3 bg-neutral-100 rounded-lg p-3'>
+                <Pressable onPress={() => router.push('/(access)/(user_stacks)/profile-view')} className='flex-row items-center justify-between mt-3 bg-neutral-100 rounded-base p-3'>
                   <View className='flex-row items-center gap-3 '>
                     <View className='w-10 h-10 bg-gray-200 rounded-full justify-center items-center'>
                       <Ionicons name='person-outline' size={18} color={'#0F0F0F'}/>
                     </View>
-                    <Text className='text-lg' style={{fontFamily: 'HankenGrotesk_600SemiBold'}}>Profile Info</Text>
+                    <Text className='text-base' style={{fontFamily: 'HankenGrotesk_600SemiBold'}}>Profile Info</Text>
                   </View>
-                  <Ionicons name='chevron-forward-outline' size={20} color={'#0F0F0F'}/>
+                  <Ionicons name='chevron-forward-outline' size={15} color={'#0F0F0F'}/>
                 </Pressable>
 
-                <Pressable onPress={() => router.push('/')} className='flex-row items-center justify-between mt-3 bg-neutral-100 rounded-lg p-3'>
+                <Pressable onPress={() => router.push('/')} className='flex-row items-center justify-between mt-3 bg-neutral-100 rounded-base p-3'>
                   <View className='flex-row items-center gap-3 '>
                     <View className='w-10 h-10 bg-gray-200 rounded-full justify-center items-center'>
                       <Ionicons name='location-outline' size={18} color={'#0F0F0F'}/>
                     </View>
-                    <Text className='text-lg' style={{fontFamily: 'HankenGrotesk_600SemiBold'}}>Address Book</Text>
+                    <Text className='text-base' style={{fontFamily: 'HankenGrotesk_600SemiBold'}}>Address Book</Text>
                   </View>
-                  <Ionicons name='chevron-forward-outline' size={20} color={'#0F0F0F'}/>
+                  <Ionicons name='chevron-forward-outline' size={15} color={'#0F0F0F'}/>
                 </Pressable>
 
-                <Pressable onPress={() => router.push('/(access)/(user_stacks)/settings')} className='flex-row items-center justify-between mt-3 bg-neutral-100 rounded-lg p-3'>
+                <Pressable onPress={() => router.push('/(access)/(user_stacks)/settings')} className='flex-row items-center justify-between mt-3 bg-neutral-100 rounded-base p-3'>
                   <View className='flex-row items-center gap-3 '>
                     <View className='w-10 h-10 bg-gray-200 rounded-full justify-center items-center'>
                       <Ionicons name='settings-outline' size={18} color={'#0F0F0F'}/>
                     </View>
-                    <Text className='text-lg' style={{fontFamily: 'HankenGrotesk_600SemiBold'}}>Settings</Text>
+                    <Text className='text-base' style={{fontFamily: 'HankenGrotesk_600SemiBold'}}>Settings</Text>
                   </View>
-                  <Ionicons name='chevron-forward-outline' size={20} color={'#0F0F0F'}/>
+                  <Ionicons name='chevron-forward-outline' size={15} color={'#0F0F0F'}/>
                 </Pressable>
 
-                <Pressable onPress={() => router.push('/')} className='flex-row items-center justify-between mt-3 bg-neutral-100 rounded-lg p-3'>
+                <Pressable onPress={() => router.push('/(access)/(user_stacks)/order_history_buyer')} className='flex-row items-center justify-between mt-3 bg-neutral-100 rounded-base p-3'>
                   <View className='flex-row items-center gap-3 '>
                     <View className='w-10 h-10 bg-gray-200 rounded-full justify-center items-center'>
                       <Ionicons name='bag-add-outline' size={18} color={'#0F0F0F'}/>
                     </View>
-                    <Text className='text-lg' style={{fontFamily: 'HankenGrotesk_600SemiBold'}}>Orders History</Text>
+                    <Text className='text-base' style={{fontFamily: 'HankenGrotesk_600SemiBold'}}>Orders History</Text>
                   </View>
-                  <Ionicons name='chevron-forward-outline' size={20} color={'#0F0F0F'}/>
+                  <Ionicons name='chevron-forward-outline' size={15} color={'#0F0F0F'}/>
                 </Pressable>
 
-                <Pressable onPress={() => router.push('/')} className='flex-row items-center justify-between mt-3 bg-neutral-100 rounded-lg p-3'>
+                <Pressable onPress={() => router.push('/')} className='flex-row items-center justify-between mt-3 bg-neutral-100 rounded-base p-3'>
                   <View className='flex-row items-center gap-3 '>
                     <View className='w-10 h-10 bg-gray-200 rounded-full justify-center items-center'>
                       <MaterialIcons name='favorite-outline' size={18} color={'#0F0F0F'}/>
                     </View>
-                    <Text className='text-lg' style={{fontFamily: 'HankenGrotesk_600SemiBold'}}>Save</Text>
+                    <Text className='text-base' style={{fontFamily: 'HankenGrotesk_600SemiBold'}}>Save</Text>
                   </View>
-                  <Ionicons name='chevron-forward-outline' size={20} color={'#0F0F0F'}/>
+                  <Ionicons name='chevron-forward-outline' size={15} color={'#0F0F0F'}/>
                 </Pressable>
 
-                <Pressable onPress={() => router.push('/')} className='flex-row items-center justify-between mt-3 bg-neutral-100 rounded-lg p-3'>
+                <Pressable onPress={() => router.push('/')} className='flex-row items-center justify-between mt-3 bg-neutral-100 rounded-base p-3'>
                   <View className='flex-row items-center gap-3 '>
                     <View className='w-10 h-10 bg-gray-200 rounded-full justify-center items-center'>
                       <Ionicons name='people-outline' size={18} color={'#0F0F0F'}/>
                     </View>
-                    <Text className='text-lg' style={{fontFamily: 'HankenGrotesk_600SemiBold'}}>Referrals</Text>
+                    <Text className='text-base' style={{fontFamily: 'HankenGrotesk_600SemiBold'}}>Referrals</Text>
                   </View>
-                  <Ionicons name='chevron-forward-outline' size={20} color={'#0F0F0F'}/>
+                  <Ionicons name='chevron-forward-outline' size={15} color={'#0F0F0F'}/>
                 </Pressable>
 
 
-                <Pressable onPress={() => router.push('/')} className='flex-row items-center justify-between mt-3 bg-neutral-100 rounded-lg p-3'>
+                <Pressable onPress={() => router.push('/')} className='flex-row items-center justify-between mt-3 bg-neutral-100 rounded-base p-3'>
                   <View className='flex-row items-center gap-3 '>
                     <View className='w-10 h-10 bg-gray-200 rounded-full justify-center items-center'>
                       <MaterialIcons name='question-mark' size={18} color={'#0F0F0F'}/>
                     </View>
-                    <Text className='text-lg' style={{fontFamily: 'HankenGrotesk_600SemiBold'}}>FAQ and support</Text>
+                    <Text className='text-base' style={{fontFamily: 'HankenGrotesk_600SemiBold'}}>FAQ and support</Text>
                   </View>
-                  <Ionicons name='chevron-forward-outline' size={20} color={'#0F0F0F'}/>
+                  <Ionicons name='chevron-forward-outline' size={15} color={'#0F0F0F'}/>
                 </Pressable>
 
 
-                <Pressable onPress={() => router.push('/')} className='flex-row items-center justify-between mt-3 bg-neutral-100 rounded-lg p-3'>
+                <Pressable onPress={() => router.push('/')} className='flex-row items-center justify-between mt-3 bg-neutral-100 rounded-base p-3'>
                   <View className='flex-row items-center gap-3 '>
                     <View className='w-10 h-10 bg-gray-200 rounded-full justify-center items-center'>
                       <MaterialIcons name='star-outline' size={18} color={'#0F0F0F'}/>
                     </View>
-                    <Text className='text-lg' style={{fontFamily: 'HankenGrotesk_600SemiBold'}}>Rate MovBay</Text>
+                    <Text className='text-base' style={{fontFamily: 'HankenGrotesk_600SemiBold'}}>Rate MovBay</Text>
                   </View>
-                  <Ionicons name='chevron-forward-outline' size={20} color={'#0F0F0F'}/>
+                  <Ionicons name='chevron-forward-outline' size={15} color={'#0F0F0F'}/>
                 </Pressable>
 
-                <Pressable onPress={handleLogout} className='flex-row items-center justify-between mt-3 bg-neutral-100 rounded-lg p-3'>
+                <Pressable onPress={handleLogout} className='flex-row items-center justify-between mt-3 bg-neutral-100 rounded-base p-3'>
                   <View className='flex-row items-center gap-3 '>
                     <View className='w-10 h-10 bg-gray-200 rounded-full justify-center items-center'>
                       <MaterialIcons name='logout' size={18} color={'#0F0F0F'}/>
                     </View>
-                    <Text className='text-lg' style={{fontFamily: 'HankenGrotesk_600SemiBold'}}>Logout</Text>
+                    <Text className='text-base' style={{fontFamily: 'HankenGrotesk_600SemiBold'}}>Logout</Text>
                   </View>
-                  <Ionicons name='chevron-forward-outline' size={20} color={'#0F0F0F'}/>
+                  <Ionicons name='chevron-forward-outline' size={15} color={'#0F0F0F'}/>
                 </Pressable>
 
               </View>
@@ -184,7 +184,7 @@ const Profile = () => {
               onPress={handlePress}
               className='bg-red-500 p-4 rounded-full'
             >
-              <Text className='text-white text-lg text-center' style={{fontFamily: 'HankenGrotesk_600SemiBold'}}>Delete MovBay</Text>
+              <Text className='text-white text-base text-center' style={{fontFamily: 'HankenGrotesk_600SemiBold'}}>Delete MovBay</Text>
             </Pressable>
           </View>
         </View>
