@@ -6,7 +6,7 @@ import { useCart } from "@/context/cart-context"
 import { useGetProducts, useGetStoreStatus } from "@/hooks/mutations/sellerAuth"
 import Ionicons from "@expo/vector-icons/Ionicons"
 import MaterialIcons from "@expo/vector-icons/MaterialIcons"
-import { router } from "expo-router"
+import { router, useFocusEffect } from "expo-router"
 import { StatusBar } from "expo-status-bar"
 import { useState, useMemo, useCallback, useRef, useEffect } from "react"
 import { ActivityIndicator, FlatList, RefreshControl } from "react-native"
@@ -18,6 +18,7 @@ import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context"
 export default function HomeScreen() {
   const { profile, isLoading, refetch: refetchProfile } = useProfile()
   const { productData, isLoading: productLoading, refetch: refetchProducts } = useGetProducts()
+  const { storeStatusData, isLoading: storeStatusLoading, refetch: storeRefetch } = useGetStoreStatus()
   const allProducts = productData?.data?.results
   const { cartLength, cartItems, isUpdating } = useCart()
   const [activeCategoryId, setActiveCategoryId] = useState(shopCategory[0]?.id)
@@ -28,6 +29,25 @@ export default function HomeScreen() {
 
   const ItemSeparator = () => <View style={{ height: 15 }} />
   const insets = useSafeAreaInsets()
+
+  // Refetch data when screen comes into focus
+  useFocusEffect(
+    useCallback(() => {
+      const refetchAllData = async () => {
+        try {
+          await Promise.all([
+            refetchProfile?.(),
+            refetchProducts?.(),
+            storeRefetch?.()
+          ])
+        } catch (error) {
+          console.error("Error refetching data on focus:", error)
+        }
+      }
+
+      refetchAllData()
+    }, [refetchProfile, refetchProducts, storeRefetch])
+  )
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -93,8 +113,7 @@ export default function HomeScreen() {
     setActiveCategoryId(categoryId)
   }, [])
 
-  const { storeStatusData, isLoading: storeStatusLoading, refetch: storeRefetch } = useGetStoreStatus()
-  const handleViewStatus = (id: string) =>{
+  const handleViewStatus = (id: string) => {
     router.push(`/user_status_view/${id}` as any)
   }
 
@@ -283,13 +302,13 @@ export default function HomeScreen() {
                 )
               }}
               ListEmptyComponent={() => (
-                <View className="py-4">
-                  <View className="bg-neutral-200 w-[65px] h-[65px] rounded-full flex justify-center items-center mb-2">
-                    <MaterialIcons name="picture-in-picture" size={25} color={"gray"} />
+                <View className="justify-center m-auto w-full">
+                  <View className="py-3 flex-row items-center gap-3">
+                    <MaterialIcons name="info" size={20} color="gray" />
+                    <Text className="text-neutral-600 text-sm" style={{ fontFamily: "HankenGrotesk_500Medium" }}>
+                      No status available
+                    </Text>
                   </View>
-                  <Text className="text-neutral-600 text-sm" style={{ fontFamily: "HankenGrotesk_500Medium" }}>
-                    No status yet
-                  </Text>
                 </View>
               )}
               initialNumToRender={5}

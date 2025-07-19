@@ -1,22 +1,23 @@
-import { View, Text, TouchableOpacity, Image, ScrollView, Modal, Animated, Dimensions, PanResponder } from 'react-native'
-import React, { useState, useRef } from 'react'
+import { View, Text, TouchableOpacity, Image, ScrollView, Modal, Animated, Dimensions, PanResponder, BackHandler, RefreshControl } from 'react-native'
+import React, { useState, useRef, useEffect, useCallback } from 'react'
 import { StatusBar } from 'expo-status-bar'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { OnboardArrowTextHeader } from '@/components/btns/OnboardHeader'
-import { router } from 'expo-router'
+import { router, useFocusEffect } from 'expo-router'
 import { KeyboardAwareScrollView } from 'react-native-keyboard-controller'
 import { SolidLightButton, SolidMainButton } from '@/components/btns/CustomButtoms'
 import { useGetUserOrders } from '@/hooks/mutations/sellerAuth'
 import { MaterialIcons } from '@expo/vector-icons'
 import LoadingOverlay from '@/components/LoadingOverlay'
+
 const { height: SCREEN_HEIGHT } = Dimensions.get('window')
 
 // Custom Bottom Sheet Component
-const OrderDetailsBottomSheet = ({ visible, onClose, order }:any) => {
+const OrderDetailsBottomSheet = ({ visible, onClose, order }: any) => {
   const slideAnim = useRef(new Animated.Value(SCREEN_HEIGHT)).current
   const backdropOpacity = useRef(new Animated.Value(0)).current
 
-  React.useEffect(() => {
+  useEffect(() => {
     if (visible) {
       Animated.parallel([
         Animated.timing(slideAnim, {
@@ -129,10 +130,10 @@ const OrderDetailsBottomSheet = ({ visible, onClose, order }:any) => {
           {/* Order ID */}
           <View className="px-4 mb-4">
             <Text className="text-sm text-gray-600" style={{ fontFamily: "HankenGrotesk_400Regular" }}>
-              Order ID: {order.order_id}
+              Order ID: <Text className='text-green-800 font-semibold' style={{ fontFamily: "HankenGrotesk_600SemiBold" }}>{order.order_id}</Text>
             </Text>
             <Text className="text-sm text-gray-600" style={{ fontFamily: "HankenGrotesk_400Regular" }}>
-              Status: {order.status}
+              Status: <Text className='text-green-600' style={{ fontFamily: "HankenGrotesk_600SemiBold" }}>{order.status}</Text>
             </Text>
           </View>
 
@@ -142,7 +143,7 @@ const OrderDetailsBottomSheet = ({ visible, onClose, order }:any) => {
               Items ({order.order_items.length})
             </Text>
             
-            {order.order_items.map((item:any, index:any) => (
+            {order.order_items.map((item: any, index: any) => (
               <View key={index} className="bg-gray-50 rounded-xl p-4 mb-3">
                 <View className="flex-row items-center">
                   <View className="w-16 h-16 bg-white rounded-lg mr-3 overflow-hidden">
@@ -215,7 +216,12 @@ const OrderDetailsBottomSheet = ({ visible, onClose, order }:any) => {
           <View className="px-4">
             <SolidMainButton text="Track Order" onPress={() => {
               onClose()
-              // Add your track order logic here
+              router.push({
+                pathname: "/(access)/(user_stacks)/track-order",
+                params: { 
+                  orderTrackData: JSON.stringify(order)
+                }
+              })
             }} />
           </View>
         </Animated.View>
@@ -228,12 +234,41 @@ const OrderHistoryBuyer = () => {
   const [activeTab, setActiveTab] = useState('Ongoing')
   const [selectedOrder, setSelectedOrder] = useState(null)
   const [showBottomSheet, setShowBottomSheet] = useState(false)
+  const [refreshing, setRefreshing] = useState(false)
 
-  const { newUserOrdersData, isLoading } = useGetUserOrders()
-  console.log('This is New Order data', newUserOrdersData?.data)
+  const { newUserOrdersData, isLoading, refetch } = useGetUserOrders()
   const newUserOrder = newUserOrdersData?.data || []
 
-  const handleViewOrder = (order:any) => {
+  // Refetch data whenever the screen comes into focus
+  useFocusEffect(
+    useCallback(() => {
+      refetch()
+    }, [refetch])
+  )
+
+  // Handle Android back button
+  useEffect(() => {
+    const backHandler = BackHandler.addEventListener('hardwareBackPress', () => {
+      router.replace('/(access)/(user_tabs)/profile')
+      return true // Prevent default back action
+    })
+
+    return () => backHandler.remove()
+  }, [])
+
+  // Handle pull-to-refresh
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true)
+    try {
+      await refetch()
+    } catch (error) {
+      console.log('Error refreshing orders:', error)
+    } finally {
+      setRefreshing(false)
+    }
+  }, [refetch])
+
+  const handleViewOrder = (order: any) => {
     setSelectedOrder(order)
     setShowBottomSheet(true)
   }
@@ -243,12 +278,21 @@ const OrderHistoryBuyer = () => {
     setSelectedOrder(null)
   }
 
+  const handleDirectToTrackOrder = (order: any) => {
+    router.push({
+      pathname: "/(access)/(user_stacks)/track-order",
+      params: { 
+        orderTrackData: JSON.stringify(order)
+      }
+    })
+  }
+
   // Helper function to calculate total price and quantity for an order
-  const calculateOrderTotals = (order:any) => {
+  const calculateOrderTotals = (order: any) => {
     let totalPrice = 0
     let totalQuantity = 0
     
-    order.order_items.forEach((item:any) => {
+    order.order_items.forEach((item: any) => {
       const itemPrice = item.product.discounted_price > 0 ? item.product.discounted_price : item.product.original_price
       totalPrice += itemPrice * item.count
       totalQuantity += item.count
@@ -261,18 +305,18 @@ const OrderHistoryBuyer = () => {
   const EmptyOngoingState = () => (
     <View className='items-center justify-center flex-1 py-20'>
       <Animated.View className='bg-[#FEEEE6] p-4 rounded-full flex-row justify-center items-center'>
-        <MaterialIcons name='shopping-bag' size={35} color={'#F75F15'}/>
+        <MaterialIcons name='shopping-bag' size={35} color={'#F75F15'} />
       </Animated.View>
 
-      <Animated.View className='w-[60%]'>
-        <Text className='text-xl pt-3 text-center' style={{fontFamily: 'HankenGrotesk_600SemiBold'}}>No Ongoing Orders</Text>
-        <Text className='text-base text-center text-neutral-600 pt-2' style={{fontFamily: 'HankenGrotesk_400Regular'}}>
+      <Animated.View className='w-[70%]'>
+        <Text className='text-lg pt-3 text-center' style={{ fontFamily: 'HankenGrotesk_600SemiBold' }}>No Ongoing Orders</Text>
+        <Text className='text-sm text-center text-neutral-500 pt-2' style={{ fontFamily: 'HankenGrotesk_400Regular' }}>
           You don't have any ongoing orders at the moment. Start shopping to see your orders here.
         </Text>
       </Animated.View>
 
-      <Animated.View className='w-[50%] pt-5' >
-        <SolidMainButton text='Start Shopping' onPress={()=>router.push('/home')}/>
+      <Animated.View className='w-[50%] pt-5'>
+        <SolidMainButton text='Start Shopping' onPress={() => router.push('/home')} />
       </Animated.View>
     </View>
   )
@@ -281,18 +325,18 @@ const OrderHistoryBuyer = () => {
   const EmptyPastState = () => (
     <View className='items-center justify-center flex-1 py-20'>
       <Animated.View className='bg-[#FEEEE6] p-4 rounded-full flex-row justify-center items-center'>
-        <MaterialIcons name='history' size={35} color={'#F75F15'}/>
+        <MaterialIcons name='history' size={35} color={'#F75F15'} />
       </Animated.View>
 
-      <Animated.View className='w-[60%]'>
-        <Text className='text-xl pt-3 text-center' style={{fontFamily: 'HankenGrotesk_600SemiBold'}}>No Past Orders</Text>
-        <Text className='text-base text-center text-neutral-600 pt-2' style={{fontFamily: 'HankenGrotesk_400Regular'}}>
+      <Animated.View className='w-[70%]'>
+        <Text className='text-lg pt-3 text-center' style={{ fontFamily: 'HankenGrotesk_600SemiBold' }}>No Past Orders</Text>
+        <Text className='text-sm text-center text-neutral-500 pt-2' style={{ fontFamily: 'HankenGrotesk_400Regular' }}>
           Your completed orders will appear here once you finish shopping.
         </Text>
       </Animated.View>
 
-      <Animated.View className='w-[50%] pt-5' >
-        <SolidMainButton text='Browse Products' onPress={()=>router.push('/home')}/>
+      <Animated.View className='w-[50%] pt-5'>
+        <SolidMainButton text='Browse Products' onPress={() => router.push('/home')} />
       </Animated.View>
     </View>
   )
@@ -306,7 +350,7 @@ const OrderHistoryBuyer = () => {
       
       {/* Header */}
       <View className="flex-row items-center gap-2 mb-6 px-4 pt-2">
-        <OnboardArrowTextHeader onPressBtn={() => router.back()} />
+        <OnboardArrowTextHeader onPressBtn={() => router.replace('/(access)/(user_tabs)/profile')} />
         <Text className="text-xl text-center m-auto" style={{ fontFamily: "HankenGrotesk_600SemiBold" }}>
           Order History
         </Text>
@@ -345,13 +389,25 @@ const OrderHistoryBuyer = () => {
 
       {/* Content */}
       {!isLoading && (
-        <KeyboardAwareScrollView className="flex-1 px-4">
+        <KeyboardAwareScrollView 
+          className="flex-1 px-4"
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              colors={['#F75F15']} // Android
+              tintColor="#F75F15" // iOS
+              title="Pull to refresh" // iOS
+              titleColor="#F75F15" // iOS
+            />
+          }
+        >
           {activeTab === 'Ongoing' && (
             <View className="flex-1">
               {newUserOrder.length > 0 ? (
                 <View className="space-y-4">
                   {/* Product Orders */}
-                  {newUserOrder.map((order:any, index:any) => {
+                  {newUserOrder.map((order: any, index: any) => {
                     const { totalPrice, totalQuantity } = calculateOrderTotals(order)
                     
                     return (
@@ -379,12 +435,24 @@ const OrderHistoryBuyer = () => {
                           </View>
                           
                           <View className="flex-1">
-                            <Text className="text-neutral-800 mb-1" style={{ fontFamily: "HankenGrotesk_500Medium" }}>
-                              {order?.order_items?.[0]?.product?.title || 'Product Title'}
-                            </Text>
-                            <Text className="text-sm text-neutral-600" style={{ fontFamily: "HankenGrotesk_400Regular" }}>
-                              {order?.order_items?.[0]?.product?.description || 'Product Description'}
-                            </Text>
+                            {order?.order_items?.[0]?.product?.title.length > 25 ?
+                              <Text className="text-neutral-800 mb-1" style={{ fontFamily: "HankenGrotesk_500Medium" }}>
+                                {order?.order_items?.[0]?.product?.title.slice(0, 25) || 'Product Title'}...
+                              </Text> :
+                              <Text className="text-neutral-800 mb-1" style={{ fontFamily: "HankenGrotesk_500Medium" }}>
+                                {order?.order_items?.[0]?.product?.title || 'Product Title'}
+                              </Text>
+                            }
+
+                            {
+                              order?.order_items?.[0]?.product?.description.length > 40 ?
+                              <Text className="text-sm text-neutral-600" style={{ fontFamily: "HankenGrotesk_400Regular" }}>
+                                {order?.order_items?.[0]?.product?.description.slice(0, 40) || 'Product Description'}...
+                              </Text> :
+                              <Text className="text-sm text-neutral-600" style={{ fontFamily: "HankenGrotesk_400Regular" }}>
+                                {order?.order_items?.[0]?.product?.description || 'Product Description'}
+                              </Text>
+                            }
                             <Text className="text-lg font-bold text-black" style={{ fontFamily: "HankenGrotesk_600SemiBold" }}>
                               ₦{totalPrice.toLocaleString()}
                             </Text>
@@ -397,7 +465,7 @@ const OrderHistoryBuyer = () => {
                           </View>
 
                           <View className='w-[48%]'>
-                            <SolidMainButton text='Track order' />
+                            <SolidMainButton text='Track order' onPress={()=>handleDirectToTrackOrder(order)}/>
                           </View>
                         </View>
                       </View>

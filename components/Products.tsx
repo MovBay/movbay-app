@@ -57,7 +57,12 @@ const Products = ({
           </View>
           <View>
               <View>
-                <Text className='text-sm' style={{fontFamily: 'HankenGrotesk_500Medium'}}>{title.slice(0, 35)}...</Text>
+                {
+                  title.length > 35 ?
+                  <Text className='text-sm' style={{fontFamily: 'HankenGrotesk_500Medium'}}>{title.slice(0, 35)}...</Text> : 
+                  <Text className='text-sm' style={{fontFamily: 'HankenGrotesk_500Medium'}}>{title}</Text>
+
+                }
                 <View className='flex-row items-center gap-3'>
                   <Text className='text-base pt-2' style={{fontFamily: 'HankenGrotesk_600SemiBold'}}>₦ {original_price.toLocaleString()}</Text>
                   <Text className='text-sm pt-2 italic line-through text-neutral-500' style={{fontFamily: 'HankenGrotesk_500Medium'}}>₦ {discounted_price.toLocaleString()}</Text>

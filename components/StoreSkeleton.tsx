@@ -56,13 +56,6 @@ const StoreSkeletonLoader = () => {
           <SkeletonBox width={40} height={40} borderRadius={20} />
         </View>
 
-        {/* Welcome Text Skeleton */}
-        <View className='pt-5'>
-          <SkeletonBox width="80%" height={24} />
-          <View className='pt-2'>
-            <SkeletonBox width="60%" height={16} />
-          </View>
-        </View>
 
         {/* Store Profile Card Skeleton */}
         <View className='bg-gray-100 mt-5 rounded-2xl p-5'>
@@ -70,9 +63,6 @@ const StoreSkeletonLoader = () => {
             {/* Profile Image */}
             <View className='relative'>
               <SkeletonBox width={96} height={96} borderRadius={48} />
-              <View className='absolute top-1 right-0'>
-                <SkeletonBox width={25} height={25} borderRadius={12.5} />
-              </View>
             </View>
 
             {/* Followers */}
@@ -106,7 +96,7 @@ const StoreSkeletonLoader = () => {
 
         {/* Stats Cards Row 1 */}
         <View className='flex-row justify-between pt-5'>
-          <View className='bg-[#e5eefd] p-5 rounded-2xl w-[49%]'>
+          <View className='bg-gray-100 p-5 rounded-2xl w-[49%]'>
             <View className='flex-row justify-between items-center'>
               <SkeletonBox width={40} height={24} />
               <SkeletonBox width={30} height={16} />
@@ -116,7 +106,7 @@ const StoreSkeletonLoader = () => {
             </View>
           </View>
 
-          <View className='bg-[#FFF7EB] p-5 rounded-2xl w-[49%]'>
+          <View className='bg-gray-100 p-5 rounded-2xl w-[49%]'>
             <View className='flex-row justify-between items-center'>
               <SkeletonBox width={30} height={24} />
               <SkeletonBox width={30} height={16} />
@@ -129,7 +119,7 @@ const StoreSkeletonLoader = () => {
 
         {/* Stats Cards Row 2 */}
         <View className='flex-row justify-between pt-5'>
-          <View className='bg-[#F3EBFF] p-5 rounded-2xl w-[49%]'>
+          <View className='bg-gray-100 p-5 rounded-2xl w-[49%]'>
             <View className='flex-row justify-between items-center'>
               <SkeletonBox width={80} height={24} />
               <SkeletonBox width={35} height={16} />

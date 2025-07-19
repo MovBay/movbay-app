@@ -126,31 +126,31 @@ const UserProduct = () => {
                         <View className='w-full h-[350px] object-cover relative'>
                             <Image style={{width: '100%', height: '100%', objectFit: 'cover'}} source={{uri: eachData?.product_images[0]?.image_url}}/>
                         
-                            <Pressable onPress={()=>router.back()} className='absolute top-4 left-5 bg-white p-3 rounded-full justify-center items-center flex'>
-                                <MaterialIcons name='chevron-left' size={25} color={'black'}/>
+                            <Pressable onPress={()=>router.back()} className='absolute top-4 left-5 bg-white p-2 rounded-full justify-center items-center flex'>
+                                <MaterialIcons name='chevron-left' size={22} color={'black'}/>
                             </Pressable>
 
-                            <Pressable className='absolute top-4 right-5  bg-white p-3 rounded-full justify-center items-center flex'>
-                                <Ionicons name='share-outline' size={25} color={'#black'}/>
+                            <Pressable className='absolute top-4 right-5  bg-white p-2 rounded-full justify-center items-center flex'>
+                                <Ionicons name='share-outline' size={20} color={'#black'}/>
                             </Pressable>
                         </View>
 
                         <View className='px-5 pt-3'>
                             <View className='pt-2'>
-                                <Text className='text-xl' style={{fontFamily: 'HankenGrotesk_600SemiBold'}}>{eachData?.title}</Text>
-                                <View className='flex-row justify-between pt-3'>
+                                <Text className='text-base' style={{fontFamily: 'HankenGrotesk_600SemiBold'}}>{eachData?.title}</Text>
+                                <View className='flex-row justify-between pt-1'>
                                     <View className='flex-row items-center gap-3'>
-                                        <Text className='text-2xl pt-2' style={{fontFamily: 'HankenGrotesk_600SemiBold'}}>₦ {eachData?.original_price.toLocaleString()}</Text>
-                                        <Text className='text-xl pt-2 italic line-through text-neutral-500' style={{fontFamily: 'HankenGrotesk_500Medium'}}>₦ {eachData?.discounted_price.toLocaleString()}</Text>
+                                        <Text className='text-lg pt-0' style={{fontFamily: 'HankenGrotesk_600SemiBold'}}>₦ {eachData?.original_price.toLocaleString()}</Text>
+                                        <Text className='text-base pt-2 italic line-through text-neutral-500' style={{fontFamily: 'HankenGrotesk_500Medium'}}>₦ {eachData?.discounted_price.toLocaleString()}</Text>
                                     </View>
                                 </View>
 
                                 <View className='flex-row gap-3 pt-2 border-b border-neutral-200 pb-3'>
                                     <View className='flex-row'>
-                                        <MaterialIcons name='star' size={20} color={'#FBBC05'}/>
-                                        <MaterialIcons name='star' size={20} color={'#FBBC05'}/>
-                                        <MaterialIcons name='star' size={20} color={'#FBBC05'}/>
-                                        <MaterialIcons name='star' size={20} color={'#FBBC05'}/>
+                                        <MaterialIcons name='star' size={14} color={'#FBBC05'}/>
+                                        <MaterialIcons name='star' size={14} color={'#FBBC05'}/>
+                                        <MaterialIcons name='star' size={14} color={'#FBBC05'}/>
+                                        <MaterialIcons name='star' size={14} color={'#FBBC05'}/>
                                     </View>
                                     <Text className='text-sm' style={{fontFamily: 'HankenGrotesk_500Medium'}}>(1,020)</Text>
                                 </View>
@@ -185,8 +185,8 @@ const UserProduct = () => {
                                     onPress={openVideoModal}
                                     className="bg-[#F75F15] p-3 rounded-full mt-3 flex-row items-center justify-center gap-2"
                                 >
-                                    <Ionicons name="play-circle" size={24} color="white" />
-                                    <Text className="text-white text-base" style={{ fontFamily: "HankenGrotesk_600SemiBold" }}>
+                                    <Ionicons name="play-circle" size={20} color="white" />
+                                    <Text className="text-white text-sm" style={{ fontFamily: "HankenGrotesk_600SemiBold" }}>
                                     Watch Product Video
                                     </Text>
                                 </Pressable>
@@ -234,8 +234,8 @@ const UserProduct = () => {
 
                                 <View className='pt-2'>
                                     <View className='pt-5 pb-3 border-b border-neutral-200'>
-                                        <Text className='text-xl' style={{fontFamily: 'HankenGrotesk_600SemiBold'}}>Description</Text>
-                                        <Text className='text-lg pt-2' style={{fontFamily: 'HankenGrotesk_400Regular'}}>{eachData?.description}</Text>
+                                        <Text className='text-sm' style={{fontFamily: 'HankenGrotesk_600SemiBold'}}>Description</Text>
+                                        <Text className='text-base pt-2' style={{fontFamily: 'HankenGrotesk_400Regular'}}>{eachData?.description}</Text>
                                     </View>
                                 </View>
                             </View>

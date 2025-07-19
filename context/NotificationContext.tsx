@@ -7,13 +7,29 @@ import React, {
   ReactNode,
 } from "react";
 import * as Notifications from "expo-notifications";
-// import { Subscription } from "expo-modules-core";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { registerForPushNotificationsAsync } from "@/util/registerForPushNotificationAsync";
+import { post_requests } from "@/hooks/helpers/axios_helpers";
+import { Toast } from "react-native-toast-notifications";
+import { router } from "expo-router";
+import { Platform } from "react-native";
+
+// Configure notification behavior globally
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldShowAlert: true,
+    shouldPlaySound: true,
+    shouldSetBadge: true,
+  }),
+});
 
 interface NotificationContextType {
   expoPushToken: string | null;
   notification: Notifications.Notification | null;
   error: Error | null;
+  tokenSent: boolean;
+  shouldRefresh: boolean;
+  clearRefreshFlag: () => void;
 }
 
 const NotificationContext = createContext<NotificationContextType | undefined>(
@@ -34,6 +50,72 @@ interface NotificationProviderProps {
   children: ReactNode;
 }
 
+// Helper function to send token to backend
+const sendTokenToBackend = async (token: string) => {
+  try {
+    const authToken = (await AsyncStorage.getItem("movebay_token")) || "";
+    const response = await post_requests(
+      `/notification/fcm-token/`,
+      {
+        token: token,
+      },
+      authToken
+    );
+    console.log('✅ Push token sent successfully:', response.data);
+    
+    // Store the sent token and timestamp to avoid duplicate sends
+    await AsyncStorage.setItem("last_sent_push_token", token);
+    await AsyncStorage.setItem("token_sent_timestamp", Date.now().toString());
+    
+    return true;
+  } catch (error: any) {
+    if (error.response) {
+      console.log('Response data:', error.response.data);
+      Toast.show(error.response.data.token, {
+        type: 'error'
+      });
+    } else if (error.request) {
+      console.error('No response received:', error.request);
+    } else {
+      console.error('Error message:', error.message);
+    }
+    
+    return false;
+  }
+};
+
+// Helper function to check if token should be sent
+const shouldSendToken = async (currentToken: string): Promise<boolean> => {
+  try {
+    const lastSentToken = await AsyncStorage.getItem("last_sent_push_token");
+    const lastSentTimestamp = await AsyncStorage.getItem("token_sent_timestamp");
+    
+    // If no token was previously sent, send it
+    if (!lastSentToken) {
+      return true;
+    }
+    
+    // If token has changed, send it
+    if (lastSentToken !== currentToken) {
+      return true;
+    }
+    
+    // If token was sent more than 24 hours ago, send it again (optional refresh)
+    if (lastSentTimestamp) {
+      const twentyFourHours = 24 * 60 * 60 * 1000;
+      const timeSinceLastSent = Date.now() - parseInt(lastSentTimestamp);
+      if (timeSinceLastSent > twentyFourHours) {
+        return true;
+      }
+    }
+    
+    return false;
+  } catch (error) {
+    console.error('Error checking if token should be sent:', error);
+    return true; // Default to sending if there's an error checking
+  }
+};
+
 export const NotificationProvider: React.FC<NotificationProviderProps> = ({
   children,
 }) => {
@@ -41,37 +123,114 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({
   const [notification, setNotification] =
     useState<Notifications.Notification | null>(null);
   const [error, setError] = useState<Error | null>(null);
+  const [tokenSent, setTokenSent] = useState<boolean>(false);
+  const [shouldRefresh, setShouldRefresh] = useState<boolean>(false);
 
   const notificationListener = useRef<Notifications.EventSubscription | undefined>(undefined);
   const responseListener = useRef<Notifications.EventSubscription | undefined>(undefined);
+  const initializationRef = useRef<boolean>(false);
+
+  const clearRefreshFlag = () => {
+    setShouldRefresh(false);
+  };
 
   useEffect(() => {
-    registerForPushNotificationsAsync().then(
-      (token) => setExpoPushToken(token),
-      (error) => setError(error)
-    );
+    const initializeNotifications = async () => {
+      // Prevent multiple initializations
+      if (initializationRef.current) {
+        return;
+      }
+      initializationRef.current = true;
 
+      try {
+        console.log('🚀 Initializing notifications on app reload...');
+        
+        // Register for push notifications and get token
+        const token = await registerForPushNotificationsAsync();
+        console.log('📱 Expo Push Token:', token);
+        setExpoPushToken(token);
+
+        // Check if we should send the token to backend
+        if (token) {
+          const shouldSend = await shouldSendToken(token);
+          
+          if (shouldSend) {
+            console.log('📤 Sending token to backend...');
+            const success = await sendTokenToBackend(token);
+            setTokenSent(success);
+            
+            if (success) {
+              console.log('✅ Token successfully sent to backend');
+            } else {
+              console.log('❌ Failed to send token to backend');
+            }
+          } else {
+            console.log('⏭️ Token already sent recently, skipping...');
+            setTokenSent(true); // Set as true since it was already sent before
+          }
+        }
+      } catch (error: any) {
+        console.error('❌ Error initializing notifications:', error);
+        setError(error as Error);
+      }
+    };
+
+    initializeNotifications();
+
+    // Set up notification listeners
     notificationListener.current =
       Notifications.addNotificationReceivedListener((notification) => {
         console.log("🔔 Notification Received: ", notification);
         setNotification(notification);
+        setShouldRefresh(true);
+        
+        // Platform-specific handling
+        if (Platform.OS === 'ios') {
+          // iOS-specific sound handling if needed
+        }
+        
+        if (Platform.OS === 'android') {
+          // Android-specific vibration if needed
+        }
       });
 
     responseListener.current =
       Notifications.addNotificationResponseReceivedListener((response) => {
-        console.log(
-          "🔔 Notification Response: ",
-          JSON.stringify(response, null, 2),
-          JSON.stringify(response.notification.request.content.data, null, 2)
-        );
-        // Handle the notification response here
+        // Get the notification title properly
+        const notificationTitle = response.notification.request.content.title;
+        
+        console.log("🔔 Notification Response - Raw title:", notificationTitle);
+        console.log("🔔 Notification Response - Title type:", typeof(notificationTitle));
+        
+        // Clean the title (remove extra quotes and whitespace)
+        const cleanTitle = typeof notificationTitle === 'string' 
+          ? notificationTitle.trim() 
+          : String(notificationTitle || '').replace(/^"|"$/g, '').trim();
+        
+        console.log("🔔 Cleaned notification title:", `"${cleanTitle}"`);
+        
+        // Use exact string matching
+        if (cleanTitle === "Your Order has been Confirmed") {
+          console.log("🚀 Navigating to order history buyer...");
+          router.push('/(access)/(user_stacks)/order_history_buyer');
+        } 
+        else if (cleanTitle === "New Order Available") {
+          console.log("🚀 Navigating to orders...");
+          router.push('/(access)/(user_tabs)/(drawer)/orders');
+        } 
+        else {
+          console.log("🤷‍♂️ No matching title found for:", `"${cleanTitle}"`);
+          console.log("📋 Available titles to match:");
+          console.log('  - "Your Order has been Confirmed"');
+          console.log('  - "New Order Available"');
+        }
+        
+        setShouldRefresh(true);
       });
 
     return () => {
       if (notificationListener.current) {
-        Notifications.removeNotificationSubscription(
-          notificationListener.current
-        );
+        Notifications.removeNotificationSubscription(notificationListener.current);
       }
       if (responseListener.current) {
         Notifications.removeNotificationSubscription(responseListener.current);
@@ -81,7 +240,14 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({
 
   return (
     <NotificationContext.Provider
-      value={{ expoPushToken, notification, error }}
+      value={{ 
+        expoPushToken, 
+        notification, 
+        error, 
+        tokenSent, 
+        shouldRefresh,
+        clearRefreshFlag 
+      }}
     >
       {children}
     </NotificationContext.Provider>

@@ -21,7 +21,7 @@ const Sell =()=> {
     navigation.dispatch(DrawerActions.openDrawer())
   }
   const {storeData, refetch, isLoading} = useGetStore()
-  console.log('Store Data:', storeData)
+  // console.log('Store Data:', storeData)
   
   // State for pull-to-refresh
   const [refreshing, setRefreshing] = useState(false);
@@ -114,7 +114,7 @@ const Sell =()=> {
               <Animated.View className='flex-row justify-between pt-5' entering={FadeInDown.duration(500).delay(400).springify()}>
                 <View className='bg-[#e5eefd] p-5 rounded-2xl w-[49%]'>
                   <View className='flex-row justify-between'>
-                    <Text style={{fontFamily: 'HankenGrotesk_500Medium'}} className='text-lg text-purple-600'>{storeData?.data?.product_count}</Text>
+                    <Text style={{fontFamily: 'HankenGrotesk_500Medium'}} className='text-xl text-purple-600'>{storeData?.data?.product_count}</Text>
                     <View className='flex-row gap-1 items-center'>
                       <Ionicons name='trending-up' color={'green'} size={15}/>
                       <Text className='text-green-700 text-sm' style={{fontFamily: 'HankenGrotesk_500Medium'}}>0%</Text>
@@ -125,7 +125,7 @@ const Sell =()=> {
     
                 <View className='bg-[#FFF7EB] p-5 rounded-2xl w-[49%]'>
                   <View className='flex-row justify-between'>
-                    <Text style={{fontFamily: 'HankenGrotesk_500Medium'}} className='text-lg text-orange-500'>{storeData?.data?.order_count}</Text>
+                    <Text style={{fontFamily: 'HankenGrotesk_500Medium'}} className='text-xl text-orange-500'>{storeData?.data?.order_count}</Text>
                     <View className='flex-row gap-1 items-center'>
                       <Ionicons name='trending-down' color={'red'} size={15}/>
                       <Text className='text-red-500 text-sm' style={{fontFamily: 'HankenGrotesk_500Medium'}}>0%</Text>
@@ -138,7 +138,7 @@ const Sell =()=> {
               <Animated.View className='flex-row justify-between pt-5 pb-20' entering={FadeInDown.duration(500).delay(600).springify()}>
                 <View className='bg-[#F3EBFF] p-5 rounded-2xl w-[49%]'>
                   <View className='flex-row justify-between'>
-                    <Text style={{fontFamily: 'HankenGrotesk_500Medium'}} className='text-lg text-purple-600'>₦182,000</Text>
+                    <Text style={{fontFamily: 'HankenGrotesk_500Medium'}} className='text-xl text-purple-600'>₦182,000</Text>
                     <View className='flex-row gap-1 items-center'>
                       <Ionicons name='trending-up' color={'green'} size={15}/>
                       <Text className='text-green-700 text-sm' style={{fontFamily: 'HankenGrotesk_500Medium'}}>28%</Text>

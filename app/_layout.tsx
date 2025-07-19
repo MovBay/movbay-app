@@ -32,15 +32,15 @@ import { NotificationProvider } from '@/context/NotificationContext';
 
 
 import "react-native-reanimated";
-import * as Notifications from "expo-notifications";
+// import * as Notifications from "expo-notifications";
 
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowAlert: true,
-    shouldPlaySound: true,
-    shouldSetBadge: true,
-  }),
-});
+// Notifications.setNotificationHandler({
+//   handleNotification: async () => ({
+//     shouldShowAlert: true,
+//     shouldPlaySound: true,
+//     shouldSetBadge: true,
+//   }),
+// });
 
 // Prevent the splash screen from auto-hiding before asset loading is complete.
 SplashScreen.preventAutoHideAsync();
@@ -74,7 +74,7 @@ export default function RootLayout() {
   }
 
   return (
-    <NotificationProvider>
+    // <NotificationProvider>
       <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
         <CartProvider>
           <ToastProvider
@@ -83,21 +83,28 @@ export default function RootLayout() {
             textStyle={{
               fontFamily: "HankenGrotesk_500Medium",
               width: "90%",
+              fontSize: 13,
+            }}
+
+            style={{
+              flexDirection: 'row',
+              gap: 10,
+              borderRadius: 10
             }}
 
               dangerIcon={
                 <MaterialIcons
                   name="dangerous"
-                  size={20}
+                  size={22}
                   color={"#fff"}
                   
                 />
               }
               successIcon={
-                <MaterialIcons name="check" size={20} color="#fff" />
+                <MaterialIcons name="check-circle" size={22} color="#fff" />
               }
               warningIcon={
-                <MaterialIcons name="warning" size={20} color="#fff" />
+                <MaterialIcons name="warning" size={22} color="#fff" />
               }
             >
               <QueryClientProvider client={queryClient}>
@@ -116,6 +123,6 @@ export default function RootLayout() {
           </ToastProvider>
         </CartProvider>
       </ThemeProvider>
-    </NotificationProvider>
+    // </NotificationProvider>
   );
 }

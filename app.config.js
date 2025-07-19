@@ -1,4 +1,4 @@
-{
+module.exports = {
   "expo": {
     "name": "movbay-app",
     "slug": "movbay-app",

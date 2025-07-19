@@ -33,36 +33,23 @@ const Profile = () => {
     router.replace("/login");
   };
 
-
-  const [showDialog, setShowDialog] = useState(false);
-
-  const handlePress = () => {
-    setShowDialog(true);
-  };
-
-  const closeDialog = () => {
-    setShowDialog(false);
-  };
-
   return (
     <SafeAreaView className='flex-1 bg-white'>
       <StatusBar style='dark'/>
       <LoadingOverlay visible={isPending}  />
 
         <View className='flex-1'>
-          <KeyboardAwareScrollView className='flex-1' contentContainerStyle={{paddingHorizontal: 28, paddingTop: 24, paddingBottom: 20}}>
+          <KeyboardAwareScrollView className='flex-1' contentContainerStyle={{paddingHorizontal: 20, paddingTop: 10, paddingBottom: 20}}>
             <View className=''>
 
-              <Text className='text-xl' style={{fontFamily: 'HankenGrotesk_500Medium'}}>My Profile</Text>
-              <Text className='text-base' style={{fontFamily: 'HankenGrotesk_400Regular'}}>Manage your account, orders, and preferences.</Text>
 
               {isLoading ? <View className='m-auto pt-10 pb-5'><ActivityIndicator size={'small'} color={'#F75F15'} /></View> :
-              <View className='flex-col justify-center items-center mt-6'>
-                <View className='flex w-24 h-24 rounded-full bg-gray-100 justify-center items-center mt-4 overflow-hidden'>
+              <View className='flex-col justify-center items-center mt-2'>
+                <View className='flex w-28  h-28 rounded-full border-2 border-green-600 p-2 bg-gray-50 justify-center items-center mt-1 overflow-hidden'>
                   {profile?.data?.profile_picture === null ? 
                     <MaterialIcons name='person-2' size={50} color={'gray'} />
                     :
-                    <Image source={{uri: profile?.data?.profile_picture}} style={{objectFit: 'cover', width: '100%', height: '100%'}}/>
+                    <Image source={{uri: profile?.data?.profile_picture}} className='rounded-full' style={{objectFit: 'cover', width: '100%', height: '100%'}}/>
                   }
                 </View>
                 <View>
@@ -75,14 +62,14 @@ const Profile = () => {
                 </View>
 
                 <Pressable className='flex-row items-center gap-1 p-2.5 px-6 rounded-full bg-[#FEEEE6]' onPress={() => router.push('/profile-edit')}>
-                  <MaterialIcons name='edit' size={20} color={'#A53F0E'}/>
-                  <Text className='text-base text-[#A53F0E]' style={{fontFamily: 'HankenGrotesk_500Medium'}}>Edit</Text>
+                  <MaterialIcons name='edit' size={15} color={'#A53F0E'}/>
+                  <Text className='text-sm text-[#A53F0E]' style={{fontFamily: 'HankenGrotesk_500Medium'}}>Edit profile</Text>
                 </Pressable>
               </View>
               }
 
               <View>
-                <Pressable onPress={() => router.push('/(access)/(user_stacks)/profile-view')} className='flex-row items-center justify-between mt-3 bg-neutral-100 rounded-base p-3'>
+                <Pressable onPress={() => router.push('/(access)/(user_stacks)/profile-view')} className='flex-row items-center justify-between mt-3 bg-neutral-100 rounded-full p-3'>
                   <View className='flex-row items-center gap-3 '>
                     <View className='w-10 h-10 bg-gray-200 rounded-full justify-center items-center'>
                       <Ionicons name='person-outline' size={18} color={'#0F0F0F'}/>
@@ -92,7 +79,7 @@ const Profile = () => {
                   <Ionicons name='chevron-forward-outline' size={15} color={'#0F0F0F'}/>
                 </Pressable>
 
-                <Pressable onPress={() => router.push('/')} className='flex-row items-center justify-between mt-3 bg-neutral-100 rounded-base p-3'>
+                <Pressable onPress={() => router.push('/')} className='flex-row items-center justify-between mt-3 bg-neutral-100 rounded-full p-3'>
                   <View className='flex-row items-center gap-3 '>
                     <View className='w-10 h-10 bg-gray-200 rounded-full justify-center items-center'>
                       <Ionicons name='location-outline' size={18} color={'#0F0F0F'}/>
@@ -102,7 +89,7 @@ const Profile = () => {
                   <Ionicons name='chevron-forward-outline' size={15} color={'#0F0F0F'}/>
                 </Pressable>
 
-                <Pressable onPress={() => router.push('/(access)/(user_stacks)/settings')} className='flex-row items-center justify-between mt-3 bg-neutral-100 rounded-base p-3'>
+                <Pressable onPress={() => router.push('/(access)/(user_stacks)/settings')} className='flex-row items-center justify-between mt-3 bg-neutral-100 rounded-full p-3'>
                   <View className='flex-row items-center gap-3 '>
                     <View className='w-10 h-10 bg-gray-200 rounded-full justify-center items-center'>
                       <Ionicons name='settings-outline' size={18} color={'#0F0F0F'}/>
@@ -112,7 +99,7 @@ const Profile = () => {
                   <Ionicons name='chevron-forward-outline' size={15} color={'#0F0F0F'}/>
                 </Pressable>
 
-                <Pressable onPress={() => router.push('/(access)/(user_stacks)/order_history_buyer')} className='flex-row items-center justify-between mt-3 bg-neutral-100 rounded-base p-3'>
+                <Pressable onPress={() => router.push('/(access)/(user_stacks)/order_history_buyer')} className='flex-row items-center justify-between mt-3 bg-neutral-100 rounded-full p-3'>
                   <View className='flex-row items-center gap-3 '>
                     <View className='w-10 h-10 bg-gray-200 rounded-full justify-center items-center'>
                       <Ionicons name='bag-add-outline' size={18} color={'#0F0F0F'}/>
@@ -122,7 +109,7 @@ const Profile = () => {
                   <Ionicons name='chevron-forward-outline' size={15} color={'#0F0F0F'}/>
                 </Pressable>
 
-                <Pressable onPress={() => router.push('/')} className='flex-row items-center justify-between mt-3 bg-neutral-100 rounded-base p-3'>
+                <Pressable onPress={() => router.push('/')} className='flex-row items-center justify-between mt-3 bg-neutral-100 rounded-full p-3'>
                   <View className='flex-row items-center gap-3 '>
                     <View className='w-10 h-10 bg-gray-200 rounded-full justify-center items-center'>
                       <MaterialIcons name='favorite-outline' size={18} color={'#0F0F0F'}/>
@@ -132,7 +119,7 @@ const Profile = () => {
                   <Ionicons name='chevron-forward-outline' size={15} color={'#0F0F0F'}/>
                 </Pressable>
 
-                <Pressable onPress={() => router.push('/')} className='flex-row items-center justify-between mt-3 bg-neutral-100 rounded-base p-3'>
+                <Pressable onPress={() => router.push('/')} className='flex-row items-center justify-between mt-3 bg-neutral-100 rounded-full p-3'>
                   <View className='flex-row items-center gap-3 '>
                     <View className='w-10 h-10 bg-gray-200 rounded-full justify-center items-center'>
                       <Ionicons name='people-outline' size={18} color={'#0F0F0F'}/>
@@ -143,7 +130,7 @@ const Profile = () => {
                 </Pressable>
 
 
-                <Pressable onPress={() => router.push('/')} className='flex-row items-center justify-between mt-3 bg-neutral-100 rounded-base p-3'>
+                <Pressable onPress={() => router.push('/')} className='flex-row items-center justify-between mt-3 bg-neutral-100 rounded-full p-3'>
                   <View className='flex-row items-center gap-3 '>
                     <View className='w-10 h-10 bg-gray-200 rounded-full justify-center items-center'>
                       <MaterialIcons name='question-mark' size={18} color={'#0F0F0F'}/>
@@ -154,7 +141,7 @@ const Profile = () => {
                 </Pressable>
 
 
-                <Pressable onPress={() => router.push('/')} className='flex-row items-center justify-between mt-3 bg-neutral-100 rounded-base p-3'>
+                <Pressable onPress={() => router.push('/')} className='flex-row items-center justify-between mt-3 bg-neutral-100 rounded-full p-3'>
                   <View className='flex-row items-center gap-3 '>
                     <View className='w-10 h-10 bg-gray-200 rounded-full justify-center items-center'>
                       <MaterialIcons name='star-outline' size={18} color={'#0F0F0F'}/>
@@ -164,7 +151,7 @@ const Profile = () => {
                   <Ionicons name='chevron-forward-outline' size={15} color={'#0F0F0F'}/>
                 </Pressable>
 
-                <Pressable onPress={handleLogout} className='flex-row items-center justify-between mt-3 bg-neutral-100 rounded-base p-3'>
+                <Pressable onPress={handleLogout} className='flex-row items-center justify-between mt-3 bg-neutral-100 rounded-full p-3'>
                   <View className='flex-row items-center gap-3 '>
                     <View className='w-10 h-10 bg-gray-200 rounded-full justify-center items-center'>
                       <MaterialIcons name='logout' size={18} color={'#0F0F0F'}/>
@@ -179,47 +166,18 @@ const Profile = () => {
           </KeyboardAwareScrollView>
 
           {/* Fixed Delete Button at Bottom */}
-          <View className='px-7 pb-4 pt-2 bg-white border-t border-gray-100'>
+          {/* <View className='px-7 pb-4 pt-2 bg-white border-t border-gray-100'>
             <Pressable
               onPress={handlePress}
               className='bg-red-500 p-4 rounded-full'
             >
               <Text className='text-white text-base text-center' style={{fontFamily: 'HankenGrotesk_600SemiBold'}}>Delete MovBay</Text>
             </Pressable>
-          </View>
+          </View> */}
         </View>
 
 
-        <Modal
-          visible={showDialog}
-          transparent={true}
-          animationType="fade"
-          onRequestClose={closeDialog}
-        >
-          <View className='flex-1 justify-center items-center bg-black/50'>
-            <View className='bg-white rounded-2xl p-6 mx-6 w-[80%]'>
-              <View className='items-center'>
-                <Image source={require('../../../assets/images/delete.png')} style={{width: 150, height: 150}}/>
-              </View>
-              <Text className='text-2xl text-center mb-2' style={{fontFamily: 'HankenGrotesk_600SemiBold'}}>
-                Delete MovBay
-              </Text>
-              <Text className='text-neutral-500 text-center mb-6 w-[90%] m-auto ' style={{fontFamily: 'HankenGrotesk_500Medium'}}>
-                Are you sure you want to delete MovBay, if yes please note that all information would be deleted
-              </Text>
 
-              <View className='flex-row items-center justify-between'>
-                <View className='w-[49%]'>
-                  <SolidLightButton onPress={closeDialog} text='Cancle'/>
-                </View>
-
-                <View className='w-[49%]'>
-                  <SolidMainButton onPress={closeDialog} text='Delete'/>
-                </View>
-              </View>
-            </View>
-          </View>
-      </Modal>
     </SafeAreaView>
   )
 }

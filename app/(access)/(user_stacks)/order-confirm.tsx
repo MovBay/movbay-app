@@ -1,17 +1,182 @@
-import { View, Text, Image, Pressable, ScrollView, StyleSheet, Dimensions } from "react-native"
-import React, { useState } from "react"
+// Enhanced OrderConfirm component with detailed error handling - NO ANIMATIONS
+
+import { View, Text, Image, Pressable, ScrollView, StyleSheet, Dimensions, Modal, Alert } from "react-native"
+import React, { useState, useRef, useEffect } from "react"
 import { SafeAreaView } from "react-native-safe-area-context"
 import { router, useLocalSearchParams } from "expo-router"
 import MaterialIcons from "@expo/vector-icons/MaterialIcons"
 import Ionicons from "@expo/vector-icons/Ionicons"
 import { SolidLightButton, SolidMainButton } from "@/components/btns/CustomButtoms"
+import { useComfirmOrder } from "@/hooks/mutations/sellerAuth"
+import LoadingOverlay from "@/components/LoadingOverlay"
 
-const { width: screenWidth } = Dimensions.get("window")
+const { width: screenWidth, height: SCREEN_HEIGHT } = Dimensions.get("window")
+
+// Error Modal Component without animations
+const ErrorModal = ({ visible, onClose, error }: any) => {
+  if (!visible) return null;
+
+  return (
+    <Modal
+      transparent={true}
+      visible={visible}
+      animationType="fade"
+      onRequestClose={onClose}
+    >
+      <View className="flex-1">
+        <View
+          style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(0, 0, 0, 0.5)',
+          }}
+        />
+
+        <View
+          style={{
+            position: 'absolute',
+            bottom: 0,
+            left: 0,
+            right: 0,
+            backgroundColor: 'white',
+            borderTopLeftRadius: 20,
+            borderTopRightRadius: 20,
+            paddingTop: 20,
+            paddingBottom: 40,
+            paddingHorizontal: 20,
+            maxHeight: SCREEN_HEIGHT * 0.7,
+          }}
+        >
+          {/* Handle Bar */}
+          <View className="items-center mb-4">
+            <View className="w-10 h-1 bg-gray-300 rounded-full" />
+          </View>
+
+          {/* Error Icon */}
+          <View className="items-center mb-4">
+            <View className="w-16 h-16 bg-red-100 rounded-full items-center justify-center mb-4">
+              <MaterialIcons name="error" size={32} color="#EF4444" />
+            </View>
+          </View>
+
+          {/* Content */}
+          <ScrollView className="flex-1 mb-6">
+            <View className="items-center mb-6">
+              <Text className="text-xl font-semibold mb-2 text-center" style={{ fontFamily: "HankenGrotesk_600SemiBold" }}>
+                Order Confirmation Failed
+              </Text>
+
+               <Text className="text-gray-600 text-center px-10" style={{ fontFamily: "HankenGrotesk_400Regular" }}>
+                Your Order Confirmation failed, Please try again or reach out to our customer care.
+              </Text>
+              
+              <View className="w-full bg-gray-50 p-4 rounded-lg mb-4">
+                {error?.response?.data && (
+                  <View className="mt-2">
+                    <Text className="text-sm font-medium mb-1" style={{ fontFamily: "HankenGrotesk_500Medium" }}>
+                      Response Data:
+                    </Text>
+                    <Text className="text-sm text-gray-700" style={{ fontFamily: "HankenGrotesk_400Regular" }}>
+                      {JSON.stringify(error.response.data, null, 2)}
+                    </Text>
+                  </View>
+                )}
+         
+              </View>
+            </View>
+          </ScrollView>
+
+          {/* Button */}
+          <View className="w-full">
+            <SolidMainButton text='Close' onPress={onClose} />
+          </View>
+        </View>
+      </View>
+    </Modal>
+  );
+};
+
+// Success Modal Component without animations
+const SuccessModal = ({ visible, onClose, orderId }: any) => {
+  if (!visible) return null;
+
+  return (
+    <Modal
+      transparent={true}
+      visible={visible}
+      animationType="fade"
+      onRequestClose={onClose}
+    >
+      <View className="flex-1">
+        <View
+          style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(0, 0, 0, 0.5)',
+          }}
+        />
+
+        <View
+          style={{
+            position: 'absolute',
+            bottom: 0,
+            left: 0,
+            right: 0,
+            backgroundColor: 'white',
+            borderTopLeftRadius: 20,
+            borderTopRightRadius: 20,
+            paddingTop: 20,
+            paddingBottom: 40,
+            paddingHorizontal: 20,
+          }}
+        >
+          {/* Handle Bar */}
+          <View className="items-center mb-4">
+            <View className="w-10 h-1 bg-gray-300 rounded-full" />
+          </View>
+
+          {/* Success Icon */}
+          <View className="items-center mb-4">
+            <View className="w-16 h-16 bg-green-100 rounded-full items-center justify-center mb-4">
+              <MaterialIcons name="check-circle" size={32} color="#10B981" />
+            </View>
+          </View>
+
+          {/* Content */}
+          <View className="items-center mb-6">
+            <Text className="text-xl font-semibold mb-2 text-center" style={{ fontFamily: "HankenGrotesk_600SemiBold" }}>
+              Order Confirmed Successfully!
+            </Text>
+            <Text className="text-gray-600 text-center px-10" style={{ fontFamily: "HankenGrotesk_400Regular" }}>
+              Your order has been confirmed and moved to processing. The buyer will be notified.
+            </Text>
+            <Text className="text-sm text-gray-500 mt-5 mb-5 text-center" style={{ fontFamily: "HankenGrotesk_400Regular" }}>
+              Order ID: {orderId}
+            </Text>
+          </View>
+
+          {/* Button */}
+          <View className="w-full">
+            <SolidMainButton text='Continue' onPress={onClose} />
+          </View>
+        </View>
+      </View>
+    </Modal>
+  );
+};
 
 const OrderConfirm = () => {
   const { orderId, orderData } = useLocalSearchParams<{ orderId: string; orderData: string }>()
+  const [showSuccessModal, setShowSuccessModal] = useState(false)
+  const [showErrorModal, setShowErrorModal] = useState(false)
+  const [errorDetails, setErrorDetails] = useState<any>(null)
   
-  // Parse the order data
   const order = orderData ? JSON.parse(orderData) : null
   
   if (!order) {
@@ -36,12 +201,45 @@ const OrderConfirm = () => {
     console.log("Cancel order:", order.order_id)
   }
 
-  const handleMarkForDelivery = () => {
-    console.log("Mark for delivery:", order.order_id)
+  const { mutate: confirmOrder, isPending } = useComfirmOrder(order.order_id)
+
+  const handleConfirmOrder = () => {
+    console.log("🔍 Attempting to confirm order:", order.order_id)
+    console.log("🔍 Order data:", order)
+    
+    confirmOrder(
+      {},
+      {
+        onSuccess: (data) => {
+          console.log("✅ Order confirmed successfully:", data)
+          setShowSuccessModal(true)
+        },
+        onError: (error) => {
+          console.error("❌ Error confirming order:", error)
+          console.error("❌ Error details:", {
+            message: error?.message,
+            data: (error as any)?.response?.data.data.message,
+          })
+          setErrorDetails((error as any)?.response?.data)
+          setShowErrorModal(true)
+        }
+      }
+    )
+  }
+
+  const handleSuccessModalClose = () => {
+    setShowSuccessModal(false)
+    router.push("/(access)/(user_tabs)/(drawer)/orders")
+  }
+
+  const handleErrorModalClose = () => {
+    setShowErrorModal(false)
+    setErrorDetails(null)
   }
 
   return (
     <SafeAreaView className="bg-white flex-1">
+      <LoadingOverlay visible={isPending}/>
       <ScrollView className="flex-1" contentContainerStyle={{ paddingBottom: 100 }}>
     
         <View className="">
@@ -254,10 +452,27 @@ const OrderConfirm = () => {
             <SolidLightButton text="Reject Order" onPress={handleCancelOrder} />
           </View>
           <View className="w-[48%]">
-            <SolidMainButton text="Confirm Order" onPress={handleMarkForDelivery} />
+            <SolidMainButton 
+              text={"Confirm Order"} 
+              onPress={handleConfirmOrder}
+            />
           </View>
         </View>
       </View>
+
+      {/* Success Modal */}
+      <SuccessModal
+        visible={showSuccessModal}
+        onClose={handleSuccessModalClose}
+        orderId={order.order_id}
+      />
+
+      {/* Error Modal */}
+      <ErrorModal
+        visible={showErrorModal}
+        onClose={handleErrorModalClose}
+        error={errorDetails}
+      />
     </SafeAreaView>
   )
 }

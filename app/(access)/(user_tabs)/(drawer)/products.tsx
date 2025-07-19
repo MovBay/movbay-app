@@ -1,4 +1,4 @@
-import { View, Text, ActivityIndicator, Image, TextInput, Pressable, RefreshControl } from 'react-native'
+import { View, Text, ActivityIndicator, Image, TextInput, Pressable, RefreshControl, TouchableOpacity } from 'react-native'
 import React, { useState, useCallback, useMemo } from 'react'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { StatusBar } from 'expo-status-bar'
@@ -133,10 +133,15 @@ const Products = () => {
                   )}
 
                   <View className='pt-4'>
-                    <Pressable className='ml-auto justify-center rounded-full w-[40%] flex-row items-center bg-[#F75F15]' onPress={()=>router.push('/(access)/(user_stacks)/product-create')}>
-                      <Text className='text-white text-base p-3' style={{fontFamily:'HankenGrotesk_600SemiBold'}}>Add Product</Text>
-                      <MaterialIcons name='add' size={16} color={'white'}/>
-                    </Pressable>
+                    <TouchableOpacity className='flex-row gap-4 p-3 px-4 rounded-3xl w-[100%] items-center bg-[#F75F15]' onPress={()=>router.push('/(access)/(user_stacks)/product-create')}>
+                      <View className='bg-white p-3 rounded-2xl'>
+                        <MaterialIcons name='add' size={25} color={'#F75F15'}/>
+                      </View>
+                      <View className=''>
+                        <Text className='text-white text-lg ' style={{fontFamily:'HankenGrotesk_600SemiBold'}}>Add New Product</Text>
+                        <Text className='text-white text-sm ' style={{fontFamily:'HankenGrotesk_500Medium'}}>Click here to list new product </Text>
+                      </View>
+                    </TouchableOpacity>
 
                     {/* No Search Results */}
                     {searchQuery.trim() && filteredProducts.length === 0 ? (
@@ -159,36 +164,40 @@ const Products = () => {
                         
                         {filteredProducts.map((eachData:any, index:any)=>(
                           <Pressable onPress={()=>handleViewProduct(eachData?.id)} key={index}  className='border border-neutral-200 bg-white rounded-2xl'>
-                            <View className='w-full h-[250px] overflow-hidden rounded-2xl'>
+                            <View className='w-full h-[280px] overflow-hidden rounded-2xl'>
                               <Image source={{uri: eachData?.product_images[0]?.image_url}} style={{width: '100%', height: '100%', objectFit: 'cover'}}/>
                             </View>
 
                             <View className=' p-5'>
-                              <Text className='text-2xl' style={{fontFamily: 'HankenGrotesk_600SemiBold'}}>{eachData?.title}</Text>
+                              <Text className='text-xl' style={{fontFamily: 'HankenGrotesk_600SemiBold'}}>{eachData?.title}</Text>
 
                               {/* Show category and condition if they exist */}
-                              {(eachData?.category || eachData?.condition) && (
-                                <View className='flex-row gap-2 pt-1'>
-                                  {eachData?.category && (
-                                    <Text className='text-sm text-gray-500' style={{fontFamily: 'HankenGrotesk_400Regular'}}>
-                                      {eachData.category}
-                                    </Text>
-                                  )}
-                                  {eachData?.category && eachData?.condition && (
-                                    <Text className='text-sm text-gray-500'>•</Text>
-                                  )}
-                                  {eachData?.condition && (
-                                    <Text className='text-sm text-gray-500' style={{fontFamily: 'HankenGrotesk_400Regular'}}>
-                                      {eachData.condition}
-                                    </Text>
-                                  )}
-                                </View>
-                              )}
 
-                              <View className='flex-row gap-3 items-center pt-2'>
-                                <Text className='text-xl' style={{fontFamily: 'HankenGrotesk_600SemiBold'}}>₦{eachData?.original_price?.toLocaleString()}</Text>
-                                <Text className='text-base line-through text-gray-500 italic' style={{fontFamily: 'HankenGrotesk_400Regular'}}>₦{eachData?.discounted_price?.toLocaleString()}</Text>
+                              <View className='flex-row justify-between items-center'>
+
+                                {(eachData?.category || eachData?.condition) && (
+                                  <View className='flex-row gap-2 pt-1'>
+                                    {eachData?.category && (
+                                      <Text className='text-sm text-gray-500' style={{fontFamily: 'HankenGrotesk_400Regular'}}>
+                                        {eachData.category}
+                                      </Text>
+                                    )}
+                                    {eachData?.category && eachData?.condition && (
+                                      <Text className='text-sm text-gray-500'>•</Text>
+                                    )}
+                                    {eachData?.condition && (
+                                      <Text className='text-sm text-gray-500' style={{fontFamily: 'HankenGrotesk_400Regular'}}>
+                                        {eachData.condition}
+                                      </Text>
+                                    )}
+                                  </View>
+                                )}
+                                <View className='flex-row gap-3 items-center pt-2'>
+                                  <Text className='text-base' style={{fontFamily: 'HankenGrotesk_600SemiBold'}}>₦{eachData?.original_price?.toLocaleString()}</Text>
+                                  <Text className='text-base line-through text-gray-500 italic' style={{fontFamily: 'HankenGrotesk_400Regular'}}>₦{eachData?.discounted_price?.toLocaleString()}</Text>
+                                </View>
                               </View>
+
 
                               <View className='flex-row justify-between pt-5'>
                                  <Pressable className='justify-center rounded-full w-[48%] flex-row items-center bg-[#FEEEE6]' onPress={()=>router.push('/(access)/(user_stacks)/product-create')}>

@@ -1,80 +1,33 @@
-"use client"
-
-import { View, Text, Image } from "react-native"
+import { View, Text, Image, Modal } from "react-native"
 import { useState, useEffect } from "react"
-import { useLogout, useProfile, useUpdateUserProfile } from "@/hooks/mutations/auth"
 import { router } from "expo-router"
 import { Pressable } from "react-native"
 import LoadingOverlay from "@/components/LoadingOverlay"
 import { SafeAreaView } from "react-native-safe-area-context"
 import { StatusBar } from "expo-status-bar"
 import { KeyboardAwareScrollView } from "react-native-keyboard-controller"
-import MaterialIcons from "@expo/vector-icons/MaterialIcons"
 import { OnboardArrowTextHeader } from "@/components/btns/OnboardHeader"
-import { SolidMainButton } from "@/components/btns/CustomButtoms"
-import { TextInput } from "react-native"
-import { ErrorMessage } from "@hookform/error-message"
-import { Controller, useForm } from "react-hook-form"
 import { StyleSheet } from "react-native"
 import * as ImagePicker from "expo-image-picker"
 import { useToast } from "react-native-toast-notifications"
 import Ionicons from "@expo/vector-icons/Ionicons"
+import { MaterialIcons } from "@expo/vector-icons"
+import { SolidLightButton, SolidMainButton } from "@/components/btns/CustomButtoms"
 
 const Settings = () => {
-  const { mutate: logout, isPending: isLoggingOut } = useLogout()
-  const { mutate: updateProfile, isPending: isUpdating } = useUpdateUserProfile()
-  const { profile, isLoading, refetch } = useProfile()
-  const [image, setImage] = useState<string | null>(null)
-  const toast = useToast()
+  const [showDialog, setShowDialog] = useState(false);
 
-  // Password visibility states
-  const [showOldPassword, setShowOldPassword] = useState(false)
-  const [showNewPassword, setShowNewPassword] = useState(false)
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false)
+  const handlePress = () => {
+    setShowDialog(true);
+  };
 
-  const {
-    control,
-    handleSubmit,
-    formState: { errors },
-    reset,
-  } = useForm({
-    defaultValues: {
-      old_password: "",
-      new_password: "",
-      confirm_new_password: "",
-    },
-  })
-
-  const onSubmit = async (data: any) => {
-    try {
-      const formData = new FormData()
-
-      // Add text fields to FormData
-      formData.append("old_password", data.old_password)
-      formData.append("New Password", data.new_password)
-      formData.append("confirm_new_password", data.confirm_new_password)
-
-      updateProfile(formData, {
-        onSuccess: (response) => {
-            console.log("This is my response", response?.data)
-            toast.show("Profile Updated Successfully", { type: "success" })
-            refetch()
-        //   router.push("/profile")
-        },
-        onError: (error: any) => {
-          console.error("Update error:", error)
-          toast.show("Error Updating Profile", { type: "danger" })
-        },
-      })
-    } catch (error) {
-      console.error("Submit error:", error)
-    }
-  }
+  const closeDialog = () => {
+    setShowDialog(false);
+  };
 
   return (
     <SafeAreaView className="flex-1 bg-white">
       <StatusBar style="dark" />
-      <LoadingOverlay visible={isLoggingOut || isUpdating || isLoading} />
 
       <View className="flex-1">
         <KeyboardAwareScrollView
@@ -88,164 +41,72 @@ const Settings = () => {
           <View className="">
             <View className="flex-row items-center gap-2">
               <OnboardArrowTextHeader onPressBtn={() => router.back()} />
-              <Text className="text-2xl text-center m-auto" style={{ fontFamily: "HankenGrotesk_600SemiBold" }}>
+              <Text className="text-xl text-center m-auto" style={{ fontFamily: "HankenGrotesk_600SemiBold" }}>
                 Settings
               </Text>
             </View>
 
-            <View className="mt-6 flex-col">
-              <View className="mb-5">
-                <Text style={styles.titleStyle}>Old Password</Text>
-                <Controller
-                  name="old_password"
-                  control={control}
-                  rules={{
-                    required: "Old Password is required",
-                  }}
-                  render={({ field: { onChange, onBlur, value } }) => (
-                    <View className="relative">
-                      <TextInput
-                        placeholder="E.g - *******"
-                        placeholderTextColor={"#AFAFAF"}
-                        onChangeText={onChange}
-                        onBlur={onBlur}
-                        value={value}
-                        keyboardType="default"
-                        style={styles.inputStyle}
-                        autoCapitalize="none"
-                        autoCorrect={false}
-                        secureTextEntry={!showOldPassword}
-                      />
-                      <Pressable 
-                        className="absolute right-0 items-center justify-center w-16 bg-gray-50 rounded-lg h-full"
-                        onPress={() => setShowOldPassword(!showOldPassword)}
-                      >
-                        <Ionicons 
-                          name={showOldPassword ? "eye-off" : "eye"} 
-                          size={20} 
-                          color={'gray'}
-                        />
-                      </Pressable>
-                    </View>
-                  )}
-                />
-                <ErrorMessage
-                  errors={errors}
-                  name="old_password"
-                  render={({ message }) => <Text className="pl-2 pt-3 text-sm text-red-600">{message}</Text>}
-                />
-              </View>
+            <View className="pt-8">
+              <Pressable onPress={()=>router.push('/(access)/(user_stacks)/change-password')} className="flex-row justify-between items-center pb-3 border-b border-neutral-100">
+                <View className="flex-row items-center gap-3">
+                  <View className="p-4 bg-neutral-100 rounded-full">
+                    <MaterialIcons name="lock-outline" size={23} />
+                  </View>
+                  <View>
+                    <Text className="text-lg" style={{fontFamily: 'HankenGrotesk_600SemiBold'}}>Change Password</Text>
+                    <Text className="text-sm" style={{fontFamily: 'HankenGrotesk_400Regular'}}>Update your login password securely</Text>
+                  </View>
+                </View>
 
-              <View className="mb-5">
-                <Text style={styles.titleStyle}>New Password</Text>
-                <Controller
-                  name="new_password"
-                  control={control}
-                  rules={{
-                    required: "New Password is required",
-                    minLength: {
-                      value: 3,
-                      message: "New Password must be at least 3 characters",
-                    },
-                    pattern: {
-                      value: /^[a-zA-Z0-9_]+$/,
-                      message: "New Password can only contain letters, numbers, and underscores",
-                    },
-                  }}
-                  render={({ field: { onChange, onBlur, value } }) => (
-                    <View className="relative">
-                      <TextInput
-                        placeholder="E.g - ******"
-                        placeholderTextColor={"#AFAFAF"}
-                        onChangeText={onChange}
-                        onBlur={onBlur}
-                        value={value}
-                        keyboardType="default"
-                        style={styles.inputStyle}
-                        autoCapitalize="none"
-                        autoCorrect={false}
-                        secureTextEntry={!showNewPassword}
-                      />
-                      <Pressable 
-                        className="absolute right-0 items-center justify-center w-16 bg-gray-50 rounded-lg h-full"
-                        onPress={() => setShowNewPassword(!showNewPassword)}
-                      >
-                        <Ionicons 
-                          name={showNewPassword ? "eye-off" : "eye"} 
-                          size={20} 
-                          color={'gray'}
-                        />
-                      </Pressable>
-                    </View>
-                  )}
-                />
-                <ErrorMessage
-                  errors={errors}
-                  name="new_password"
-                  render={({ message }) => <Text className="pl-2 pt-3 text-sm text-red-600">{message}</Text>}
-                />
-              </View>
+                <MaterialIcons name="chevron-right" size={23}/>
+              </Pressable>
 
-              <View className="mb-5">
-                <Text style={styles.titleStyle}>Confirm New Password</Text>
-                <Controller
-                  name="confirm_new_password"
-                  control={control}
-                  rules={{
-                    required: "Confirm New Password is required",
-                    minLength: {
-                      value: 3,
-                      message: "New Password must be at least 3 characters",
-                    },
-                    pattern: {
-                      value: /^[a-zA-Z0-9_]+$/,
-                      message: "New Password can only contain letters, numbers, and underscores",
-                    },
-                  }}
-                  render={({ field: { onChange, onBlur, value } }) => (
-                    <View className="relative">
-                        <TextInput
-                          placeholder="E.g - ******"
-                          placeholderTextColor={"#AFAFAF"}
-                          onChangeText={onChange}
-                          onBlur={onBlur}
-                          value={value}
-                          keyboardType="default"
-                          style={styles.inputStyle}
-                          autoCapitalize="none"
-                          autoCorrect={false}
-                          secureTextEntry={!showConfirmPassword}
-                        />
-
-                        <Pressable 
-                          className="absolute right-0 items-center justify-center w-16 bg-gray-50 rounded-lg h-full"
-                          onPress={() => setShowConfirmPassword(!showConfirmPassword)}
-                        >
-                          <Ionicons 
-                            name={showConfirmPassword ? "eye-off" : "eye"} 
-                            size={20} 
-                            color={'gray'}
-                          />
-                        </Pressable>
-                    </View>
-                  )}
-                />
-                <ErrorMessage
-                  errors={errors}
-                  name="confirm_new_password"
-                  render={({ message }) => <Text className="pl-2 pt-3 text-sm text-red-600">{message}</Text>}
-                />
-              </View>
-
+              <Pressable onPress={handlePress} className="flex-row justify-between items-center pb-2 border-b border-neutral-100 mt-5">
+                <View className="flex-row items-center gap-3">
+                  <View className="p-4 bg-neutral-100 rounded-full">
+                    <Ionicons name="trash-outline" size={23} />
+                  </View>
+                  <View>
+                    <Text className="text-lg" style={{fontFamily: 'HankenGrotesk_600SemiBold'}}>Delete Account</Text>
+                    <Text className="text-sm" style={{fontFamily: 'HankenGrotesk_400Regular'}}>Permanently close and erase your account</Text>
+                  </View>
+                </View>
+              </Pressable>
             </View>
+
           </View>
         </KeyboardAwareScrollView>
-
-        {/* Fixed Save Button at Bottom */}
-        <View className="px-7 pb-4 pt-2 bg-white border-t border-gray-100 mb-5">
-          <SolidMainButton onPress={handleSubmit(onSubmit)} text={"Save"} />
-        </View>
       </View>
+      <Modal
+          visible={showDialog}
+          transparent={true}
+          animationType="fade"
+          onRequestClose={closeDialog}
+        >
+          <View className='flex-1 justify-center items-center bg-black/50'>
+            <View className='bg-white rounded-2xl p-8 mx-6 w-[90%]'>
+              <View className='items-center justify-center m-auto rounded-full p-5 bg-neutral-100 w-fit mb-5'>
+                <Ionicons name="trash-sharp" size={30} color={'gray'}/>
+              </View>
+              <Text className='text-xl text-center mb-2' style={{fontFamily: 'HankenGrotesk_600SemiBold'}}>
+                Delete MovBay
+              </Text>
+              <Text className='text-neutral-500 text-center mb-6 w-[90%] m-auto text-sm' style={{fontFamily: 'HankenGrotesk_500Medium'}}>
+                Deleting this account means no access to information on this account. ARe you sure you want to delete your account.
+              </Text>
+
+              <View className='flex-row items-center justify-between'>
+                <View className='w-[49%]'>
+                  <SolidLightButton onPress={closeDialog} text='No'/>
+                </View>
+
+                <View className='w-[49%]'>
+                  <SolidMainButton onPress={closeDialog} text='Yes'/>
+                </View>
+              </View>
+            </View>
+          </View>
+      </Modal>
     </SafeAreaView>
   )
 }

@@ -1,5 +1,5 @@
-import { View, Text, TouchableOpacity, Alert, Modal } from "react-native"
-import { useState, useEffect } from "react"
+import { View, Text, TouchableOpacity, Alert, Modal, Animated, Dimensions } from "react-native"
+import { useState, useEffect, useRef } from "react"
 import { SafeAreaView } from "react-native-safe-area-context"
 import { StatusBar } from "expo-status-bar"
 import { ScrollView } from "react-native-gesture-handler"
@@ -12,17 +12,13 @@ import { SolidMainButton } from "@/components/btns/CustomButtoms"
 import LoadingOverlay from "@/components/LoadingOverlay"
 import MaterialIcons from "@expo/vector-icons/MaterialIcons"
 import Ionicons from "@expo/vector-icons/Ionicons"
-import Animated, {
-  useSharedValue,
-  useAnimatedStyle,
-  withTiming,
-  withSpring
-} from "react-native-reanimated"
 
 // Add push notification imports
 import * as Notifications from 'expo-notifications'
 import * as Device from 'expo-device'
 import Constants from 'expo-constants'
+
+const { height: SCREEN_HEIGHT } = Dimensions.get('window')
 
 // Configure notification handler
 Notifications.setNotificationHandler({
@@ -82,9 +78,9 @@ const UserCheckout = () => {
   const toast = useToast()
   const [orderDatas, setOrderDatas] = useState([])
   
-  // Animation values for confirmation modal
-  const confirmationModalOpacity = useSharedValue(0)
-  const confirmationModalScale = useSharedValue(0.8)
+  // Animation refs for bottom sheet
+  const slideAnim = useRef(new Animated.Value(SCREEN_HEIGHT)).current
+  const backdropOpacity = useRef(new Animated.Value(0)).current
 
   const {mutate, isPending} = useCreateOrder()
 
@@ -184,31 +180,40 @@ const UserCheckout = () => {
     registerForPushNotificationsAsync()
   }, [finalOrderData])
 
-  // Animate confirmation modal
+  // Animate bottom sheet modal
   useEffect(() => {
     if (confirmationModalVisible) {
-      confirmationModalOpacity.value = withTiming(1, { duration: 200 })
-      confirmationModalScale.value = withSpring(1, { damping: 15, stiffness: 150 })
+      Animated.parallel([
+        Animated.timing(slideAnim, {
+          toValue: 0,
+          duration: 300,
+          useNativeDriver: true,
+        }),
+        Animated.timing(backdropOpacity, {
+          toValue: 1,
+          duration: 300,
+          useNativeDriver: true,
+        }),
+      ]).start()
+    } else {
+      Animated.parallel([
+        Animated.timing(slideAnim, {
+          toValue: SCREEN_HEIGHT,
+          duration: 300,
+          useNativeDriver: true,
+        }),
+        Animated.timing(backdropOpacity, {
+          toValue: 0,
+          duration: 300,
+          useNativeDriver: true,
+        }),
+      ]).start()
     }
-  }, [confirmationModalVisible])
+  }, [confirmationModalVisible, slideAnim, backdropOpacity])
 
-  // Animated styles for confirmation modal
-  const confirmationModalBackdropStyle = useAnimatedStyle(() => ({
-    opacity: confirmationModalOpacity.value,
-  }))
-
-  const confirmationModalContentStyle = useAnimatedStyle(() => ({
-    opacity: confirmationModalOpacity.value,
-    transform: [{ scale: confirmationModalScale.value }],
-  }))
-
-  // Close confirmation modal with smooth animation
+  // Close confirmation modal
   const closeConfirmationModal = () => {
-    confirmationModalOpacity.value = withTiming(0, { duration: 200 })
-    confirmationModalScale.value = withTiming(0.8, { duration: 200 })
-    setTimeout(() => {
-      setConfirmationModalVisible(false)
-    }, 200)
+    setConfirmationModalVisible(false)
   }
 
   // Payment method mapping
@@ -444,7 +449,7 @@ const UserCheckout = () => {
     }
   }
 
-  // Payment Confirmation Modal
+  // Payment Confirmation Bottom Sheet Modal
   const PaymentConfirmationModal = () => {
     if (!parsedOrderData) return null
     
@@ -453,25 +458,51 @@ const UserCheckout = () => {
     
     return (
       <Modal
-        animationType="none"
         transparent={true}
         visible={confirmationModalVisible}
+        animationType="none"
         onRequestClose={closeConfirmationModal}
       >
-        <Animated.View 
-          style={[confirmationModalBackdropStyle]}
-          className="flex-1 justify-center items-center bg-black/50"
-        >
+        <View className="flex-1">
           <Animated.View
-            style={[confirmationModalContentStyle]}
-            className="bg-white rounded-2xl p-6 mx-5 w-[90%] max-w-md"
+            style={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              backgroundColor: 'rgba(0, 0, 0, 0.5)',
+              opacity: backdropOpacity,
+            }}
+          />
+          <Animated.View
+            style={{
+              transform: [{ translateY: slideAnim }],
+              position: 'absolute',
+              bottom: 0,
+              left: 0,
+              right: 0,
+              backgroundColor: 'white',
+              borderTopLeftRadius: 20,
+              borderTopRightRadius: 20,
+              paddingTop: 20,
+              paddingBottom: 40,
+              paddingHorizontal: 20,
+              maxHeight: SCREEN_HEIGHT * 0.85,
+            }}
           >
+            {/* Handle Bar */}
+            <View className="items-center mb-4">
+              <View className="w-10 h-1 bg-gray-300 rounded-full" />
+            </View>
+
+            {/* Header */}
             <View className="items-center mb-4">
               <View className="bg-orange-100 p-3 rounded-full mb-3">
                 <MaterialIcons name="payment" size={28} color="#F75F15" />
               </View>
               <Text
-                className="text-lg font-semibold text-gray-900 mb-2"
+                className="text-xl font-semibold text-gray-900 mb-2"
                 style={{ fontFamily: "HankenGrotesk_600SemiBold" }}
               >
                 Confirm Payment
@@ -481,62 +512,68 @@ const UserCheckout = () => {
               </Text>
             </View>
 
-            {/* Order Summary */}
-            <View className="bg-gray-50 p-4 rounded-lg mb-4">
-              <View className="flex-row justify-between items-center mb-2">
-                <Text className="text-sm text-gray-600" style={{ fontFamily: "HankenGrotesk_400Regular" }}>
-                  Items ({parsedOrderData.cart_summary.total_items})
-                </Text>
-                <Text className="text-sm font-semibold text-gray-900" style={{ fontFamily: "HankenGrotesk_600SemiBold" }}>
-                  ₦{parsedOrderData.total_amount.toLocaleString()}
-                </Text>
-              </View>
-              <View className="flex-row justify-between items-center mb-2">
-                <Text className="text-sm text-gray-600" style={{ fontFamily: "HankenGrotesk_400Regular" }}>
-                  Delivery to {parsedOrderData.delivery.city}
-                </Text>
-                <Text className="text-sm font-semibold text-gray-900" style={{ fontFamily: "HankenGrotesk_600SemiBold" }}>
-                  ₦{deliveryFee.toLocaleString()}
-                </Text>
-              </View>
-              <View className="border-t border-gray-200 pt-2 mt-2">
-                <View className="flex-row justify-between items-center">
-                  <Text className="text-base font-semibold text-gray-900" style={{ fontFamily: "HankenGrotesk_600SemiBold" }}>
-                    Total Amount
+            <ScrollView 
+              className="flex-1"
+              showsVerticalScrollIndicator={false}
+              contentContainerStyle={{ paddingBottom: 20 }}
+            >
+              {/* Order Summary */}
+              <View className="bg-gray-50 p-4 rounded-lg mb-4">
+                <View className="flex-row justify-between items-center mb-2">
+                  <Text className="text-sm text-gray-600" style={{ fontFamily: "HankenGrotesk_400Regular" }}>
+                    Items ({parsedOrderData.cart_summary.total_items})
                   </Text>
-                  <Text className="text-lg font-bold text-orange-600" style={{ fontFamily: "HankenGrotesk_700Bold" }}>
-                    ₦{finalTotal.toLocaleString()}
-                  </Text>
-                </View>
-              </View>
-            </View>
-
-            {/* Payment Method */}
-            <View className="bg-gray-50 p-4 rounded-lg mb-6">
-              <View className="flex-row items-center">
-                <Text className="text-base mr-2">{paymentDisplay.icon}</Text>
-                <View className="flex-1">
                   <Text className="text-sm font-semibold text-gray-900" style={{ fontFamily: "HankenGrotesk_600SemiBold" }}>
-                    {paymentDisplay.title}
+                    ₦{parsedOrderData.total_amount.toLocaleString()}
                   </Text>
                 </View>
+                <View className="flex-row justify-between items-center mb-2">
+                  <Text className="text-sm text-gray-600" style={{ fontFamily: "HankenGrotesk_400Regular" }}>
+                    Delivery to {parsedOrderData.delivery.city}
+                  </Text>
+                  <Text className="text-sm font-semibold text-gray-900" style={{ fontFamily: "HankenGrotesk_600SemiBold" }}>
+                    ₦{deliveryFee.toLocaleString()}
+                  </Text>
+                </View>
+                <View className="border-t border-gray-200 pt-2 mt-2">
+                  <View className="flex-row justify-between items-center">
+                    <Text className="text-base font-semibold text-gray-900" style={{ fontFamily: "HankenGrotesk_600SemiBold" }}>
+                      Total Amount
+                    </Text>
+                    <Text className="text-lg font-bold text-orange-600" style={{ fontFamily: "HankenGrotesk_700Bold" }}>
+                      ₦{finalTotal.toLocaleString()}
+                    </Text>
+                  </View>
+                </View>
               </View>
-            </View>
 
-            {/* Delivery Info */}
-            <View className="bg-green-50 p-4 rounded-lg mb-6">
-              <View className="flex-row items-center">
-                <Ionicons name="location" size={16} color="#10B981" />
-                <View className="flex-1 ml-2">
-                  <Text className="text-sm font-semibold text-gray-900" style={{ fontFamily: "HankenGrotesk_600SemiBold" }} numberOfLines={2}>
-                    {parsedOrderData.delivery.delivery_address}, {parsedOrderData.delivery.city}
-                  </Text>
+              {/* Payment Method */}
+              <View className="bg-gray-50 p-4 rounded-lg mb-4">
+                <View className="flex-row items-center">
+                  <Text className="text-base mr-2">{paymentDisplay.icon}</Text>
+                  <View className="flex-1">
+                    <Text className="text-sm font-semibold text-gray-900" style={{ fontFamily: "HankenGrotesk_600SemiBold" }}>
+                      {paymentDisplay.title}
+                    </Text>
+                  </View>
                 </View>
               </View>
-            </View>
+
+              {/* Delivery Info */}
+              <View className="bg-green-50 p-4 rounded-lg mb-4">
+                <View className="flex-row items-center">
+                  <Ionicons name="location" size={16} color="#10B981" />
+                  <View className="flex-1 ml-2">
+                    <Text className="text-sm font-semibold text-gray-900" style={{ fontFamily: "HankenGrotesk_600SemiBold" }} numberOfLines={2}>
+                      {parsedOrderData.delivery.delivery_address}, {parsedOrderData.delivery.city}
+                    </Text>
+                  </View>
+                </View>
+              </View>
+            </ScrollView>
 
             {/* Action Buttons */}
-            <View className="flex-row gap-3">
+            <View className="flex-row gap-3 mt-4">
               <TouchableOpacity
                 onPress={closeConfirmationModal}
                 className="flex-1 bg-gray-100 py-3 rounded-full items-center"
@@ -556,7 +593,7 @@ const UserCheckout = () => {
               </TouchableOpacity>
             </View>
           </Animated.View>
-        </Animated.View>
+        </View>
       </Modal>
     )
   }
@@ -579,7 +616,7 @@ const UserCheckout = () => {
       <StatusBar style="dark" />
       <LoadingOverlay visible={isPending || isProcessing}/>
       
-      {/* Payment Confirmation Modal */}
+      {/* Payment Confirmation Bottom Sheet Modal */}
       <PaymentConfirmationModal />
 
       <View className="flex-1">

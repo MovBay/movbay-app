@@ -10,6 +10,7 @@ export async function registerForPushNotificationsAsync() {
       importance: Notifications.AndroidImportance.MAX,
       vibrationPattern: [0, 250, 250, 250],
       lightColor: "#FF231F7C",
+      showBadge: true,
     });
   }
 
@@ -17,10 +18,27 @@ export async function registerForPushNotificationsAsync() {
     const { status: existingStatus } =
       await Notifications.getPermissionsAsync();
     let finalStatus = existingStatus;
+    
     if (existingStatus !== "granted") {
-      const { status } = await Notifications.requestPermissionsAsync();
+      const { status } = await Notifications.requestPermissionsAsync({
+        ios: {
+          allowAlert: true,
+          allowBadge: true,
+          allowSound: true, // This is crucial for iOS sound
+          allowDisplayInCarPlay: true,
+          allowCriticalAlerts: true,
+          provideAppNotificationSettings: true,
+          allowProvisional: true,
+        },
+        android: {
+          allowAlert: true,
+          allowBadge: true,
+          allowSound: true, // Add sound permission for Android
+        },
+      });
       finalStatus = status;
     }
+    
     if (finalStatus !== "granted") {
       throw new Error(
         "Permission not granted to get push token for push notification!"
