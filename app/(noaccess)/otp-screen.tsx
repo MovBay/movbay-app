@@ -83,7 +83,7 @@ const OtpScreen = () => {
       <LoadingOverlay visible={isPending}  />
       
       <KeyboardAwareScrollView>
-        <View className='px-7 mt-10'>
+        <View className='px-7 mt-10 '>
           <OnboardHeader text='OTP Verification' description="Enter the 5 digit number sent to your email address provided earlier"/>
           <View className='pt-10'>
 
@@ -169,7 +169,7 @@ const OtpScreen = () => {
             </View>
 
             <View className='pt-5 flex-row gap-4 justify-center'>
-              <Text className='text-[#3A3541] text-base' style={{fontFamily: 'HankenGrotesk_400Regular'}}>Don't recieve code?</Text>
+              <Text className='text-[#3A3541] text-sm' style={{fontFamily: 'HankenGrotesk_400Regular'}}>Don't recieve code?</Text>
 
               <Button
                 type="clear"
@@ -204,7 +204,7 @@ const styles = StyleSheet.create({
   },
   titleStyle: {
     fontFamily: "HankenGrotesk_500Medium",
-    fontSize: 15,
+    fontSize: 13,
     color: "#3A3541",
     paddingBottom: 8,
     paddingTop: 6

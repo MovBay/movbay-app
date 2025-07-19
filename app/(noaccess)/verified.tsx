@@ -60,7 +60,7 @@ const styles = StyleSheet.create({
     marginBottom: 40,
   },
   title: {
-    fontSize: 25,
+    fontSize: 22,
     fontWeight: '600',
     textAlign: 'center',
     color: '#1F2937',
@@ -68,7 +68,7 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   subtitle: {
-    fontSize: 14,
+    fontSize: 13,
     textAlign: 'center',
     color: '#6B7280',
     lineHeight: 20,

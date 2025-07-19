@@ -20,7 +20,7 @@ const userRole= () => {
 
         <View className='px-7 mt-10 flex-1'>
             <OnboardArrowHeader onPressBtn={()=>router.back()}/>
-            <Text className='text-2xl w-[70%] pt-5' style={{fontFamily: 'HankenGrotesk_600SemiBold'}}>How would you like to use MovBay?</Text>
+            <Text className='text-xl w-[70%] pt-5' style={{fontFamily: 'HankenGrotesk_600SemiBold'}}>How would you like to use MovBay?</Text>
 
 
             <View className='flex flex-col gap-1 mt-5'>
@@ -43,8 +43,8 @@ const userRole= () => {
                         </View>
 
                         <View className='pt-3'>
-                            <Text className='text-2xl' style={{fontFamily: 'HankenGrotesk_600SemiBold'}}>User (Shop, Sell, Send, Receive)</Text>
-                            <Text className='text-base text-neutral-500' style={{fontFamily: 'HankenGrotesk_400Regular'}}>
+                            <Text className='text-xl' style={{fontFamily: 'HankenGrotesk_600SemiBold'}}>User (Shop, Sell, Send, Receive)</Text>
+                            <Text className='text-sm text-neutral-500' style={{fontFamily: 'HankenGrotesk_400Regular'}}>
                                 Buy or sell products, book couriers, and track orders.
                             </Text>
                         </View>
@@ -71,8 +71,8 @@ const userRole= () => {
                         </View>
 
                         <View className='pt-3'>
-                            <Text className='text-2xl' style={{fontFamily: 'HankenGrotesk_600SemiBold'}}>Rider (Courier Delivery Only)</Text>
-                            <Text className='text-base text-neutral-500' style={{fontFamily: 'HankenGrotesk_400Regular'}}>
+                            <Text className='text-xl' style={{fontFamily: 'HankenGrotesk_600SemiBold'}}>Rider (Courier Delivery Only)</Text>
+                            <Text className='text-sm text-neutral-500' style={{fontFamily: 'HankenGrotesk_400Regular'}}>
                                 Deliver packages and earn. Requires a separate rider account.
                             </Text>
                         </View>
