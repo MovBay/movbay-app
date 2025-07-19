@@ -69,7 +69,7 @@ const Profile = () => {
               }
 
               <View>
-                <Pressable onPress={() => router.push('/(access)/(user_stacks)/profile-view')} className='flex-row items-center justify-between mt-3 bg-neutral-100 rounded-full p-3'>
+                <Pressable onPress={() => router.push('/(access)/(user_stacks)/profile-view')} className='flex-row items-center justify-between mt-3 bg-neutral-100 rounded-full p-3 px-4'>
                   <View className='flex-row items-center gap-3 '>
                     <View className='w-10 h-10 bg-gray-200 rounded-full justify-center items-center'>
                       <Ionicons name='person-outline' size={18} color={'#0F0F0F'}/>
@@ -79,7 +79,7 @@ const Profile = () => {
                   <Ionicons name='chevron-forward-outline' size={15} color={'#0F0F0F'}/>
                 </Pressable>
 
-                <Pressable onPress={() => router.push('/')} className='flex-row items-center justify-between mt-3 bg-neutral-100 rounded-full p-3'>
+                <Pressable onPress={() => router.push('/')} className='flex-row items-center justify-between mt-3 bg-neutral-100 rounded-full p-3 px-4'>
                   <View className='flex-row items-center gap-3 '>
                     <View className='w-10 h-10 bg-gray-200 rounded-full justify-center items-center'>
                       <Ionicons name='location-outline' size={18} color={'#0F0F0F'}/>
@@ -89,7 +89,7 @@ const Profile = () => {
                   <Ionicons name='chevron-forward-outline' size={15} color={'#0F0F0F'}/>
                 </Pressable>
 
-                <Pressable onPress={() => router.push('/(access)/(user_stacks)/settings')} className='flex-row items-center justify-between mt-3 bg-neutral-100 rounded-full p-3'>
+                <Pressable onPress={() => router.push('/(access)/(user_stacks)/settings')} className='flex-row items-center justify-between mt-3 bg-neutral-100 rounded-full p-3 px-4'>
                   <View className='flex-row items-center gap-3 '>
                     <View className='w-10 h-10 bg-gray-200 rounded-full justify-center items-center'>
                       <Ionicons name='settings-outline' size={18} color={'#0F0F0F'}/>
@@ -99,7 +99,7 @@ const Profile = () => {
                   <Ionicons name='chevron-forward-outline' size={15} color={'#0F0F0F'}/>
                 </Pressable>
 
-                <Pressable onPress={() => router.push('/(access)/(user_stacks)/order_history_buyer')} className='flex-row items-center justify-between mt-3 bg-neutral-100 rounded-full p-3'>
+                <Pressable onPress={() => router.push('/(access)/(user_stacks)/order_history_buyer')} className='flex-row items-center justify-between mt-3 bg-neutral-100 rounded-full p-3 px-4'>
                   <View className='flex-row items-center gap-3 '>
                     <View className='w-10 h-10 bg-gray-200 rounded-full justify-center items-center'>
                       <Ionicons name='bag-add-outline' size={18} color={'#0F0F0F'}/>
@@ -109,7 +109,7 @@ const Profile = () => {
                   <Ionicons name='chevron-forward-outline' size={15} color={'#0F0F0F'}/>
                 </Pressable>
 
-                <Pressable onPress={() => router.push('/')} className='flex-row items-center justify-between mt-3 bg-neutral-100 rounded-full p-3'>
+                <Pressable onPress={() => router.push('/')} className='flex-row items-center justify-between mt-3 bg-neutral-100 rounded-full p-3 px-4'>
                   <View className='flex-row items-center gap-3 '>
                     <View className='w-10 h-10 bg-gray-200 rounded-full justify-center items-center'>
                       <MaterialIcons name='favorite-outline' size={18} color={'#0F0F0F'}/>
@@ -119,7 +119,7 @@ const Profile = () => {
                   <Ionicons name='chevron-forward-outline' size={15} color={'#0F0F0F'}/>
                 </Pressable>
 
-                <Pressable onPress={() => router.push('/')} className='flex-row items-center justify-between mt-3 bg-neutral-100 rounded-full p-3'>
+                <Pressable onPress={() => router.push('/')} className='flex-row items-center justify-between mt-3 bg-neutral-100 rounded-full p-3 px-4'>
                   <View className='flex-row items-center gap-3 '>
                     <View className='w-10 h-10 bg-gray-200 rounded-full justify-center items-center'>
                       <Ionicons name='people-outline' size={18} color={'#0F0F0F'}/>
@@ -130,7 +130,7 @@ const Profile = () => {
                 </Pressable>
 
 
-                <Pressable onPress={() => router.push('/')} className='flex-row items-center justify-between mt-3 bg-neutral-100 rounded-full p-3'>
+                <Pressable onPress={() => router.push('/')} className='flex-row items-center justify-between mt-3 bg-neutral-100 rounded-full p-3 px-4'>
                   <View className='flex-row items-center gap-3 '>
                     <View className='w-10 h-10 bg-gray-200 rounded-full justify-center items-center'>
                       <MaterialIcons name='question-mark' size={18} color={'#0F0F0F'}/>
@@ -141,7 +141,7 @@ const Profile = () => {
                 </Pressable>
 
 
-                <Pressable onPress={() => router.push('/')} className='flex-row items-center justify-between mt-3 bg-neutral-100 rounded-full p-3'>
+                <Pressable onPress={() => router.push('/')} className='flex-row items-center justify-between mt-3 bg-neutral-100 rounded-full p-3 px-4'>
                   <View className='flex-row items-center gap-3 '>
                     <View className='w-10 h-10 bg-gray-200 rounded-full justify-center items-center'>
                       <MaterialIcons name='star-outline' size={18} color={'#0F0F0F'}/>
@@ -151,7 +151,7 @@ const Profile = () => {
                   <Ionicons name='chevron-forward-outline' size={15} color={'#0F0F0F'}/>
                 </Pressable>
 
-                <Pressable onPress={handleLogout} className='flex-row items-center justify-between mt-3 bg-neutral-100 rounded-full p-3'>
+                <Pressable onPress={handleLogout} className='flex-row items-center justify-between mt-3 bg-neutral-100 rounded-full p-3 px-4'>
                   <View className='flex-row items-center gap-3 '>
                     <View className='w-10 h-10 bg-gray-200 rounded-full justify-center items-center'>
                       <MaterialIcons name='logout' size={18} color={'#0F0F0F'}/>
