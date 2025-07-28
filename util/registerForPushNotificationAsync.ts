@@ -9,7 +9,7 @@ export async function registerForPushNotificationsAsync() {
       name: "default",
       importance: Notifications.AndroidImportance.MAX,
       vibrationPattern: [0, 250, 250, 250],
-      lightColor: "#FF231F7C",
+      // lightColor: "#FF231F7C",
       showBadge: true,
     });
   }
@@ -33,7 +33,6 @@ export async function registerForPushNotificationsAsync() {
         android: {
           allowAlert: true,
           allowBadge: true,
-          allowSound: true, // Add sound permission for Android
         },
       });
       finalStatus = status;

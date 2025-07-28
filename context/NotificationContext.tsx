@@ -147,7 +147,7 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({
         
         // Register for push notifications and get token
         const token = await registerForPushNotificationsAsync();
-        console.log('📱 Expo Push Token:', token);
+        // console.log('📱 Expo Push Token:', token);
         setExpoPushToken(token);
 
         // Check if we should send the token to backend
@@ -214,6 +214,11 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({
           console.log("🚀 Navigating to order history buyer...");
           router.push('/(access)/(user_stacks)/order_history_buyer');
         } 
+        else if (cleanTitle === "New Order Available") {
+          console.log("🚀 Navigating to orders...");
+          router.push('/(access)/(user_tabs)/(drawer)/orders');
+        } 
+
         else if (cleanTitle === "New Order Available") {
           console.log("🚀 Navigating to orders...");
           router.push('/(access)/(user_tabs)/(drawer)/orders');

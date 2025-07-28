@@ -278,7 +278,7 @@ const Cart = () => {
     </Modal>
   )
 
-  // Render cart item
+  // Render cart item with optimized quantity controls
   const renderCartItem = (item: any, index: number) => (
     <Animated.View
       key={item.id}
@@ -293,11 +293,11 @@ const Cart = () => {
         </View>
       )}
       <View className="flex-row items-center">
-        {/* Product Image */}
+        {/* Product Image - FIXED: Now properly rounded */}
         <View className="mr-4">
           <Image 
             source={{ uri: item.image }}
-            className="w-20 h-20 rounded-base"
+            className="w-20 h-20 rounded-2xl"
             resizeMode="cover"
           />
         </View>
@@ -313,32 +313,31 @@ const Cart = () => {
           <Text className="text-base font-bold text-gray-900 mb-1" style={{ fontFamily: "HankenGrotesk_600SemiBold" }}>
             {formatPrice(item.discounted_price || item.price)}
           </Text>
-          {/* Quantity Controls */}
+          {/* Quantity Controls - OPTIMIZED: Removed isUpdating checks for instant response */}
           <View className="flex-row items-center justify-between">
             <View className="flex-row items-center">
               <TouchableOpacity
                 onPress={() => updateQuantity(item.id, item.quantity - 1)}
-                className="w-6 h-6 rounded-full border border-gray-300 items-center justify-center"
-                disabled={isUpdating || item.quantity <= 1}
+                className="w-8 h-8 rounded-full border border-gray-300 items-center justify-center"
+                disabled={item.quantity <= 1}
               >
-                <MaterialIcons name="remove" size={14} color="#666" />
+                <MaterialIcons name="remove" size={16} color={item.quantity <= 1 ? "#ccc" : "#666"} />
               </TouchableOpacity>
-              <Text className="mx-4 text-base font-semibold" style={{ fontFamily: "HankenGrotesk_600SemiBold" }}>
+              <Text className="mx-4 text-base font-semibold min-w-[24px] text-center" style={{ fontFamily: "HankenGrotesk_600SemiBold" }}>
                 {item.quantity}
               </Text>
               <TouchableOpacity
                 onPress={() => updateQuantity(item.id, item.quantity + 1)}
-                className="w-6 h-6  rounded-full border border-gray-300 items-center justify-center"
-                disabled={isUpdating}
+                className="w-8 h-8 rounded-full border border-gray-300 items-center justify-center"
+                disabled={item.quantity >= item.stock_available}
               >
-                <MaterialIcons name="add" size={14} color="#666" />
+                <MaterialIcons name="add" size={16} color={item.quantity >= item.stock_available ? "#ccc" : "#666"} />
               </TouchableOpacity>
             </View>
             {/* Delete Button */}
             <TouchableOpacity
               onPress={() => handleRemoveItem(item.id)}
               className="w-10 h-10 bg-red-50 rounded-full items-center justify-center"
-              disabled={isUpdating}
             >
               <MaterialIcons name="delete-outline" size={20} color="#EF4444" />
             </TouchableOpacity>

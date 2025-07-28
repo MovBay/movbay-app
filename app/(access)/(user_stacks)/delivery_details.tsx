@@ -156,6 +156,54 @@ const CustomInput = ({
   </View>
 )
 
+// Custom Phone Input Component (similar to registration screen)
+const CustomPhoneInput = ({
+  label,
+  name,
+  control,
+  rules,
+  errors,
+}: {
+  label: string;
+  name: keyof FormData;
+  control: any;
+  rules?: any;
+  errors: any;
+}) => (
+  <View className="mb-5">
+    <Text style={styles.titleStyle}>{label}</Text>
+    <Controller
+      name={name}
+      control={control}
+      rules={rules}
+      render={({ field: { onChange, onBlur, value } }) => (
+        <View className='relative'>
+          <View className='absolute z-10 left-0 top-0 justify-center items-center h-full px-4 bg-gray-100 rounded-l-md border-r border-gray-200'>
+            <Text className='text-[#3A3541] font-medium '>+234</Text>
+          </View>
+          <TextInput 
+            placeholder='8094422763'
+            placeholderTextColor={"#AFAFAF"}
+            onChangeText={onChange}
+            onBlur={onBlur}
+            value={value}
+            keyboardType="phone-pad"
+            style={[styles.inputStyle, { paddingLeft: 70 }]}
+            autoCapitalize="none"
+            autoCorrect={false}
+            maxLength={10}
+          />
+        </View>
+      )}
+    />
+    <ErrorMessage
+      errors={errors}
+      name={name}
+      render={({ message }) => <Text className="pl-2 pt-3 text-sm text-red-600">{message}</Text>}
+    />
+  </View>
+)
+
 // Custom Picker Component
 const CustomPicker = ({
   label,
@@ -215,6 +263,20 @@ const DeliveryDetails = () => {
   const [availableCities, setAvailableCities] = useState<City[]>([])
   
   const toast = useToast()
+
+  // Function to format phone number for backend
+  const formatPhoneNumber = (phoneNumber: string) => {
+    // Remove all non-digit characters
+    let cleanNumber = phoneNumber.replace(/\D/g, '');
+    
+    // Remove leading zero if present
+    if (cleanNumber.startsWith('0')) {
+      cleanNumber = cleanNumber.substring(1);
+    }
+    
+    // Return formatted number with +234 prefix
+    return `+234${cleanNumber}`;
+  };
 
   // Parse cart data on component mount
   useEffect(() => {
@@ -309,13 +371,24 @@ const DeliveryDetails = () => {
     }
   }, [setValue])
 
-  // Phone number validation - must start with +234
+  // Phone number validation - updated to expect exactly 10 digits (without leading zero)
   const phoneValidation = {
     required: "Phone Number is required",
     pattern: {
-      value: /^\+234[0-9]{10}$/,
-      message: "Phone number must start with +234",
+      value: /^[1-9][0-9]{9}$/,
+      message: "Please enter a valid 10-digit Nigerian phone number (without leading 0)"
     },
+    validate: (value: string) => {
+      // Additional validation to ensure it's exactly 10 digits and doesn't start with 0
+      const cleanValue = value.replace(/\D/g, '');
+      if (cleanValue.length !== 10) {
+        return "Phone number must be exactly 10 digits";
+      }
+      if (cleanValue.startsWith('0')) {
+        return "Phone number should not start with 0";
+      }
+      return true;
+    }
   }
 
   // Email validation - now required
@@ -357,7 +430,7 @@ const DeliveryDetails = () => {
       const deliveryData = {
         delivery_method: data.deliveryMethod,
         full_name: data.recipientFullName,
-        phone_number: data.recipientPhone,
+        phone_number: formatPhoneNumber(data.recipientPhone), // Format phone number here
         email: data.recipientEmail,
         landmark: data.landmark,
         delivery_address: data.streetAddress,
@@ -365,7 +438,7 @@ const DeliveryDetails = () => {
         state: getStateName(data.state),
         alternative_address: data.streetAddress,
         alternative_name: data.alternativeFullName,
-        alternative_phone: data.alternativePhone,
+        alternative_phone: formatPhoneNumber(data.alternativePhone), // Format phone number here
         alternative_email: data.alternativeEmail,
         postal_code: parseInt(data.postalCode) || 0,
       }
@@ -377,6 +450,7 @@ const DeliveryDetails = () => {
         total_amount: parsedCartData.total_amount,
         cart_summary: parsedCartData.cart_summary,
       }
+      
       // Navigate to delivery summary with combined data
       router.push({
         pathname: "/(access)/(user_stacks)/delivery_details_summary",
@@ -444,13 +518,11 @@ const DeliveryDetails = () => {
                 errors={errors}
               />
 
-              <CustomInput
+              <CustomPhoneInput
                 label="Phone Number"
-                placeholder="e.g +2348031234567"
                 name="recipientPhone"
                 control={control}
                 rules={phoneValidation}
-                keyboardType="phone-pad"
                 errors={errors}
               />
 
@@ -481,13 +553,11 @@ const DeliveryDetails = () => {
                 errors={errors}
               />
               
-              <CustomInput
+              <CustomPhoneInput
                 label="Phone Number"
-                placeholder="e.g +2348031234567"
                 name="alternativePhone"
                 control={control}
                 rules={phoneValidation}
-                keyboardType="phone-pad"
                 errors={errors}
               />
               

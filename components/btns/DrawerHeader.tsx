@@ -1,6 +1,6 @@
 import Ionicons from "@expo/vector-icons/Ionicons";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
-import { Pressable, View } from "react-native";
+import { TouchableOpacity, View } from "react-native";
 
 interface ButtonProps {
     onPress?: () => void;
@@ -9,13 +9,13 @@ export const DrawerHeader = ({onPress}: ButtonProps)=>{
     return (
 
         <View className='flex-row items-center justify-between pt-3 pb-3'>
-            <Pressable onPress={onPress} className='bg-gray-100 w-fit relative flex justify-center items-center rounded-full p-3'>
+            <TouchableOpacity onPress={onPress} className='bg-gray-100 w-fit relative flex justify-center items-center rounded-full p-3'>
                 <MaterialIcons name='menu' size={20}/>
-            </Pressable>
+            </TouchableOpacity>
 
-            <Pressable className='bg-gray-100 w-fit relative flex justify-center items-center rounded-full p-3'>
+            <TouchableOpacity className='bg-gray-100 w-fit relative flex justify-center items-center rounded-full p-3'>
                 <Ionicons name='bag-outline' size={20}/>
-            </Pressable>
+            </TouchableOpacity>
         </View>
     )
 }
@@ -25,9 +25,9 @@ export const DrawerHeaderMany = ({onPress}: ButtonProps)=>{
     return (
 
         <View className='flex-row items-center justify-between'>
-            <Pressable onPress={onPress} className='bg-gray-100 w-fit relative flex justify-center items-center rounded-full p-3'>
+            <TouchableOpacity onPress={onPress} className='bg-gray-100 w-fit relative flex justify-center items-center rounded-full p-3'>
                 <MaterialIcons name='menu' size={20}/>
-            </Pressable>
+            </TouchableOpacity>
         </View>
     )
 }

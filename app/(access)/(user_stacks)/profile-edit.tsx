@@ -1,5 +1,3 @@
-"use client"
-
 import { View, Text, Image } from "react-native"
 import { useState, useEffect } from "react"
 import { useLogout, useProfile, useUpdateUserProfile } from "@/hooks/mutations/auth"
@@ -12,18 +10,33 @@ import { KeyboardAwareScrollView } from "react-native-keyboard-controller"
 import MaterialIcons from "@expo/vector-icons/MaterialIcons"
 import { OnboardArrowTextHeader } from "@/components/btns/OnboardHeader"
 import { SolidMainButton } from "@/components/btns/CustomButtoms"
-import { TextInput } from "react-native"
+import { TextInput, TouchableOpacity } from "react-native"
 import { ErrorMessage } from "@hookform/error-message"
 import { Controller, useForm } from "react-hook-form"
 import { StyleSheet } from "react-native"
 import * as ImagePicker from "expo-image-picker"
 import { useToast } from "react-native-toast-notifications"
 
+// Use environment variable for Google Places API key
+const GOOGLE_PLACES_API_KEY = process.env.EXPO_PUBLIC_GOOGLE_PLACES_API_KEY
+
+interface PlacePrediction {
+  place_id: string
+  description: string
+  structured_formatting: {
+    main_text: string
+    secondary_text: string
+  }
+}
+
 const ProfileEdit = () => {
   const { mutate: logout, isPending: isLoggingOut } = useLogout()
   const { mutate: updateProfile, isPending: isUpdating } = useUpdateUserProfile()
   const { profile, isLoading, refetch } = useProfile()
   const [image, setImage] = useState<string | null>(null)
+  const [addressPredictions, setAddressPredictions] = useState<PlacePrediction[]>([])
+  const [showAddressPredictions, setShowAddressPredictions] = useState(false)
+  const [addressInputValue, setAddressInputValue] = useState("")
   const toast = useToast()
 
   const pickImage = async () => {
@@ -34,9 +47,6 @@ const ProfileEdit = () => {
       aspect: [1, 1],
       quality: 0.8,
     })
-
-    // console.log(result)
-
     if (!result.canceled) {
       setImage(result.assets[0].uri)
     }
@@ -47,6 +57,8 @@ const ProfileEdit = () => {
     handleSubmit,
     formState: { errors },
     reset,
+    setValue,
+    watch,
   } = useForm({
     defaultValues: {
       fullname: "",
@@ -66,6 +78,7 @@ const ProfileEdit = () => {
         address: profile?.data?.address || "",
       })
 
+      setAddressInputValue(profile?.data?.address || "")
       // Set existing profile picture if available
       if (profile?.data?.profile_picture) {
         setImage(profile?.data?.profile_picture)
@@ -73,23 +86,65 @@ const ProfileEdit = () => {
     }
   }, [profile, isLoading, reset])
 
+  // Function to fetch Google Places predictions
+  const fetchAddressPredictions = async (input: string) => {
+    if (input.length < 3) {
+      setAddressPredictions([])
+      setShowAddressPredictions(false)
+      return
+    }
+    if (!GOOGLE_PLACES_API_KEY) {
+      console.error("Google Places API Key is not set.")
+      return
+    }
+    try {
+      const response = await fetch(
+        `https://maps.googleapis.com/maps/api/place/autocomplete/json?input=${encodeURIComponent(
+          input,
+        )}&key=${GOOGLE_PLACES_API_KEY}&types=address&components=country:ng`, // Restrict to Nigeria, change as needed
+      )
+
+      const data = await response.json()
+
+      if (data.predictions) {
+        setAddressPredictions(data.predictions)
+        setShowAddressPredictions(true)
+      }
+    } catch (error) {
+      console.error("Error fetching address predictions:", error)
+    }
+  }
+
+  // Handle address input change
+  const handleAddressInputChange = (text: string) => {
+    setAddressInputValue(text)
+    setValue("address", text)
+    fetchAddressPredictions(text)
+  }
+
+  // Handle address selection from predictions
+  const handleAddressSelect = (prediction: PlacePrediction) => {
+    setAddressInputValue(prediction.description)
+    setValue("address", prediction.description)
+    setShowAddressPredictions(false)
+    setAddressPredictions([])
+  }
+
   const onSubmit = async (data: any) => {
     try {
       const formData = new FormData()
-
       // Add text fields to FormData
       formData.append("fullname", data.fullname)
       formData.append("username", data.username)
       formData.append("phone_number", data.phone_number)
       formData.append("address", data.address)
 
-      // Add image if selected
-      if (image) {
+      // Add image if selected AND it's a new local image (not an existing URL)
+      if (image && !image.startsWith("http")) {
         const imageUri = image
         const filename = imageUri.split("/").pop()
         const match = /\.(\w+)$/.exec(filename || "")
         const type = match ? `image/${match[1]}` : "image/jpeg"
-
         formData.append("profile_picture", {
           uri: imageUri,
           name: filename || "profile.jpg",
@@ -99,10 +154,9 @@ const ProfileEdit = () => {
 
       updateProfile(formData, {
         onSuccess: (response) => {
-            console.log("This is my response", response?.data)
-            toast.show("Profile Updated Successfully", { type: "success" })
-            refetch()
-        //   router.push("/profile")
+          console.log("This is my response", response?.data)
+          toast.show("Profile Updated Successfully", { type: "success" })
+          refetch()
         },
         onError: (error: any) => {
           console.error("Update error:", error)
@@ -118,7 +172,6 @@ const ProfileEdit = () => {
     <SafeAreaView className="flex-1 bg-white">
       <StatusBar style="dark" />
       <LoadingOverlay visible={isLoggingOut || isUpdating || isLoading} />
-
       <View className="flex-1">
         <KeyboardAwareScrollView
           className="flex-1"
@@ -135,7 +188,6 @@ const ProfileEdit = () => {
                 Edit Profile
               </Text>
             </View>
-
             <View className="flex-row gap-3 items-center mt-6">
               <View className="flex w-24 h-24 rounded-full bg-gray-300 items-center mt-4 relative">
                 <View className="w-full h-full rounded-full overflow-hidden">
@@ -167,7 +219,6 @@ const ProfileEdit = () => {
                 </Text>
               </View>
             </View>
-
             <View className="mt-6 flex-col">
               <View className="mb-5">
                 <Text style={styles.titleStyle}>Full Name</Text>
@@ -201,7 +252,6 @@ const ProfileEdit = () => {
                   render={({ message }) => <Text className="pl-2 pt-3 text-sm text-red-600">{message}</Text>}
                 />
               </View>
-
               <View className="mb-5">
                 <Text style={styles.titleStyle}>Username</Text>
                 <Controller
@@ -238,7 +288,6 @@ const ProfileEdit = () => {
                   render={({ message }) => <Text className="pl-2 pt-3 text-sm text-red-600">{message}</Text>}
                 />
               </View>
-
               <View className="mb-5">
                 <Text style={styles.titleStyle}>Phone Number</Text>
                 <Controller
@@ -271,33 +320,58 @@ const ProfileEdit = () => {
                   render={({ message }) => <Text className="pl-2 pt-3 text-sm text-red-600">{message}</Text>}
                 />
               </View>
-
               <View className="mb-5">
                 <Text style={styles.titleStyle}>Address</Text>
-                <Controller
-                  name="address"
-                  control={control}
-                  rules={{
-                    required: "Adress is required",
-                    minLength: {
-                      value: 2,
-                      message: "Address must be at least 2 characters",
-                    },
-                  }}
-                  render={({ field: { onChange, onBlur, value } }) => (
-                    <TextInput
-                      placeholder="E.g - No 2 Chief Jane Lane, Lagos"
-                      placeholderTextColor={"#AFAFAF"}
-                      onChangeText={onChange}
-                      onBlur={onBlur}
-                      value={value}
-                      keyboardType="default"
-                      style={styles.inputStyle}
-                      autoCapitalize="words"
-                      autoCorrect={false}
-                    />
+                <View style={{ position: "relative" }}>
+                  <Controller
+                    name="address"
+                    control={control}
+                    rules={{
+                      required: "Address is required",
+                      minLength: {
+                        value: 2,
+                        message: "Address must be at least 2 characters",
+                      },
+                    }}
+                    render={({ field: { onChange, onBlur, value } }) => (
+                      <TextInput
+                        placeholder="E.g - No 2 Chief Jane Lane, Lagos"
+                        placeholderTextColor={"#AFAFAF"}
+                        onChangeText={handleAddressInputChange}
+                        onBlur={() => {
+                          onBlur()
+                          // Hide predictions when input loses focus
+                          setTimeout(() => setShowAddressPredictions(false), 200)
+                        }}
+                        value={addressInputValue}
+                        keyboardType="default"
+                        style={styles.inputStyle}
+                        autoCapitalize="words"
+                        autoCorrect={false}
+                      />
+                    )}
+                  />
+                  {/* Address Predictions List */}
+                  {showAddressPredictions && addressPredictions.length > 0 && (
+                    <View style={styles.predictionsContainer}>
+                      {addressPredictions.map((item) => (
+                        <TouchableOpacity
+                          key={item.place_id}
+                          style={styles.predictionItem}
+                          onPress={() => handleAddressSelect(item)}
+                        >
+                          <MaterialIcons name="location-on" size={20} color="#666" style={{ marginRight: 10 }} />
+                          <View style={{ flex: 1 }}>
+                            <Text style={styles.predictionMainText}>{item.structured_formatting.main_text}</Text>
+                            <Text style={styles.predictionSecondaryText}>
+                              {item.structured_formatting.secondary_text}
+                            </Text>
+                          </View>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
                   )}
-                />
+                </View>
                 <ErrorMessage
                   errors={errors}
                   name="address"
@@ -307,7 +381,6 @@ const ProfileEdit = () => {
             </View>
           </View>
         </KeyboardAwareScrollView>
-
         {/* Fixed Save Button at Bottom */}
         <View className="px-7 pb-4 pt-2 bg-white border-t border-gray-100 mb-5">
           <SolidMainButton onPress={handleSubmit(onSubmit)} text={"Save"} />
@@ -327,12 +400,52 @@ const styles = StyleSheet.create({
     fontFamily: "HankenGrotesk_400Regular",
     backgroundColor: "#F6F6F6",
   },
-
   titleStyle: {
     fontFamily: "HankenGrotesk_500Medium",
     fontSize: 15,
     color: "#3A3541",
     paddingBottom: 8,
     paddingTop: 6,
+  },
+  predictionsContainer: {
+    position: "absolute",
+    top: "100%",
+    left: 0,
+    right: 0,
+    zIndex: 1000,
+    backgroundColor: "white",
+    borderRadius: 7,
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
+    maxHeight: 200,
+  },
+  predictionsList: {
+    maxHeight: 200,
+    // Remove this style since we're no longer using FlatList
+  },
+  predictionItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: "#f0f0f0",
+  },
+  predictionMainText: {
+    fontFamily: "HankenGrotesk_500Medium",
+    fontSize: 14,
+    color: "#3A3541",
+  },
+  predictionSecondaryText: {
+    fontFamily: "HankenGrotesk_400Regular",
+    fontSize: 12,
+    color: "#666",
+    marginTop: 2,
   },
 })

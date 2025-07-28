@@ -32,9 +32,10 @@ import { useNotification } from "@/context/NotificationContext"
 
 const { height: SCREEN_HEIGHT } = Dimensions.get("window")
 
-// Types
+// Types - Updated with assigned field
 interface Order {
   order_id: string
+  assigned?: boolean // Added assigned field
   order_items: Array<{
     product: {
       title: string
@@ -277,7 +278,7 @@ const OrderCard = ({ order, renderActions }: OrderCardProps) => {
         </View>
         <View className="flex-1">
 
-           {firstProduct?.description.length > 30 ?
+           {firstProduct?.title.length > 30 ?
               <Text className="text-neutral-800 mb-1" style={{ fontFamily: "HankenGrotesk_500Medium" }}>
                 {firstProduct?.title.slice(0, 30) || "Product Title"} ...
               </Text>: 
@@ -301,9 +302,7 @@ const OrderCard = ({ order, renderActions }: OrderCardProps) => {
         </View>
       </View>
       <View className="flex-row justify-between items-center">
-        <Text>
-          {renderActions(order)}
-        </Text>
+        {renderActions(order)}
       </View>
     </View>
   )
@@ -328,6 +327,9 @@ const Orders = () => {
     isLoading: outForDeliveryLoading,
     refetch: outForDeliveryRefetch,
   } = useGetOutForDeliveryOrders()
+
+  console.log('This is out for delivery data', outForDeliveryOrdersData?.data)
+  console.log('This is processing data', processingOrdersData?.data)
   const {
     completedOrdersData,
     isLoading: completedOrdersLoading,
@@ -478,9 +480,14 @@ const Orders = () => {
 
   const handleMarkForDelivery = useCallback((order: Order) => {
     console.log("Marking order for delivery:", order.order_id)
-    // Implement actual mark for delivery logic here (e.g., API call)
-    onRefresh() // Refetch orders after action
-  }, [onRefresh])
+     router.push({
+      pathname: "/(access)/(user_stacks)/order-mark-delivery",
+      params: {
+        orderId: order.order_id,
+        orderData: JSON.stringify(order),
+      },
+    })
+  }, [])
 
   const handleCallCourier = useCallback((order: Order) => {
     console.log("Calling courier for order:", order.order_id)
@@ -536,7 +543,7 @@ const Orders = () => {
     [],
   )
 
-  // Function to render buttons based on the active tab
+  // Function to render buttons based on the active tab - UPDATED with assigned field handling
   const renderOrderCardActions = useCallback(
     (order: Order) => {
       switch (activeTab) {
@@ -552,16 +559,31 @@ const Orders = () => {
             </View>
           )
         case "Processing":
-          return (
-            <View className="flex-row justify-between">
-              <View className="w-[48%]">
-                <SolidLightButton text="Cancel Order" onPress={() => handleCancelOrder(order)} />
+          if (order.assigned) {
+            return (
+              <View className="w-full">
+                <View className="bg-gray-100 py-3 px-4 rounded-full">
+                  <Text 
+                    className="text-center text-neutral-400 font-medium" 
+                    style={{ fontFamily: "HankenGrotesk_500Medium" }}
+                  >
+                    Waiting for Rider to Accept Order
+                  </Text>
+                </View>
               </View>
-              <View className="w-[48%]">
-                <SolidMainButton text="Mark for Delivery" onPress={() => handleMarkForDelivery(order)} />
+            )
+          } else {
+            return (
+              <View className="flex-row justify-between">
+                <View className="w-[48%]">
+                  <SolidLightButton text="Cancel Order" onPress={() => handleCancelOrder(order)} />
+                </View>
+                <View className="w-[48%]">
+                  <SolidMainButton text="Mark for Delivery" onPress={() => handleMarkForDelivery(order)} />
+                </View>
               </View>
-            </View>
-          )
+            )
+          }
         case "Out for Delivery":
           return (
             <View className="flex-row justify-between">
@@ -635,14 +657,11 @@ const Orders = () => {
     )
   }
 
-  // Handle notification errors
   if (error) {
     console.error("Notification Error:", error)
   }
 
-  // Optional: Show token status for debugging
   console.log("Push Token:", expoPushToken)
-  console.log("Token Sent:", tokenSent)
 
   // Global loading overlay for initial data fetch of all tabs
   const globalLoading =

@@ -141,9 +141,15 @@ export default function HomeScreen() {
                 )}
               </Pressable>
               <View>
-                <Text style={{ fontFamily: "HankenGrotesk_600SemiBold" }} className="text-base">
-                  Hi, {profile?.data?.fullname}
-                </Text>
+                {profile?.data?.fullname.length > 15 ?
+                  <Text style={{ fontFamily: "HankenGrotesk_600SemiBold" }} className="text-base">
+                    Hi, {profile?.data?.fullname.slice(0, 10)}...
+                  </Text> :
+
+                  <Text style={{ fontFamily: "HankenGrotesk_600SemiBold" }} className="text-base">
+                    Hi, {profile?.data?.fullname}
+                  </Text>
+                }
                 <Text style={{ fontFamily: "HankenGrotesk_500Medium" }} className="text-sm text-neutral-500">
                   @{profile?.data?.username}
                 </Text>
@@ -251,7 +257,7 @@ export default function HomeScreen() {
                 const statusCount = item?.statuses?.length || 0
 
                 return (
-                  <Pressable onPress={()=>handleViewStatus(item.statuses[0]?.store)} className="mr-5 items-center">
+                  <Pressable onPress={()=>handleViewStatus(item.statuses[0]?.store)} className="mr-3 items-center">
                     <View className="relative">
                       <View
                         className="w-20 h-20 rounded-full overflow-hidden justify-center items-center flex"
@@ -280,13 +286,8 @@ export default function HomeScreen() {
 
                       {/* Status Count Badge */}
                       {statusCount > 0 && (
-                        <View className="absolute top-1 -right-1 bg-[#F75F15] rounded-full min-w-[22px] h-6 justify-center items-center px-1">
-                          <Text
-                            className="text-white text-xs font-semibold"
-                            style={{ fontFamily: "HankenGrotesk_600SemiBold" }}
-                          >
-                            {statusCount > 99 ? "99+" : statusCount}
-                          </Text>
+                        <View className="absolute top-1 -right-0 rounded-full bg-white p-0.5 justify-center items-center">
+                          <MaterialIcons name="circle" color={'#F75F15'} size={7}/>
                         </View>
                       )}
                     </View>
@@ -339,7 +340,7 @@ export default function HomeScreen() {
                 <AnimationWrapper {...animationProps}>
                   <Pressable
                     onPress={() => handleCategoryPress(item.id)}
-                    className={`mr-4 border p-3 px-6 rounded-full ${
+                    className={`mr-2.5 border p-2 px-4 rounded-full ${
                       activeCategoryId === item.id ? "border-orange-400 bg-orange-50" : "border-neutral-300"
                     }`}
                   >
@@ -430,7 +431,7 @@ export default function HomeScreen() {
           data={filteredProducts}
           keyExtractor={(item) => `product-${item.id}`}
           numColumns={2}
-          columnWrapperStyle={{ justifyContent: "center", gap: 16, paddingHorizontal: 24 }}
+          columnWrapperStyle={{ justifyContent: "center", gap: 10, paddingHorizontal: 18 }}
           ListHeaderComponent={ContentHeader}
           renderItem={renderProduct}
           ItemSeparatorComponent={ItemSeparator}

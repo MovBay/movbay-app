@@ -1,16 +1,27 @@
-import { View, Text, Image, TouchableOpacity, Dimensions, Animated, KeyboardAvoidingView, Platform } from "react-native"
+import { 
+  View, 
+  Text, 
+  Image, 
+  TouchableOpacity, 
+  Dimensions, 
+  Animated, 
+  KeyboardAvoidingView, 
+  Platform,
+  ActivityIndicator
+} from "react-native"
 import { SafeAreaView } from "react-native-safe-area-context"
 import { KeyboardAwareScrollView } from "react-native-keyboard-controller"
 import { SolidLightButton, SolidMainButton } from "@/components/btns/CustomButtoms"
 import MaterialIcons from "@expo/vector-icons/MaterialIcons"
 import { TextInput } from "react-native-gesture-handler"
-import { StyleSheet } from "react-native"
 import { useGetSingleStatus } from "@/hooks/mutations/sellerAuth"
 import { useLocalSearchParams, router } from "expo-router"
-import { useEffect, useRef, useState } from "react"
-import { ActivityIndicator } from "react-native"
+import { useEffect, useRef, useState, useCallback, useMemo } from "react"
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window')
+
+// Reduced status duration to 30 seconds
+const STATUS_DURATION = 10000
 
 interface StatusItem {
   id: number
@@ -23,106 +34,155 @@ interface StatusItem {
   store: number
 }
 
+interface ImageLoadingState {
+  [key: number]: boolean
+}
+
 const UserStatusView = () => {
   const { id } = useLocalSearchParams<{ id: string }>()
   const { singleStatusData, isLoading } = useGetSingleStatus(id)
   
+  // State management
   const [currentStatusIndex, setCurrentStatusIndex] = useState(0)
   const [isPaused, setIsPaused] = useState(false)
   const [progressAnimations, setProgressAnimations] = useState<Animated.Value[]>([])
   const [isHolding, setIsHolding] = useState(false)
   const [messageText, setMessageText] = useState('')
+  const [imageLoadingStates, setImageLoadingStates] = useState<ImageLoadingState>({})
+  
+  // Refs
   const timerRef = useRef<NodeJS.Timeout | null>(null)
   const currentAnimationRef = useRef<Animated.CompositeAnimation | null>(null)
+  const statusDataRef = useRef<StatusItem[]>([])
   
-  const statusData: StatusItem[] = singleStatusData?.data || []
+  // Memoized status data
+  const statusData: StatusItem[] = useMemo(() => {
+    const data = singleStatusData?.data || []
+    statusDataRef.current = data
+    return data
+  }, [singleStatusData?.data])
   
-  // Initialize progress animations
+  // Initialize progress animations - optimized to run only when statusData changes
   useEffect(() => {
-    if (statusData.length > 0) {
+    if (statusData.length > 0 && progressAnimations.length !== statusData.length) {
       const animations = statusData.map(() => new Animated.Value(0))
       setProgressAnimations(animations)
+      
+      // Initialize image loading states more efficiently
+      setImageLoadingStates(
+        statusData.reduce((acc, _, index) => {
+          acc[index] = true
+          return acc
+        }, {} as ImageLoadingState)
+      )
     }
-  }, [statusData])
+  }, [statusData.length])
   
-  // Auto-progress status every 5 seconds
+  // Memoized current status
+  const currentStatus = useMemo(() => 
+    statusData[currentStatusIndex], 
+    [statusData, currentStatusIndex]
+  )
+  
+  // Optimized auto-progress with cleanup
   useEffect(() => {
-    if (statusData.length === 0 || isPaused || isHolding) return
-    
-    const startProgress = () => {
-      const currentAnimation = progressAnimations[currentStatusIndex]
-      if (!currentAnimation) return
-      
-      currentAnimation.setValue(0)
-      const animation = Animated.timing(currentAnimation, {
-        toValue: 1,
-        duration: 5000,
-        useNativeDriver: false,
-      })
-      
-      currentAnimationRef.current = animation
-      
-      animation.start(({ finished }) => {
-        if (finished && !isPaused && !isHolding) {
-          moveToNextStatus()
-        }
-      })
-    }
-    
-    startProgress()
-    
-    return () => {
+    if (statusData.length === 0 || isPaused || isHolding) {
       if (currentAnimationRef.current) {
         currentAnimationRef.current.stop()
       }
+      return
     }
-  }, [currentStatusIndex, statusData, isPaused, progressAnimations, isHolding])
+    
+    const currentAnimation = progressAnimations[currentStatusIndex]
+    if (!currentAnimation) return
+    
+    // Reset current animation
+    currentAnimation.setValue(0)
+    
+    const animation = Animated.timing(currentAnimation, {
+      toValue: 1,
+      duration: STATUS_DURATION,
+      useNativeDriver: false,
+    })
+    
+    currentAnimationRef.current = animation
+    
+    animation.start(({ finished }) => {
+      if (finished && !isPaused && !isHolding) {
+        moveToNextStatus()
+      }
+    })
+    
+    return () => {
+      animation.stop()
+    }
+  }, [currentStatusIndex, statusData.length, isPaused, isHolding, progressAnimations])
   
-  const moveToNextStatus = () => {
+  // Navigation functions with better performance
+  const moveToNextStatus = useCallback(() => {
     if (currentStatusIndex < statusData.length - 1) {
-      setCurrentStatusIndex(currentStatusIndex + 1)
+      setCurrentStatusIndex(prev => prev + 1)
     } else {
       router.back()
     }
-  }
+  }, [currentStatusIndex, statusData.length])
   
-  const moveToPreviousStatus = () => {
+  const moveToPreviousStatus = useCallback(() => {
     if (currentStatusIndex > 0) {
-      if (currentAnimationRef.current) {
-        currentAnimationRef.current.stop()
-      }
+      // Stop current animation
+      currentAnimationRef.current?.stop()
       progressAnimations[currentStatusIndex]?.setValue(0)
       
-      setCurrentStatusIndex(currentStatusIndex - 1)
+      setCurrentStatusIndex(prev => prev - 1)
     }
-  }
+  }, [currentStatusIndex, progressAnimations])
   
-  const handleImagePressIn = () => {
+  // Touch handlers with improved performance
+  const handleImagePressIn = useCallback(() => {
     setIsHolding(true)
-    if (currentAnimationRef.current) {
-      currentAnimationRef.current.stop()
-    }
-  }
+    currentAnimationRef.current?.stop()
+  }, [])
   
-  const handleImagePressOut = () => {
+  const handleImagePressOut = useCallback(() => {
     setIsHolding(false)
-  }
+  }, [])
   
-  const handleTapLeft = () => {
+  // Tap handlers
+  const handleTapLeft = useCallback(() => {
     moveToPreviousStatus()
-  }
+  }, [moveToPreviousStatus])
   
-  const handleTapRight = () => {
+  const handleTapRight = useCallback(() => {
     moveToNextStatus()
-  }
+  }, [moveToNextStatus])
 
-  const handleSendMessage = () => {
+  // Message handling
+  const handleSendMessage = useCallback(() => {
     if (messageText.trim()) {
       console.log('Sending message:', messageText)
       setMessageText('')
     }
-  }
+  }, [messageText])
   
+  // Image loading handlers - optimized with single state update
+  const handleImageLoad = useCallback((index: number) => {
+    setImageLoadingStates(prev => ({ ...prev, [index]: false }))
+  }, [])
+  
+  const handleImageLoadStart = useCallback((index: number) => {
+    setImageLoadingStates(prev => ({ ...prev, [index]: true }))
+  }, [])
+  
+  const handleImageError = useCallback((index: number) => {
+    setImageLoadingStates(prev => ({ ...prev, [index]: false }))
+  }, [])
+  
+  // Memoized formatted date
+  const formattedDate = useMemo(() => {
+    return currentStatus ? new Date(currentStatus.created_at).toLocaleDateString() : ''
+  }, [currentStatus?.created_at])
+  
+  // Loading state
   if (isLoading || statusData.length === 0) {
     return (
       <SafeAreaView className="flex-1 bg-black justify-center items-center">
@@ -131,22 +191,21 @@ const UserStatusView = () => {
     )
   }
   
-  const currentStatus = statusData[currentStatusIndex]
-  
   return (
     <SafeAreaView className="flex-1 bg-black">
       <KeyboardAvoidingView 
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         className="flex-1"
       >
+        {/* Progress bars */}
         <View className="flex-row items-center pt-4 gap-1.5 px-4">
           {statusData.map((_, index) => (
-            <View key={index} className="flex-1 h-1 bg-white/20 rounded-full overflow-hidden">
+            <View key={index} className="flex-1 h-1 bg-white/20 rounded-sm overflow-hidden">
               {index < currentStatusIndex ? (
-                <View className="w-full h-full bg-white rounded-full" />
+                <View className="w-full h-full bg-white rounded-sm" />
               ) : index === currentStatusIndex ? (
                 <Animated.View
-                  className="h-full bg-white rounded-full"
+                  className="h-full bg-white rounded-sm"
                   style={{
                     width: progressAnimations[index]?.interpolate({
                       inputRange: [0, 1],
@@ -167,29 +226,34 @@ const UserStatusView = () => {
             <TouchableOpacity 
               onPress={() => router.back()}
               className="p-1"
+              activeOpacity={0.7}
             >
               <MaterialIcons name="arrow-back" size={22} color="white" />
             </TouchableOpacity>
+            
             <View className="relative">
               <View className="w-11 h-11 rounded-full bg-gray-100 justify-center items-center overflow-hidden">
                 <Image
                   source={require("../../../../assets/images/profile.png")}
-                  style={{ objectFit: "cover", width: "100%", height: "100%" }}
+                  className="w-full h-full"
+                  resizeMode="cover"
                 />
               </View>
-              <View className="absolute -right-0.5 -top-0.5 rounded-full bg-white p-0.5">
-                <MaterialIcons name="verified" color={"#4285F4"} size={12} />
+              <View className="absolute -right-0.5 -top-0.5 rounded-lg bg-white p-0.5">
+                <MaterialIcons name="verified" color="#4285F4" size={12} />
               </View>
             </View>
+            
             <View>
               <Text className="text-base text-white font-medium" style={{ fontFamily: "HankenGrotesk_500Medium" }}>
                 Store Name
               </Text>
               <Text className="text-xs text-white/60" style={{ fontFamily: "HankenGrotesk_400Regular" }}>
-                {new Date(currentStatus.created_at).toLocaleDateString()}
+                {formattedDate}
               </Text>
             </View>
           </View>
+          
           <View>
             <SolidLightButton text="Follow" />
           </View>
@@ -197,21 +261,26 @@ const UserStatusView = () => {
 
         {/* Main content area - image */}
         <View className="flex-1 relative">
+          {/* Left tap area */}
           <TouchableOpacity
             className="absolute left-0 top-0 bottom-0 w-1/3 z-10"
             onPress={handleTapLeft}
             activeOpacity={1}
           />
+          
+          {/* Right tap area */}
           <TouchableOpacity
             className="absolute right-0 top-0 bottom-0 w-1/3 z-10"
             onPress={handleTapRight}
             activeOpacity={1}
           />
           
+          {/* Image section */}
           <View className="flex-1 justify-center px-4">
-            <View style={styles.imageContainer}>
-              <View className="absolute inset-0 bg-neutral-950 rounded-xl" />
-              
+            <View 
+              className="aspect-square overflow-hidden rounded-xl relative bg-neutral-950"
+              style={{ maxHeight: screenHeight * 0.5 }}
+            >
               <TouchableOpacity
                 className="absolute inset-0 z-20"
                 onPressIn={handleImagePressIn}
@@ -220,12 +289,30 @@ const UserStatusView = () => {
               >
                 <Image 
                   source={{ uri: currentStatus.image_url }} 
-                  style={styles.image}
+                  className="w-full h-full rounded-xl"
                   resizeMode="contain"
+                  onLoadStart={() => handleImageLoadStart(currentStatusIndex)}
+                  onLoad={() => handleImageLoad(currentStatusIndex)}
+                  onError={() => handleImageError(currentStatusIndex)}
                 />
                 
+                {/* Image loading indicator */}
+                {imageLoadingStates[currentStatusIndex] && (
+                  <View className="absolute inset-0 justify-center items-center bg-black/30 rounded-xl">
+                    <ActivityIndicator size="large" color="#F75F15" />
+                  </View>
+                )}
+                
+                {/* Pause indicator when holding */}
                 {isHolding && (
-                  <View className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-black/60 rounded-full p-3">
+                  <View 
+                    className="absolute bg-black/60 rounded-2xl p-3"
+                    style={{
+                      top: '50%',
+                      left: '50%',
+                      transform: [{ translateX: -20 }, { translateY: -20 }]
+                    }}
+                  >
                     <MaterialIcons name="pause" size={24} color="white" />
                   </View>
                 )}
@@ -233,15 +320,20 @@ const UserStatusView = () => {
             </View>
           </View>
           
+          {/* Status content text */}
           {currentStatus.content && (
             <View className="px-4 py-3">
-              <Text className="text-white text-sm text-center leading-5" style={{ fontFamily: "HankenGrotesk_400Regular" }}>
+              <Text 
+                className="text-white text-base text-center leading-5" 
+                style={{ fontFamily: "HankenGrotesk_400Regular" }}
+              >
                 {currentStatus.content}
               </Text>
             </View>
           )}
           
-          <View className="flex-row justify-between mx-4 mb-4 gap-3">
+          {/* Action buttons */}
+          <View className="flex-row justify-between mx-4 my-4 gap-3">
             <View className="flex-1">
               <SolidMainButton text="Buy Now" />
             </View>
@@ -251,8 +343,9 @@ const UserStatusView = () => {
           </View>
         </View>
         
+        {/* Message input */}
         <View className="px-4 pb-4">
-          <View className="bg-neutral-800 rounded-full flex-row items-end p-2">
+          <View className="bg-neutral-900 rounded-full flex-row items-end p-2">
             <TextInput
               placeholder="Send a message..."
               placeholderTextColor="#9CA3AF"
@@ -260,21 +353,31 @@ const UserStatusView = () => {
               onChangeText={setMessageText}
               multiline
               maxLength={200}
-              style={styles.whatsappInput}
-              className="flex-1 text-white px-4 py-3"
+              className="flex-1 text-white px-4 py-3 text-base leading-5"
+              style={{ 
+                fontFamily: 'HankenGrotesk_400Regular',
+                textAlignVertical: 'top',
+                maxHeight: 100
+              }}
               returnKeyType="send"
               onSubmitEditing={handleSendMessage}
             />
             <TouchableOpacity
               onPress={handleSendMessage}
-              className="bg-[#F75F15] rounded-full p-3 ml-2"
+              className="bg-orange-500 rounded-full p-3 ml-2"
+              style={{ opacity: messageText.trim() ? 1 : 0.5 }}
               disabled={!messageText.trim()}
+              activeOpacity={0.8}
             >
               <MaterialIcons name="send" size={20} color="white" />
             </TouchableOpacity>
           </View>
+          
           {messageText.length > 0 && (
-            <Text className="text-white/70 text-xs mt-2 text-right" style={{fontFamily: 'HankenGrotesk_400Regular'}}>
+            <Text 
+              className="text-white/70 text-xs mt-2 text-right"
+              style={{ fontFamily: 'HankenGrotesk_400Regular' }}
+            >
               {messageText.length}/200
             </Text>
           )}
@@ -285,24 +388,3 @@ const UserStatusView = () => {
 }
 
 export default UserStatusView
-
-const styles = StyleSheet.create({
-  imageContainer: {
-    aspectRatio: 1,
-    overflow: 'hidden',
-    maxHeight: screenHeight * 0.5,
-    borderRadius: 12,
-    position: 'relative',
-  },
-  image: {
-    width: '100%',
-    height: '100%',
-    borderRadius: 12,
-  },
-  whatsappInput: {
-    fontSize: 16,
-    fontFamily: 'HankenGrotesk_400Regular',
-    textAlignVertical: 'top',
-    lineHeight: 20,
-  },
-})

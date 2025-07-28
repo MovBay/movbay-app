@@ -239,6 +239,8 @@ const OrderHistoryBuyer = () => {
   const { newUserOrdersData, isLoading, refetch } = useGetUserOrders()
   const newUserOrder = newUserOrdersData?.data || []
 
+  console.log('This is new user order', newUserOrder)
+
   // Refetch data whenever the screen comes into focus
   useFocusEffect(
     useCallback(() => {
@@ -246,15 +248,6 @@ const OrderHistoryBuyer = () => {
     }, [refetch])
   )
 
-  // Handle Android back button
-  useEffect(() => {
-    const backHandler = BackHandler.addEventListener('hardwareBackPress', () => {
-      router.replace('/(access)/(user_tabs)/profile')
-      return true // Prevent default back action
-    })
-
-    return () => backHandler.remove()
-  }, [])
 
   // Handle pull-to-refresh
   const onRefresh = useCallback(async () => {

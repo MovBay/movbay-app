@@ -22,7 +22,7 @@ interface CartContextType {
   totalAmount: number
   addToCart: (item: Omit<CartItem, 'quantity' | 'dateAdded'>) => Promise<void>
   removeFromCart: (itemId: string) => Promise<void>
-  updateQuantity: (itemId: string, newQuantity: number) => Promise<void>
+  updateQuantity: (itemId: string, newQuantity: number) => void
   clearCart: () => Promise<void>
   loadCart: () => Promise<void>
   isItemInCart: (itemId: string) => boolean
@@ -74,7 +74,7 @@ export const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
     }
   }, [])
 
-  // Add item to cart with real-time updates
+  // Add item to cart with optimistic updates
   const addToCart = useCallback(async (item: Omit<CartItem, 'quantity' | 'dateAdded'>) => {
     setIsUpdating(true)
     try {
@@ -98,79 +98,88 @@ export const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
         updatedCart = [...existingCart, newCartItem]
       }
 
-      // Update both AsyncStorage and local state simultaneously
-      await saveCartToStorage(updatedCart)
+      // Update local state immediately for instant UI feedback
       setCartItems(updatedCart)
+      
+      // Save to AsyncStorage in background
+      await saveCartToStorage(updatedCart)
       
       console.log('Item added to cart successfully:', item.title)
     } catch (error) {
       console.error('Error adding item to cart:', error)
+      // Revert on error
+      loadCart()
     } finally {
       setIsUpdating(false)
     }
-  }, [])
+  }, [loadCart])
 
-  // Remove item from cart with real-time updates
+  // Remove item from cart with optimistic updates
   const removeFromCart = useCallback(async (itemId: string) => {
     setIsUpdating(true)
+    
+    // Store current state for potential rollback
+    const currentCartItems = cartItems
+    
     try {
-      const currentCart = await getCartFromStorage()
-      const updatedCart = currentCart.filter((item) => item.id !== itemId)
-      
-      await saveCartToStorage(updatedCart)
+      // Update UI immediately
+      const updatedCart = cartItems.filter((item) => item.id !== itemId)
       setCartItems(updatedCart)
+      
+      // Save to AsyncStorage in background
+      await saveCartToStorage(updatedCart)
       
       console.log('Item removed from cart successfully')
     } catch (error) {
       console.error('Error removing item:', error)
+      // Revert on error
+      setCartItems(currentCartItems)
     } finally {
       setIsUpdating(false)
     }
-  }, [])
+  }, [cartItems])
 
-  // Update quantity with real-time updates
-  const updateQuantity = useCallback(async (itemId: string, newQuantity: number) => {
+  // Update quantity with immediate UI updates - THIS IS THE KEY FIX
+  const updateQuantity = useCallback((itemId: string, newQuantity: number) => {
     if (newQuantity < 1) return
 
-    setIsUpdating(true)
-    try {
-      const currentCart = await getCartFromStorage()
-      const updatedCart = currentCart.map((item) => 
-        item.id === itemId ? { ...item, quantity: newQuantity } : item
-      )
-      
-      await saveCartToStorage(updatedCart)
-      setCartItems(updatedCart)
-      
-      console.log('Quantity updated successfully')
-    } catch (error) {
-      console.error('Error updating quantity:', error)
-    } finally {
-      setIsUpdating(false)
-    }
-  }, [])
+    // Update UI immediately for instant feedback
+    const updatedCart = cartItems.map((item) => 
+      item.id === itemId ? { ...item, quantity: newQuantity } : item
+    )
+    setCartItems(updatedCart)
+    
+    // Save to AsyncStorage in background without blocking UI
+    saveCartToStorage(updatedCart).catch((error) => {
+      console.error('Error saving to AsyncStorage:', error)
+      // Could implement retry logic here if needed
+    })
+    
+    console.log('Quantity updated successfully')
+  }, [cartItems])
 
-  // Clear entire cart with real-time updates
+  // Clear entire cart with optimistic updates
   const clearCart = useCallback(async () => {
     setIsUpdating(true)
+    const currentCartItems = cartItems
+    
     try {
-      await saveCartToStorage([])
       setCartItems([])
+      await saveCartToStorage([])
       
       console.log('Cart cleared successfully')
     } catch (error) {
       console.error('Error clearing cart:', error)
+      setCartItems(currentCartItems)
     } finally {
       setIsUpdating(false)
     }
-  }, [])
+  }, [cartItems])
 
-  // Check if item is in cart
   const isItemInCart = useCallback((itemId: string): boolean => {
     return cartItems.some((item) => item.id === itemId)
   }, [cartItems])
 
-  // Get item quantity in cart
   const getItemQuantity = useCallback((itemId: string): number => {
     const item = cartItems.find((item) => item.id === itemId)
     return item ? item.quantity : 0

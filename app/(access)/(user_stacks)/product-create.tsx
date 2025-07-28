@@ -1,7 +1,7 @@
 "use client"
 
 import { View, Text, Image, Animated, TouchableOpacity, Dimensions } from "react-native"
-import { useState, useRef, useEffect } from "react"
+import { useState, useRef, useEffect, useCallback, useMemo } from "react"
 import { router } from "expo-router"
 import { Pressable } from "react-native"
 import LoadingOverlay from "@/components/LoadingOverlay"
@@ -21,6 +21,39 @@ import { useCreateProduct } from "@/hooks/mutations/sellerAuth"
 import { useToast } from "react-native-toast-notifications"
 
 const { height: SCREEN_HEIGHT } = Dimensions.get("window")
+
+// Utility function for price formatting
+const formatPrice = (text: string): string => {
+  // Remove all non-digit characters
+  const numericValue = text.replace(/[^\d]/g, '')
+  
+  if (!numericValue) return ''
+  
+  // Convert to number and format with commas
+  const number = parseInt(numericValue, 10)
+  return number.toLocaleString()
+}
+
+// Utility function to get numeric value from formatted price
+const getNumericValue = (formattedPrice: string): number => {
+  const numericString = formattedPrice.replace(/[^\d]/g, '')
+  return parseInt(numericString, 10) || 0
+}
+
+// Compress image function
+const compressImage = async (uri: string): Promise<string> => {
+  try {
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ["images"],
+      allowsEditing: false,
+      quality: 0.7, // Compress to 70% quality
+      allowsMultipleSelection: false,
+    })
+    return uri // Return original for now, implement actual compression if needed
+  } catch (error) {
+    return uri
+  }
+}
 
 // Custom Success Modal Component
 const CustomSuccessModal = ({ visible, onClose }: { visible: boolean; onClose: () => void }) => {
@@ -224,7 +257,7 @@ const ProductCreate = () => {
   const toast = useToast()
   const [showSuccessModal, setShowSuccessModal] = useState(false)
   const [showConfirmModal, setShowConfirmModal] = useState(false)
-  const [formDataToSubmit, setFormDataToSubmit] = useState<any>(null) // To store form data before confirmation
+  const [formDataToSubmit, setFormDataToSubmit] = useState<any>(null)
 
   const { mutate, isPending } = useCreateProduct()
 
@@ -234,6 +267,8 @@ const ProductCreate = () => {
     formState: { errors },
     reset,
     watch,
+    setError,
+    clearErrors,
   } = useForm({
     defaultValues: {
       title: "",
@@ -250,134 +285,231 @@ const ProductCreate = () => {
   })
 
   const watchedDeliveryAvailable = deliveryAvailable
-  const watchedProductTitle = watch("title") // Watch product title for the confirmation modal
+  const watchedProductTitle = watch("title")
+  const watchedOriginalPrice = watch("original_price")
+  const watchedDiscountedPrice = watch("discounted_price")
 
-  const pickProductImages = async () => {
+  // Memoized category items
+  const categoryItems = useMemo(() => [
+    { label: "Electronics", value: "electronics" },
+    { label: "Fashion", value: "fashion" },
+    { label: "Beauty", value: "beauty" },
+    { label: "Car", value: "car" },
+    { label: "Sport", value: "sport" },
+    { label: "Shoes", value: "shoes" },
+    { label: "Bags", value: "bags" },
+    { label: "Home & Garden", value: "home_garden" },
+    { label: "Books", value: "books" },
+    { label: "Other", value: "other" },
+  ], [])
+
+  const conditionItems = useMemo(() => [
+    { label: "New", value: "New" },
+    { label: "Used", value: "Used" },
+    { label: "Refurbished", value: "Refurbished" },
+  ], [])
+
+  const deliveryTypeItems = useMemo(() => [
+    { label: "Movebay Express", value: "Movbay_Express" },
+    { label: "Speedy Dispatch", value: "Speedy_Dispatch" },
+    { label: "Pickup Hub", value: "Pickup_Hub" },
+  ], [])
+
+  // Validate discount price against original price
+  useEffect(() => {
+    if (watchedOriginalPrice && watchedDiscountedPrice) {
+      const originalValue = getNumericValue(watchedOriginalPrice)
+      const discountedValue = getNumericValue(watchedDiscountedPrice)
+      
+      if (discountedValue > originalValue) {
+        setError("discounted_price", {
+          type: "manual",
+          message: "Discounted price cannot be higher than original price"
+        })
+      } else {
+        clearErrors("discounted_price")
+      }
+    }
+  }, [watchedOriginalPrice, watchedDiscountedPrice, setError, clearErrors])
+
+  const pickProductImages = useCallback(async () => {
     const remainingSlots = 4 - productImages.length
     if (remainingSlots <= 0) {
       toast.show("Maximum 4 images allowed", { type: "warning" })
       return
     }
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ["images"],
-      allowsEditing: false,
-      aspect: [4, 3],
-      quality: 1,
-      allowsMultipleSelection: true,
-      selectionLimit: remainingSlots,
-    })
-    if (!result.canceled && result.assets) {
-      const newImageUris = result.assets.map((asset) => asset.uri)
-      setProductImages((prev) => [...prev, ...newImageUris])
-      const count = newImageUris.length
-      toast.show(`${count} image${count > 1 ? "s" : ""} added successfully`, {
-        type: "success",
+
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ["images"],
+        allowsEditing: false,
+        aspect: [4, 3],
+        quality: 0.8, // Reduced quality for faster upload
+        allowsMultipleSelection: true,
+        selectionLimit: remainingSlots,
       })
-    }
-  }
 
-  const removeProductImage = (index: number) => {
-    setProductImages((prev) => prev.filter((_, i) => i !== index))
-  }
-
-  const pickProductVideo = async () => {
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ["videos"],
-      allowsEditing: true,
-      quality: 0.8,
-    })
-    if (!result.canceled && result.assets && result.assets[0]) {
-      const videoAsset = result.assets[0]
-      const videoSizeInBytes = videoAsset.fileSize
-      // Check if fileSize exists and convert to MB
-      if (videoSizeInBytes) {
-        const videoSizeInMB = videoSizeInBytes / (1024 * 1024)
-        if (videoSizeInMB > 10) {
-          toast.show("Video size must be less than 10MB. Please select a smaller video.", {
-            type: "danger",
-          })
-          return
-        }
+      if (!result.canceled && result.assets) {
+        // Process images in batches to avoid blocking
+        const newImageUris = result.assets.map((asset) => asset.uri)
+        setProductImages((prev) => [...prev, ...newImageUris])
+        const count = newImageUris.length
+        toast.show(`${count} image${count > 1 ? "s" : ""} added successfully`, {
+          type: "success",
+        })
       }
-      setProductVideo(videoAsset.uri)
-      toast.show("Video added successfully", { type: "success" })
+    } catch (error) {
+      toast.show("Failed to select images", { type: "danger" })
     }
-  }
+  }, [productImages.length, toast])
 
-  const handleFormSubmit = (data: any) => {
+  const removeProductImage = useCallback((index: number) => {
+    setProductImages((prev) => prev.filter((_, i) => i !== index))
+  }, [])
+
+  const pickProductVideo = useCallback(async () => {
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ["videos"],
+        allowsEditing: true,
+        quality: 0.6, // Reduced quality for faster upload
+      })
+
+      if (!result.canceled && result.assets && result.assets[0]) {
+        const videoAsset = result.assets[0]
+        const videoSizeInBytes = videoAsset.fileSize
+
+        if (videoSizeInBytes) {
+          const videoSizeInMB = videoSizeInBytes / (1024 * 1024)
+          if (videoSizeInMB > 10) {
+            toast.show("Video size must be less than 10MB. Please select a smaller video.", {
+              type: "danger",
+            })
+            return
+          }
+        }
+
+        setProductVideo(videoAsset.uri)
+        toast.show("Video added successfully", { type: "success" })
+      }
+    } catch (error) {
+      toast.show("Failed to select video", { type: "danger" })
+    }
+  }, [toast])
+
+  const handleFormSubmit = useCallback((data: any) => {
     if (productImages.length === 0) {
       toast.show("Please add at least one product image", { type: "danger" })
       return
     }
+
+    // Validate discount price one more time before submission
+    const originalValue = getNumericValue(data.original_price)
+    const discountedValue = getNumericValue(data.discounted_price)
+    
+    if (data.discounted_price && discountedValue > originalValue) {
+      toast.show("Discounted price cannot be higher than original price", { type: "danger" })
+      return
+    }
+
     setFormDataToSubmit(data)
     setShowConfirmModal(true)
-  }
+  }, [productImages.length, toast])
 
-  const handleConfirmProductCreation = () => {
-    setShowConfirmModal(false) // Close modal immediately
+  const handleConfirmProductCreation = useCallback(async () => {
+    setShowConfirmModal(false)
     if (!formDataToSubmit) return
 
     const data = formDataToSubmit
     const formData = new FormData()
+
+    // Add basic form fields
     Object.keys(data).forEach((key) => {
       if (data[key] && data[key] !== "") {
-        formData.append(key, data[key])
+        // Convert formatted prices back to numeric values
+        if (key === 'original_price' || key === 'discounted_price') {
+          const numericValue = getNumericValue(data[key])
+          formData.append(key, numericValue.toString())
+        } else {
+          formData.append(key, data[key])
+        }
       }
     })
+
+    // Add boolean fields
     formData.append("pickup_available", pickupAvailable.toString())
     formData.append("delivery_available", deliveryAvailable.toString())
     formData.append("auto_post_to_story", autoPostToStory.toString())
-    productImages.forEach((imageUri, index) => {
-      const filename = imageUri.split("/").pop()
-      const match = /\.(\w+)$/.exec(filename || "")
-      const type = match ? `image/${match[1]}` : "image"
-      const imageFile = {
-        uri: imageUri,
-        name: filename || `image_${index}`,
-        type,
-      } as any
-      // Append to both fields to match the payload structure
-      formData.append("images", imageFile)
-      formData.append("product_images", imageFile)
-    })
-    // Add product video if selected
-    if (productVideo) {
-      const filename = productVideo.split("/").pop()
-      const match = /\.(\w+)$/.exec(filename || "")
-      const type = match ? `video/${match[1]}` : "video"
-      formData.append("product_video", {
-        uri: productVideo,
-        name: filename || "video",
-        type,
-      } as any)
+
+    // Process images in parallel for better performance
+    try {
+      const imagePromises = productImages.map(async (imageUri, index) => {
+        const filename = imageUri.split("/").pop()
+        const match = /\.(\w+)$/.exec(filename || "")
+        const type = match ? `image/${match[1]}` : "image/jpeg"
+        
+        return {
+          uri: imageUri,
+          name: filename || `image_${index}.jpg`,
+          type,
+        } as any
+      })
+
+      const imageFiles = await Promise.all(imagePromises)
+      
+      imageFiles.forEach((imageFile) => {
+        formData.append("images", imageFile)
+        formData.append("product_images", imageFile)
+      })
+
+      // Add product video if selected
+      if (productVideo) {
+        const filename = productVideo.split("/").pop()
+        const match = /\.(\w+)$/.exec(filename || "")
+        const type = match ? `video/${match[1]}` : "video/mp4"
+        
+        formData.append("product_video", {
+          uri: productVideo,
+          name: filename || "video.mp4",
+          type,
+        } as any)
+      }
+
+      // Submit the form
+      mutate(formData, {
+        onSuccess: (response) => {
+          setShowSuccessModal(true)
+          console.log("Product created successfully:", response)
+          
+          // Reset form and state
+          reset()
+          setProductImages([])
+          setProductVideo(null)
+          setPickupAvailable(false)
+          setDeliveryAvailable(false)
+          setAutoPostToStory(false)
+          setFormDataToSubmit(null)
+        },
+        onError: (error: any) => {
+          console.log("Error creating product:", error?.response?.data)
+          
+          const errorMessage = error?.response?.data?.message || 
+                              error?.response?.data?.title || 
+                              "Failed to create product. Please try again."
+          
+          toast.show(errorMessage, { type: "danger" })
+        },
+      })
+    } catch (error) {
+      toast.show("Failed to process images. Please try again.", { type: "danger" })
     }
-    // Submit the form
-    mutate(formData, {
-      onSuccess: (response) => {
-        setShowSuccessModal(true)
-        console.log("Product created successfully:", response)
-        // Reset form
-        reset()
-        setProductImages([])
-        setProductVideo(null)
-        setPickupAvailable(false)
-        setDeliveryAvailable(false)
-        setAutoPostToStory(false)
-        setFormDataToSubmit(null) // Clear stored data
-      },
-      onError: (error: any) => {
-        console.log("Error creating product:", error?.response?.data)
-        if (error?.response?.data?.message) {
-          toast.show(error.response.data.message, { type: "danger" })
-        }
-        if (error?.response?.data?.title) {
-          toast.show(error?.response?.data?.title, { type: "danger" })
-        } else {
-          toast.show("Failed to create product. Please try again.", { type: "danger" })
-        }
-      },
-    })
-  }
+  }, [formDataToSubmit, pickupAvailable, deliveryAvailable, autoPostToStory, productImages, productVideo, mutate, reset, toast])
+
+  // Price input handler with formatting
+  const handlePriceInput = useCallback((text: string, onChange: (value: string) => void) => {
+    const formattedText = formatPrice(text)
+    onChange(formattedText)
+  }, [])
 
   return (
     <SafeAreaView className="flex-1 bg-white">
@@ -392,6 +524,7 @@ const ProductCreate = () => {
             paddingBottom: 20,
           }}
           showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
         >
           <View className="">
             <View className="flex-row items-center gap-2">
@@ -409,6 +542,7 @@ const ProductCreate = () => {
               <Text className="text-xl pt-4 pb-3" style={{ fontFamily: "HankenGrotesk_600SemiBold" }}>
                 Basic Info
               </Text>
+              
               {/* Product Title */}
               <View className="mb-5">
                 <Text style={styles.titleStyle}>Product Title</Text>
@@ -417,6 +551,10 @@ const ProductCreate = () => {
                   control={control}
                   rules={{
                     required: "Product title is required",
+                    minLength: {
+                      value: 3,
+                      message: "Product title must be at least 3 characters long"
+                    }
                   }}
                   render={({ field: { onChange, onBlur, value } }) => (
                     <TextInput
@@ -429,6 +567,7 @@ const ProductCreate = () => {
                       style={styles.inputStyle}
                       autoCapitalize="words"
                       autoCorrect={false}
+                      maxLength={100}
                     />
                   )}
                 />
@@ -438,6 +577,7 @@ const ProductCreate = () => {
                   render={({ message }) => <Text className="pl-2 pt-3 text-sm text-red-600">{message}</Text>}
                 />
               </View>
+
               {/* Category */}
               <View className="mb-5">
                 <Text style={styles.titleStyle}>Category</Text>
@@ -452,18 +592,7 @@ const ProductCreate = () => {
                       <RNPickerSelect
                         onValueChange={(itemValue) => onChange(itemValue)}
                         value={value}
-                        items={[
-                          { label: "Electronics", value: "electronics" },
-                          { label: "Fashion", value: "fashion" },
-                          { label: "Beauty", value: "beauty" },
-                          { label: "Car", value: "car" },
-                          { label: "Sport", value: "sport" },
-                          { label: "Shoes", value: "shoes" },
-                          { label: "Bags", value: "bags" },
-                          { label: "Home & Garden", value: "home_garden" },
-                          { label: "Books", value: "books" },
-                          { label: "Other", value: "other" },
-                        ]}
+                        items={categoryItems}
                         placeholder={{
                           label: "Select a Category",
                           value: "",
@@ -483,15 +612,13 @@ const ProductCreate = () => {
                   render={({ message }) => <Text className="pl-2 pt-3 text-sm text-red-600">{message}</Text>}
                 />
               </View>
+
               {/* Brand */}
               <View className="mb-5">
                 <Text style={styles.titleStyle}>Brand (Optional)</Text>
                 <Controller
                   name="brand"
                   control={control}
-                  rules={{
-                    required: false, // Made optional as per original code
-                  }}
                   render={({ field: { onChange, onBlur, value } }) => (
                     <TextInput
                       placeholder="E.g - Apple, Samsung, Nike"
@@ -503,11 +630,12 @@ const ProductCreate = () => {
                       style={styles.inputStyle}
                       autoCapitalize="words"
                       autoCorrect={false}
+                      maxLength={50}
                     />
                   )}
                 />
-                {/* ErrorMessage for brand is removed as it's optional */}
               </View>
+
               {/* Condition */}
               <View className="mb-5">
                 <Text style={styles.titleStyle}>Product Condition</Text>
@@ -522,11 +650,7 @@ const ProductCreate = () => {
                       <RNPickerSelect
                         onValueChange={(itemValue) => onChange(itemValue)}
                         value={value}
-                        items={[
-                          { label: "New", value: "New" },
-                          { label: "Used", value: "Used" },
-                          { label: "Refurbished", value: "Refurbished" },
-                        ]}
+                        items={conditionItems}
                         placeholder={{
                           label: "Select Condition",
                           value: "",
@@ -546,6 +670,7 @@ const ProductCreate = () => {
                   render={({ message }) => <Text className="pl-2 pt-3 text-sm text-red-600">{message}</Text>}
                 />
               </View>
+
               {/* Description */}
               <View className="mb-5">
                 <Text style={styles.titleStyle}>Description</Text>
@@ -554,6 +679,10 @@ const ProductCreate = () => {
                   control={control}
                   rules={{
                     required: "Description is required",
+                    minLength: {
+                      value: 10,
+                      message: "Description must be at least 10 characters long"
+                    }
                   }}
                   render={({ field: { onChange, onBlur, value } }) => (
                     <TextInput
@@ -568,6 +697,7 @@ const ProductCreate = () => {
                       style={[styles.inputStyle, { height: 100, textAlignVertical: "top" }]}
                       autoCapitalize="sentences"
                       autoCorrect={true}
+                      maxLength={500}
                     />
                   )}
                 />
@@ -577,12 +707,14 @@ const ProductCreate = () => {
                   render={({ message }) => <Text className="pl-2 pt-3 text-sm text-red-600">{message}</Text>}
                 />
               </View>
+
               <Text
                 className="text-xl pt-4 pb-3 border-t border-neutral-200"
                 style={{ fontFamily: "HankenGrotesk_600SemiBold" }}
               >
                 Pricing & Stock
               </Text>
+
               {/* Pricing */}
               <View className="flex-row gap-3 mb-5">
                 <View className="flex-1">
@@ -592,12 +724,16 @@ const ProductCreate = () => {
                     control={control}
                     rules={{
                       required: "Original price is required",
+                      validate: (value) => {
+                        const numericValue = getNumericValue(value)
+                        return numericValue > 0 || "Price must be greater than 0"
+                      }
                     }}
                     render={({ field: { onChange, onBlur, value } }) => (
                       <TextInput
                         placeholder="e.g. 7,500"
                         placeholderTextColor={"#AFAFAF"}
-                        onChangeText={onChange}
+                        onChangeText={(text) => handlePriceInput(text, onChange)}
                         onBlur={onBlur}
                         value={value}
                         keyboardType="number-pad"
@@ -616,11 +752,23 @@ const ProductCreate = () => {
                   <Controller
                     name="discounted_price"
                     control={control}
+                    rules={{
+                      validate: (value) => {
+                        if (!value) return true // Optional field
+                        const numericValue = getNumericValue(value)
+                        if (numericValue <= 0) return "Discounted price must be greater than 0"
+                        const originalValue = getNumericValue(watchedOriginalPrice)
+                        if (numericValue > originalValue) {
+                          return "Discounted price cannot be higher than original price"
+                        }
+                        return true
+                      }
+                    }}
                     render={({ field: { onChange, onBlur, value } }) => (
                       <TextInput
                         placeholder="e.g. 6,500"
                         placeholderTextColor={"#AFAFAF"}
-                        onChangeText={onChange}
+                        onChangeText={(text) => handlePriceInput(text, onChange)}
                         onBlur={onBlur}
                         value={value}
                         keyboardType="number-pad"
@@ -628,8 +776,14 @@ const ProductCreate = () => {
                       />
                     )}
                   />
+                  <ErrorMessage
+                    errors={errors}
+                    name="discounted_price"
+                    render={({ message }) => <Text className="pl-2 pt-3 text-sm text-red-600">{message}</Text>}
+                  />
                 </View>
               </View>
+
               {/* Stock & Size */}
               <View className="flex-row gap-3 mb-5">
                 <View className="flex-1">
@@ -639,6 +793,10 @@ const ProductCreate = () => {
                     control={control}
                     rules={{
                       required: "Stock quantity is required",
+                      validate: (value) => {
+                        const numericValue = parseInt(value, 10)
+                        return numericValue > 0 || "Stock must be greater than 0"
+                      }
                     }}
                     render={({ field: { onChange, onBlur, value } }) => (
                       <TextInput

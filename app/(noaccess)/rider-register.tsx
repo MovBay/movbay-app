@@ -9,10 +9,24 @@ import { Button, Icon } from "@rneui/themed";
 import { GoogleButton, SolidMainButton } from '@/components/btns/CustomButtoms'
 import { KeyboardAwareScrollView } from 'react-native-keyboard-controller'
 import { router } from 'expo-router'
+import { Toast } from 'react-native-toast-notifications'
+import { useRegistration } from '@/hooks/mutations/auth'
+import LoadingOverlay from '@/components/LoadingOverlay'
 
 
 const RiderRegister = () => {
   const [showPassword, setShowPassword] = useState(false);
+
+  const registrationMutation = useRegistration();
+
+    // Function to format phone number for backend
+    const formatPhoneNumber = (phoneNumber: any) => {
+        let cleanNumber = phoneNumber.replace(/\D/g, '');
+        if (cleanNumber.startsWith('0')) {
+            cleanNumber = cleanNumber.substring(1);
+        }
+        return `+234${cleanNumber}`;
+    };
 
     // ========= REACT HOOK FORM =========
     const {
@@ -22,23 +36,80 @@ const RiderRegister = () => {
         reset,
     } = useForm({
         defaultValues: {
-            fullName: "",
+            fullname: "",
             username: "",
             email: "",
-            phone: "",
+            phone_number: "",
             password: "",
-            confirmPassword: "",
+            password2: "",
         },
     });
 
 
     const onSubmit = (data: any) => {
-        console.log(data);
-        router.push("/otp-screen")
+        const form_data = {
+            fullname: data.fullname,
+            username: data.username,
+            email: data.email,
+            phone_number: formatPhoneNumber(data.phone_number), // Format phone number here
+            password: data.password,
+            password2: data.password2,
+            user_type: "Rider", // Changed to "Rider" instead of "User"
+        };
+
+        try{
+        registrationMutation.mutate(form_data, {
+            onSuccess: async (response) => {
+                Toast.show("Registration successful!", {
+                    type: "success",
+                });
+                // Pass the email as a parameter to the OTP screen
+                router.replace({
+                    pathname: "/otp-screen",
+                    params: { email: data.email }
+                });
+                console.log(response);
+            },
+
+            onError: (error: any) => {
+                console.log(error.response);
+                if (error.response.data.email) {
+                    Toast.show(error.response.data.email, {
+                        type: "danger",
+                    });
+                } 
+
+                if (error.response.data.password) {
+                    Toast.show(error.response.data.password, {
+                        type: "danger",
+                    });
+                } 
+
+                if (error.response.data.phone_number) {
+                    Toast.show(error.response.data.phone_number, {
+                        type: "danger",
+                    });
+                } 
+
+                // if (error.request) {
+                //     Toast.show("Network error, please try again later.", {
+                //         type: "danger",
+                //     });
+                // } else {
+                //     Toast.show("An unexpected error occurred.", {
+                //         type: "danger",
+                //     });
+                // }
+            },
+        });
+        }catch(error){
+            console.log(error);
+        }
     }
   return (
     <SafeAreaView className='flex-1 flex w-full bg-white '>
         <StatusBar style='dark'/>
+        <LoadingOverlay visible={registrationMutation.isPending}/>
 
         <KeyboardAwareScrollView>
             <View className='px-7 mt-10 pb-10'>
@@ -48,7 +119,7 @@ const RiderRegister = () => {
                     <View className='mb-5'>
                         <Text style={styles.titleStyle}>Full Name</Text>
                         <Controller
-                            name="fullName"
+                            name="fullname"
                             control={control}
                             rules={{
                                 required: "Full name is required",
@@ -71,7 +142,7 @@ const RiderRegister = () => {
 
                         <ErrorMessage
                         errors={errors}
-                        name="fullName"
+                        name="fullname"
                         render={({ message }) => (
                             <Text className="pl-2 pt-3 text-sm text-red-600">
                             {message}
@@ -150,33 +221,42 @@ const RiderRegister = () => {
                         />
                     </View>
 
-                         <View className='mb-5'>
+                    <View className='mb-5'>
                         <Text style={styles.titleStyle}>Phone Number</Text>
                         <Controller
-                            name="phone"
+                            name="phone_number"
                             control={control}
                             rules={{
                                 required: "Phone Number is required",
+                                pattern: {
+                                    value: /^[0-9]{10,11}$/,
+                                    message: "Please enter a valid Nigerian phone number"
+                                }
                             }}
                             render={({ field: { onChange, onBlur, value } }) => (
-
-                                <TextInput 
-                                    placeholder='E.g - 08094422763'
-                                    placeholderTextColor={"#AFAFAF"}
-                                    onChangeText={onChange}
-                                    onBlur={onBlur}
-                                    value={value}
-                                    keyboardType="phone-pad"
-                                    style={styles.inputStyle}
-                                    autoCapitalize="none"
-                                    autoCorrect={false}
-                                />
+                                <View className='relative'>
+                                    <View className='absolute z-10 left-0 top-0 justify-center items-center h-full px-4 bg-gray-100 rounded-l-md border-r border-gray-200'>
+                                        <Text className='text-[#3A3541] font-medium '>+234</Text>
+                                    </View>
+                                    <TextInput 
+                                        placeholder='8094422763'
+                                        placeholderTextColor={"#AFAFAF"}
+                                        onChangeText={onChange}
+                                        onBlur={onBlur}
+                                        value={value}
+                                        keyboardType="phone-pad"
+                                        style={[styles.inputStyle, { paddingLeft: 70 }]}
+                                        autoCapitalize="none"
+                                        autoCorrect={false}
+                                        maxLength={11}
+                                    />
+                                </View>
                             )}
                         />
 
                         <ErrorMessage
                         errors={errors}
-                        name="phone"
+                        name="phone_number"
                         render={({ message }) => (
                             <Text className="pl-2 pt-3 text-sm text-red-600">
                             {message}
@@ -241,7 +321,7 @@ const RiderRegister = () => {
                     <View className='mb-5'>
                         <Text style={styles.titleStyle}>Confirm Password</Text>
                         <Controller
-                            name="confirmPassword"
+                            name="password2"
                             control={control}
                             rules={{
                                 required: "Confirm password is required",
@@ -280,7 +360,7 @@ const RiderRegister = () => {
                         />
                         <ErrorMessage
                             errors={errors}
-                            name="confirmPassword"
+                            name="password2"
                             render={({ message }) => (
                                 <Text className="pl-2 pt-3 text-sm text-red-600">
                                     {message}
@@ -292,7 +372,6 @@ const RiderRegister = () => {
 
                     <View className='flex-col gap-4'>
                         <SolidMainButton text='Signup' onPress={handleSubmit(onSubmit)}/>
-                       
                     </View>
 
                     <View className='pt-5 flex-row gap-4 justify-center'>
@@ -339,4 +418,3 @@ const styles = StyleSheet.create({
         paddingTop: 6
     }
 });
-

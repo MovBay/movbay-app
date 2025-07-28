@@ -63,18 +63,6 @@ export const useProfile = () => {
 };
 
 
-// export const useUpdateUserProfile = () => {
-//   const updateAddress = useMutation({
-//     mutationFn: async ({data }: { id: string; data: any }) => {
-//       const token = (await AsyncStorage.getItem("movebay_token")) || "";
-//       return put_request_with_image(`/users/profile/`, data, token);
-//     },
-//   });
-
-//   return updateAddress;
-// };
-
-
 export const useUpdateUserProfile = () => {
   const queryClient = useQueryClient()
 

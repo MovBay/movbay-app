@@ -130,7 +130,7 @@ const Profile = () => {
                 </Pressable>
 
 
-                <Pressable onPress={() => router.push('/')} className='flex-row items-center justify-between mt-3 bg-neutral-100 rounded-full p-3 px-4'>
+                <Pressable onPress={() => router.push('/(access)/(user_stacks)/faq')} className='flex-row items-center justify-between mt-3 bg-neutral-100 rounded-full p-3 px-4'>
                   <View className='flex-row items-center gap-3 '>
                     <View className='w-10 h-10 bg-gray-200 rounded-full justify-center items-center'>
                       <MaterialIcons name='question-mark' size={18} color={'#0F0F0F'}/>
@@ -141,7 +141,7 @@ const Profile = () => {
                 </Pressable>
 
 
-                <Pressable onPress={() => router.push('/')} className='flex-row items-center justify-between mt-3 bg-neutral-100 rounded-full p-3 px-4'>
+                <Pressable onPress={() => router.push('/(access)/(user_stacks)/rateMovbay')} className='flex-row items-center justify-between mt-3 bg-neutral-100 rounded-full p-3 px-4'>
                   <View className='flex-row items-center gap-3 '>
                     <View className='w-10 h-10 bg-gray-200 rounded-full justify-center items-center'>
                       <MaterialIcons name='star-outline' size={18} color={'#0F0F0F'}/>

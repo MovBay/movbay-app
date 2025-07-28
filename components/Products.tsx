@@ -41,7 +41,7 @@ const Products = ({
             className='w-full relative'
             entering={FadeInDown.duration(400).delay(200).springify()}
         >
-          <View className='w-full h-52 bg-slate-200 rounded-3xl relative'>
+          <View className='w-full h-48 bg-slate-200 rounded-3xl relative'>
             <Image 
                 source={{uri: product_images[0]?.image_url}}
                 style={{width: '100%', height: '100%', objectFit: 'cover', borderRadius: 16}}

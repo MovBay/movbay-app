@@ -26,7 +26,7 @@ export const useGetStore = () => {
 };
 
 
-
+// ================== CREATE STORE ==================
 export const useCreateStore = () => {
   const queryClient = useQueryClient()
 
@@ -44,7 +44,27 @@ export const useCreateStore = () => {
   return createStore
 }
 
+// ================ UPDATE STORE================
+export const useUpdateStore = (id: any) => {
+  const queryClient = useQueryClient()
 
+  const updateStore = useMutation({
+    mutationFn: async (data: any) => {
+      const token = (await AsyncStorage.getItem("movebay_token")) || ""
+      return put_request_with_image(`/stores/${id}/`, data, token)
+    },
+    onSuccess: () => {
+      // Refetch profile data after successful update
+      queryClient.invalidateQueries({ queryKey: ["store-profile"] })
+      queryClient.invalidateQueries({ queryKey: ["store"] })
+    },
+  })
+
+  return updateStore
+}
+
+
+// https://api.movbay.com/stores/<int:pk/
 
 
 // ============= USER PRODUCT ==================
@@ -420,7 +440,7 @@ export const useMarkOrderOutForDelivery = (orderId: any) => {
   const markOutForDelivery = useMutation({
     mutationFn: async (data: any) => {
       const token = (await AsyncStorage.getItem("movebay_token")) || ""
-      return post_requests(`/order/${orderId}/out-for-delivery`, data, token)
+      return post_requests(`/order/${orderId}/mark-for-delivery`, data, token)
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["processing"] })
@@ -461,26 +481,6 @@ export const useMarkOrderCompleted = (orderId: any) => {
 }
 
 
-// =========== USERS ORDER ============
-export const useGetUserOrders = () => {
-  const { data, isLoading, isError, isFetched, refetch } = useQuery({
-    queryKey: ["order"],
-    queryFn: async () => {
-      const token = (await AsyncStorage.getItem("movebay_token")) || "";
-      return get_requests("/order/user/", token);
-    },
-  });
-
-  return {
-    newUserOrdersData: data,
-    isLoading,
-    isError,
-    isFetched,
-    refetch,
-  };
-};
-
-
 
 
 // ============= SEND ORDER TOKEN ============
@@ -500,19 +500,34 @@ export const useSendToken = () => {
   return sendToken
 }
 
+// =========== USERS ORDER ============
+export const useGetUserOrders = () => {
+  const { data, isLoading, isError, isFetched, refetch } = useQuery({
+    queryKey: ["userOrders"], // Changed from ["order"] to ["userOrders"]
+    queryFn: async () => {
+      const token = (await AsyncStorage.getItem("movebay_token")) || "";
+      return get_requests("/order/user/", token);
+    },
+  });
 
-
+  return {
+    newUserOrdersData: data,
+    isLoading,
+    isError,
+    isFetched,
+    refetch,
+  };
+};
 
 // ================== TRACK ORDER ===================
-
-
 export const useTrackOrders = (orderId: any) => {
   const { data, isLoading, isError, isFetched, refetch } = useQuery({
-    queryKey: ["order"],
+    queryKey: ["trackOrder", orderId], // Changed to include orderId for uniqueness
     queryFn: async () => {
       const token = (await AsyncStorage.getItem("movebay_token")) || "";
       return get_requests(`/order/${orderId}/track-order`, token);
     },
+    enabled: !!orderId, // Only run query if orderId exists
   });
 
   return {
@@ -523,11 +538,3 @@ export const useTrackOrders = (orderId: any) => {
     refetch,
   };
 };
-
-
-// https://api.movbay.com/order/<str:pk>/track-order
-
-
-// getting the order history for the buyer
-
-// https://api.movbay.com/orders/?status=new

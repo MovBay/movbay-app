@@ -1,7 +1,7 @@
-// Enhanced OrderConfirm component with detailed error handling - NO ANIMATIONS
+"use client"
 
-import { View, Text, Image, Pressable, ScrollView, StyleSheet, Dimensions, Modal, Alert } from "react-native"
-import React, { useState, useRef, useEffect } from "react"
+import { View, Text, Image, Pressable, ScrollView, StyleSheet, Dimensions, Modal } from "react-native"
+import { useState, useEffect } from "react"
 import { SafeAreaView } from "react-native-safe-area-context"
 import { router, useLocalSearchParams } from "expo-router"
 import MaterialIcons from "@expo/vector-icons/MaterialIcons"
@@ -14,34 +14,27 @@ const { width: screenWidth, height: SCREEN_HEIGHT } = Dimensions.get("window")
 
 // Error Modal Component without animations
 const ErrorModal = ({ visible, onClose, error }: any) => {
-  if (!visible) return null;
-
+  if (!visible) return null
   return (
-    <Modal
-      transparent={true}
-      visible={visible}
-      animationType="fade"
-      onRequestClose={onClose}
-    >
+    <Modal transparent={true} visible={visible} animationType="fade" onRequestClose={onClose}>
       <View className="flex-1">
         <View
           style={{
-            position: 'absolute',
+            position: "absolute",
             top: 0,
             left: 0,
             right: 0,
             bottom: 0,
-            backgroundColor: 'rgba(0, 0, 0, 0.5)',
+            backgroundColor: "rgba(0, 0, 0, 0.5)",
           }}
         />
-
         <View
           style={{
-            position: 'absolute',
+            position: "absolute",
             bottom: 0,
             left: 0,
             right: 0,
-            backgroundColor: 'white',
+            backgroundColor: "white",
             borderTopLeftRadius: 20,
             borderTopRightRadius: 20,
             paddingTop: 20,
@@ -54,25 +47,24 @@ const ErrorModal = ({ visible, onClose, error }: any) => {
           <View className="items-center mb-4">
             <View className="w-10 h-1 bg-gray-300 rounded-full" />
           </View>
-
           {/* Error Icon */}
           <View className="items-center mb-4">
             <View className="w-16 h-16 bg-red-100 rounded-full items-center justify-center mb-4">
               <MaterialIcons name="error" size={32} color="#EF4444" />
             </View>
           </View>
-
           {/* Content */}
           <ScrollView className="flex-1 mb-6">
             <View className="items-center mb-6">
-              <Text className="text-xl font-semibold mb-2 text-center" style={{ fontFamily: "HankenGrotesk_600SemiBold" }}>
+              <Text
+                className="text-xl font-semibold mb-2 text-center"
+                style={{ fontFamily: "HankenGrotesk_600SemiBold" }}
+              >
                 Order Confirmation Failed
               </Text>
-
-               <Text className="text-gray-600 text-center px-10" style={{ fontFamily: "HankenGrotesk_400Regular" }}>
+              <Text className="text-gray-600 text-center px-10" style={{ fontFamily: "HankenGrotesk_400Regular" }}>
                 Your Order Confirmation failed, Please try again or reach out to our customer care.
               </Text>
-              
               <View className="w-full bg-gray-50 p-4 rounded-lg mb-4">
                 {error?.response?.data && (
                   <View className="mt-2">
@@ -84,51 +76,42 @@ const ErrorModal = ({ visible, onClose, error }: any) => {
                     </Text>
                   </View>
                 )}
-         
               </View>
             </View>
           </ScrollView>
-
           {/* Button */}
           <View className="w-full">
-            <SolidMainButton text='Close' onPress={onClose} />
+            <SolidMainButton text="Close" onPress={onClose} />
           </View>
         </View>
       </View>
     </Modal>
-  );
-};
+  )
+}
 
 // Success Modal Component without animations
 const SuccessModal = ({ visible, onClose, orderId }: any) => {
-  if (!visible) return null;
-
+  if (!visible) return null
   return (
-    <Modal
-      transparent={true}
-      visible={visible}
-      animationType="fade"
-      onRequestClose={onClose}
-    >
+    <Modal transparent={true} visible={visible} animationType="fade" onRequestClose={onClose}>
       <View className="flex-1">
         <View
           style={{
-            position: 'absolute',
+            position: "absolute",
             top: 0,
             left: 0,
             right: 0,
             bottom: 0,
-            backgroundColor: 'rgba(0, 0, 0, 0.5)',
+            backgroundColor: "rgba(0, 0, 0, 0.5)",
           }}
         />
-
         <View
           style={{
-            position: 'absolute',
+            position: "absolute",
             bottom: 0,
             left: 0,
             right: 0,
-            backgroundColor: 'white',
+            backgroundColor: "white",
             borderTopLeftRadius: 20,
             borderTopRightRadius: 20,
             paddingTop: 20,
@@ -140,45 +123,55 @@ const SuccessModal = ({ visible, onClose, orderId }: any) => {
           <View className="items-center mb-4">
             <View className="w-10 h-1 bg-gray-300 rounded-full" />
           </View>
-
           {/* Success Icon */}
           <View className="items-center mb-4">
             <View className="w-16 h-16 bg-green-100 rounded-full items-center justify-center mb-4">
               <MaterialIcons name="check-circle" size={32} color="#10B981" />
             </View>
           </View>
-
           {/* Content */}
           <View className="items-center mb-6">
-            <Text className="text-xl font-semibold mb-2 text-center" style={{ fontFamily: "HankenGrotesk_600SemiBold" }}>
+            <Text
+              className="text-xl font-semibold mb-2 text-center"
+              style={{ fontFamily: "HankenGrotesk_600SemiBold" }}
+            >
               Order Confirmed Successfully!
             </Text>
             <Text className="text-gray-600 text-center px-10" style={{ fontFamily: "HankenGrotesk_400Regular" }}>
               Your order has been confirmed and moved to processing. The buyer will be notified.
             </Text>
-            <Text className="text-sm text-gray-500 mt-5 mb-5 text-center" style={{ fontFamily: "HankenGrotesk_400Regular" }}>
+            <Text
+              className="text-sm text-gray-500 mt-5 mb-5 text-center"
+              style={{ fontFamily: "HankenGrotesk_400Regular" }}
+            >
               Order ID: {orderId}
             </Text>
           </View>
-
           {/* Button */}
           <View className="w-full">
-            <SolidMainButton text='Continue' onPress={onClose} />
+            <SolidMainButton text="Continue" onPress={onClose} />
           </View>
         </View>
       </View>
     </Modal>
-  );
-};
+  )
+}
 
 const OrderConfirm = () => {
   const { orderId, orderData } = useLocalSearchParams<{ orderId: string; orderData: string }>()
   const [showSuccessModal, setShowSuccessModal] = useState(false)
   const [showErrorModal, setShowErrorModal] = useState(false)
   const [errorDetails, setErrorDetails] = useState<any>(null)
-  
-  const order = orderData ? JSON.parse(orderData) : null
-  
+  const [order, setOrder] = useState<any>(null)
+
+  const { mutate: confirmOrder, isPending } = useComfirmOrder(orderId)
+
+  useEffect(() => {
+    if (orderData) {
+      setOrder(JSON.parse(orderData))
+    }
+  }, [orderData])
+
   if (!order) {
     return (
       <SafeAreaView className="bg-white flex-1 justify-center items-center">
@@ -189,7 +182,12 @@ const OrderConfirm = () => {
     )
   }
 
-  const totalAmount = order.order_items.reduce((sum: number, item: any) => sum + item.amount, 0)
+  // Calculate totalAmount based on discounted_price * quantity
+  const totalAmount = order.order_items.reduce(
+    (sum: number, item: any) => sum + item.product.discounted_price * item.count,
+    0,
+  )
+
   const mainProduct = order.order_items[0]?.product
   const mainOrderItem = order.order_items[0]
 
@@ -201,12 +199,10 @@ const OrderConfirm = () => {
     console.log("Cancel order:", order.order_id)
   }
 
-  const { mutate: confirmOrder, isPending } = useComfirmOrder(order.order_id)
-
   const handleConfirmOrder = () => {
-    console.log("🔍 Attempting to confirm order:", order.order_id)
+    console.log("🔍 Attempting to confirm order:", orderId)
     console.log("🔍 Order data:", order)
-    
+
     confirmOrder(
       {},
       {
@@ -222,8 +218,8 @@ const OrderConfirm = () => {
           })
           setErrorDetails((error as any)?.response?.data)
           setShowErrorModal(true)
-        }
-      }
+        },
+      },
     )
   }
 
@@ -239,9 +235,8 @@ const OrderConfirm = () => {
 
   return (
     <SafeAreaView className="bg-white flex-1">
-      <LoadingOverlay visible={isPending}/>
+      <LoadingOverlay visible={isPending} />
       <ScrollView className="flex-1" contentContainerStyle={{ paddingBottom: 100 }}>
-    
         <View className="">
           <View className="bg-gray-100 mb-4 relative">
             <Image
@@ -250,7 +245,6 @@ const OrderConfirm = () => {
               resizeMode="cover"
               className=""
             />
-            
             {/* Image counter */}
             <View className="absolute bottom-3 right-6 bg-black/50 px-2 py-1 rounded-full">
               <Text className="text-white text-sm" style={{ fontFamily: "HankenGrotesk_500Medium" }}>
@@ -258,14 +252,11 @@ const OrderConfirm = () => {
               </Text>
             </View>
           </View>
-
           <View className="px-5 py-5">
-
             {/* Product Title */}
             <Text className="text-lg font-semibold mb-2" style={{ fontFamily: "HankenGrotesk_600SemiBold" }}>
               {mainProduct?.title}
             </Text>
-
             {/* Price and Quantity */}
             <View className="flex-row justify-between items-center mb-4">
               <View className="flex-row items-center gap-2">
@@ -273,19 +264,17 @@ const OrderConfirm = () => {
                   ₦ {totalAmount.toLocaleString()}
                 </Text>
                 <Text className="text-sm line-through text-gray-500" style={{ fontFamily: "HankenGrotesk_500Medium" }}>
-                  ₦ {order.order_items.reduce((sum: number, item: any) => sum + item.product.original_price, 0).toLocaleString()}
+                  ₦{" "}
+                  {order.order_items
+                    .reduce((sum: number, item: any) => sum + item.product.original_price, 0)
+                    .toLocaleString()}
                 </Text>
-                <View className="bg-red-100 px-2 py-1 rounded">
-                  <Text className="text-red-600 text-sm font-medium">
-                    {Math.round(((order.order_items.reduce((sum: number, item: any) => sum + item.product.original_price, 0) - totalAmount) / order.order_items.reduce((sum: number, item: any) => sum + item.product.original_price, 0)) * 100)}%
-                  </Text>
-                </View>
+                {/* Removed discount percentage display */}
               </View>
               <Text className="text-sm font-medium" style={{ fontFamily: "HankenGrotesk_500Medium" }}>
                 QTY: {order.order_items.reduce((sum: number, item: any) => sum + item.count, 0)}
               </Text>
             </View>
-
             {/* Rating */}
             <View className="flex-row items-center gap-2 mb-4">
               <View className="flex-row">
@@ -302,9 +291,7 @@ const OrderConfirm = () => {
               </Text>
             </View>
           </View>
-
         </View>
-
         {/* Order Details */}
         <View className="px-5 py-4 border-t border-gray-200">
           <View className="flex-col gap-4">
@@ -317,7 +304,6 @@ const OrderConfirm = () => {
                 {order.order_id}
               </Text>
             </View>
-
             {/* Buyer Name */}
             <View className="flex-row justify-between items-center">
               <Text className="text-base font-medium" style={{ fontFamily: "HankenGrotesk_500Medium" }}>
@@ -327,7 +313,6 @@ const OrderConfirm = () => {
                 {order.buyer.fullname}
               </Text>
             </View>
-
             {/* Buyer Phone */}
             <View className="flex-row justify-between items-center">
               <Text className="text-sm font-medium" style={{ fontFamily: "HankenGrotesk_500Medium" }}>
@@ -337,7 +322,6 @@ const OrderConfirm = () => {
                 {order.delivery.phone_number}
               </Text>
             </View>
-
             {/* Color Variation */}
             {mainProduct?.size && (
               <View className="flex-row justify-between items-center">
@@ -349,7 +333,6 @@ const OrderConfirm = () => {
                 </Text>
               </View>
             )}
-
             {/* Delivery Option */}
             <View className="flex-row justify-between items-center">
               <Text className="text-base font-medium" style={{ fontFamily: "HankenGrotesk_500Medium" }}>
@@ -359,48 +342,46 @@ const OrderConfirm = () => {
                 {order.delivery.delivery_method}
               </Text>
             </View>
-
             {/* Status */}
             <View className="flex-row justify-between items-center">
               <Text className="text-base font-medium" style={{ fontFamily: "HankenGrotesk_500Medium" }}>
                 Status:
               </Text>
               <View className="bg-orange-100 px-3 py-1 rounded-full">
-                <Text className="text-orange-600 text-base font-medium capitalize" style={{ fontFamily: "HankenGrotesk_500Medium" }}>
+                <Text
+                  className="text-orange-600 text-base font-medium capitalize"
+                  style={{ fontFamily: "HankenGrotesk_500Medium" }}
+                >
                   {order.status}
                 </Text>
               </View>
             </View>
           </View>
         </View>
-
         {/* Delivery Address */}
         <View className="px-5 py-4 border-t border-gray-200">
           <Text className="text-lg font-semibold mb-3" style={{ fontFamily: "HankenGrotesk_600SemiBold" }}>
             Delivery Address
           </Text>
           <View className="bg-orange-50 p-5 rounded-lg flex-col gap-2">
-
             <View className="flex-row gap-2 items-center ">
-              <MaterialIcons name="person-2" size={15}/>
+              <MaterialIcons name="person-2" size={15} />
               <Text className="text-base" style={{ fontFamily: "HankenGrotesk_500Medium" }}>
                 {order.delivery.fullname || order.buyer.fullname}
               </Text>
             </View>
-
             <View className="flex-row gap-2 items-center">
-              <Ionicons name="location" size={15}/>
+              <Ionicons name="location" size={15} />
               <Text className="text-base" style={{ fontFamily: "HankenGrotesk_400Regular" }}>
-                {order.delivery.delivery_address}, {order.delivery.city}, {order.delivery.state}, {order.delivery.postal_code}
+                {order.delivery.delivery_address}, {order.delivery.city}, {order.delivery.state},{" "}
+                {order.delivery.postal_code}
               </Text>
             </View>
-
             <Text className="text-base text-black" style={{ fontFamily: "HankenGrotesk_400Regular" }}>
               Landmark: {order.delivery.landmark}
             </Text>
           </View>
         </View>
-
         {/* All Order Items */}
         {order.order_items.length > 1 && (
           <View className="px-5 py-4 border-t border-gray-200">
@@ -430,7 +411,6 @@ const OrderConfirm = () => {
             ))}
           </View>
         )}
-
         {/* Chat with Buyer Button */}
         <View className="px-5 py-4">
           <Pressable
@@ -444,7 +424,6 @@ const OrderConfirm = () => {
           </Pressable>
         </View>
       </ScrollView>
-
       {/* Fixed Bottom Buttons */}
       <View style={styles.fixedBottomContainer} className="bg-white border-t border-gray-200">
         <View className="flex-row gap-3 justify-center">
@@ -452,27 +431,14 @@ const OrderConfirm = () => {
             <SolidLightButton text="Reject Order" onPress={handleCancelOrder} />
           </View>
           <View className="w-[48%]">
-            <SolidMainButton 
-              text={"Confirm Order"} 
-              onPress={handleConfirmOrder}
-            />
+            <SolidMainButton text={"Confirm Order"} onPress={handleConfirmOrder} />
           </View>
         </View>
       </View>
-
       {/* Success Modal */}
-      <SuccessModal
-        visible={showSuccessModal}
-        onClose={handleSuccessModalClose}
-        orderId={order.order_id}
-      />
-
+      <SuccessModal visible={showSuccessModal} onClose={handleSuccessModalClose} orderId={order.order_id} />
       {/* Error Modal */}
-      <ErrorModal
-        visible={showErrorModal}
-        onClose={handleErrorModalClose}
-        error={errorDetails}
-      />
+      <ErrorModal visible={showErrorModal} onClose={handleErrorModalClose} error={errorDetails} />
     </SafeAreaView>
   )
 }

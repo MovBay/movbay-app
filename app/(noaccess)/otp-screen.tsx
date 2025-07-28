@@ -1,7 +1,6 @@
-
 import { OnboardHeader } from '@/components/btns/OnboardHeader'
 import { StatusBar } from 'expo-status-bar'
-import React from 'react'
+import React, { useEffect } from 'react'
 import { StyleSheet, Text, TextInput, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { Controller, useForm } from "react-hook-form";
@@ -9,7 +8,7 @@ import { ErrorMessage } from "@hookform/error-message"
 import { Button, Icon } from "@rneui/themed";
 import { GoogleButton, SolidMainButton } from '@/components/btns/CustomButtoms'
 import { KeyboardAwareScrollView } from 'react-native-keyboard-controller'
-import { router } from 'expo-router'
+import { router, useLocalSearchParams } from 'expo-router'
 import LoadingOverlay from '@/components/LoadingOverlay'
 import { useActivate, useLogin } from '@/hooks/mutations/auth'
 import { Toast, useToast } from 'react-native-toast-notifications'
@@ -23,6 +22,9 @@ interface OtpData {
 const OtpScreen = () => {
 
   const toast = useToast();
+  
+  // Get the email parameter from the navigation
+  const { email: passedEmail } = useLocalSearchParams<{ email: string }>();
 
   // ========= REACT HOOK FORM =========
   const {
@@ -30,12 +32,20 @@ const OtpScreen = () => {
     handleSubmit,
     formState: { errors },
     reset,
+    setValue,
   } = useForm<OtpData>({
     defaultValues: {
       email: "",
       otp: "",
     },
   });
+
+  // Set the email when component mounts if it was passed from registration
+  useEffect(() => {
+    if (passedEmail) {
+      setValue('email', passedEmail);
+    }
+  }, [passedEmail, setValue]);
 
   const {mutate, isPending} = useActivate();
 
@@ -84,10 +94,13 @@ const OtpScreen = () => {
       
       <KeyboardAwareScrollView>
         <View className='px-7 mt-10 '>
-          <OnboardHeader text='OTP Verification' description="Enter the 5 digit number sent to your email address provided earlier"/>
+          <OnboardHeader 
+            text='OTP Verification' 
+            description={`Enter the 5 digit number sent to ${passedEmail ? passedEmail : 'your email address'}`}
+          />
           <View className='pt-10'>
 
-            <View className='mb-5'>
+            {/* <View className='mb-5'>
               <Text style={styles.titleStyle}>Email Address</Text>
               <Controller
                 name="email"
@@ -107,10 +120,13 @@ const OtpScreen = () => {
                     onBlur={onBlur}
                     value={value}
                     keyboardType="email-address"
-                    style={styles.inputStyle}
+                    style={[
+                      styles.inputStyle, 
+                      passedEmail && { backgroundColor: '#F0F0F0', color: '#666' }
+                    ]}
                     autoCapitalize="none"
                     autoCorrect={false}
-                    editable={!isPending}
+                    editable={!isPending && !passedEmail} // Make it non-editable if email was passed
                   />
                 )}
               />
@@ -124,14 +140,23 @@ const OtpScreen = () => {
                   </Text>
                 )}
               />
-            </View>
+            </View> */}
 
             <View className='mb-5'>
+              <Text style={styles.titleStyle}>OTP Code</Text>
               <Controller
                 name="otp"
                 control={control}
                 rules={{
                   required: "OTP is required",
+                  minLength: {
+                    value: 5,
+                    message: "OTP must be 5 digits"
+                  },
+                  maxLength: {
+                    value: 5,
+                    message: "OTP must be 5 digits"
+                  }
                 }}
                 render={({ field: { onChange, onBlur, value } }) => (
                   <TextInput 
@@ -169,7 +194,7 @@ const OtpScreen = () => {
             </View>
 
             <View className='pt-5 flex-row gap-4 justify-center'>
-              <Text className='text-[#3A3541] text-sm' style={{fontFamily: 'HankenGrotesk_400Regular'}}>Don't recieve code?</Text>
+              <Text className='text-[#3A3541] text-sm' style={{fontFamily: 'HankenGrotesk_400Regular'}}>Don't receive code?</Text>
 
               <Button
                 type="clear"

@@ -19,6 +19,15 @@ const UserRegister = () => {
 
   const registrationMutation = useRegistration();
 
+    // Function to format phone number for backend
+    const formatPhoneNumber = (phoneNumber: any) => {
+        let cleanNumber = phoneNumber.replace(/\D/g, '');
+        if (cleanNumber.startsWith('0')) {
+            cleanNumber = cleanNumber.substring(1);
+        }
+        return `+234${cleanNumber}`;
+    };
+
     // ========= REACT HOOK FORM =========
     const {
         control,
@@ -42,7 +51,7 @@ const UserRegister = () => {
             fullname: data.fullname,
             username: data.username,
             email: data.email,
-            phone_number: data.phone_number,
+            phone_number: formatPhoneNumber(data.phone_number), // Format phone number here
             password: data.password,
             password2: data.password2,
             user_type: "User",
@@ -54,7 +63,11 @@ const UserRegister = () => {
                 Toast.show("Registration successful!", {
                     type: "success",
                 });
-                router.replace("/otp-screen");
+                // Pass the email as a parameter to the OTP screen
+                router.replace({
+                    pathname: "/otp-screen",
+                    params: { email: data.email }
+                });
                 console.log(response);
             },
 
@@ -217,20 +230,29 @@ const UserRegister = () => {
                             control={control}
                             rules={{
                                 required: "Phone Number is required",
+                                pattern: {
+                                    value: /^[0-9]{10,11}$/,
+                                    message: "Please enter a valid Nigerian phone number"
+                                }
                             }}
                             render={({ field: { onChange, onBlur, value } }) => (
-
-                                <TextInput 
-                                    placeholder='E.g - +2348094422763'
-                                    placeholderTextColor={"#AFAFAF"}
-                                    onChangeText={onChange}
-                                    onBlur={onBlur}
-                                    value={value}
-                                    keyboardType="phone-pad"
-                                    style={styles.inputStyle}
-                                    autoCapitalize="none"
-                                    autoCorrect={false}
-                                />
+                                <View className='relative'>
+                                    <View className='absolute z-10 left-0 top-0 justify-center items-center h-full px-4 bg-gray-100 rounded-l-md border-r border-gray-200'>
+                                        <Text className='text-[#3A3541] font-medium '>+234</Text>
+                                    </View>
+                                    <TextInput 
+                                        placeholder='8094422763'
+                                        placeholderTextColor={"#AFAFAF"}
+                                        onChangeText={onChange}
+                                        onBlur={onBlur}
+                                        value={value}
+                                        keyboardType="phone-pad"
+                                        style={[styles.inputStyle, { paddingLeft: 70 }]}
+                                        autoCapitalize="none"
+                                        autoCorrect={false}
+                                        maxLength={11}
+                                    />
+                                </View>
                             )}
                         />
 
@@ -399,4 +421,3 @@ const styles = StyleSheet.create({
         paddingTop: 6
     }
 });
-

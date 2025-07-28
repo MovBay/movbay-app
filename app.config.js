@@ -16,6 +16,12 @@ module.exports = {
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#F75F15"
       },
+      "config": {
+        "googleMaps": {
+          "apiKey": "AIzaSyBIWbuoiQ82RjmlwD3HG6DEeEtb4VQg5b8"
+        }
+      },
+      
       "package": "com.bright210.movbayapp",
       "googleServicesFile": "./google-services.json"
     },
@@ -29,10 +35,11 @@ module.exports = {
       [
         "expo-notifications",
         {
-          "icon": "./assets/images/icon.png",
+          "icon": "./assets/images/notification.png",
           "color": "#F75F15"
         }
       ],
+      
       [
         "expo-splash-screen",
         {
@@ -40,6 +47,16 @@ module.exports = {
           "imageWidth": 200,
           "resizeMode": "contain",
           "backgroundColor": "#F75F15"
+        }
+      ],
+
+      [
+        "@intercom/intercom-react-native",
+        {
+          "appId": "abc123",
+          "androidApiKey": "android_sdk-abc123",
+          "iosApiKey": "ios_sdk-abc123",
+          "intercomRegion": "EU" // Europe
         }
       ]
     ],

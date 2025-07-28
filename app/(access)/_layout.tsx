@@ -1,6 +1,6 @@
 import { NotificationProvider } from '@/context/NotificationContext'
 import { Stack } from 'expo-router'
-import React from 'react'
+import React, { useEffect } from 'react'
 
 import "react-native-reanimated";
 import * as Notifications from "expo-notifications";
@@ -12,6 +12,7 @@ Notifications.setNotificationHandler({
     shouldSetBadge: true,
   }),
 });
+
 
 const StackPagesLayout = () => {
   return (
