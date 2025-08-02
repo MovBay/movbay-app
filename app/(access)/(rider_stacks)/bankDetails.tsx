@@ -7,23 +7,21 @@ import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 import { OnboardArrowTextHeader } from '@/components/btns/OnboardHeader';
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import { SolidMainButton } from '@/components/btns/CustomButtoms';
+import { useGetRiderBank } from '@/hooks/mutations/ridersAuth';
+import LoadingOverlay from '@/components/LoadingOverlay';
 
 // Bank Details Display Screen (when bank exists)
-const BankDetailsDisplay = () => {
-  const [bankData] = useState({
-    accountName: 'Sunday Kingsley Uchenna',
-    accountNumber: '9022849307',
-    bankName: 'GT Bank'
-  });
-
+const BankDetailsDisplay = ({ bankDetails, isLoading }:any) => {
   const copyAccountNumber = () => {
-    // Copy to clipboard functionality
     console.log('Account number copied');
   };
 
+
   return (
-    <SafeAreaView className='flex-1 bg-white'>
+    <SafeAreaView className='flex-1 bg-neutral-50'>
       <StatusBar style='dark'/>
+
+      <LoadingOverlay visible={isLoading} />
       
       <View className='flex-1'>
         <KeyboardAwareScrollView 
@@ -39,21 +37,21 @@ const BankDetailsDisplay = () => {
             </View>
 
             {/* Bank Details Card */}
-            <View className='border border-neutral-100 rounded-lg p-2 mb-6'>
+            <View className='border border-neutral-100 rounded-2xl p-2 mb-6'>
               {/* Account Name */}
-              <View className='mb-6'>
+              <View className='mb-6 border-b border-neutral-100 pb-3'>
                 <Text className='text-sm text-gray-600 mb-1' style={{fontFamily: 'HankenGrotesk_400Regular'}}>Account Name</Text>
                 <Text className='text-lg text-black' style={{fontFamily: 'HankenGrotesk_600SemiBold'}}>
-                  {bankData.accountName}
+                  {bankDetails?.account_name || 'N/A'}
                 </Text>
               </View>
 
               {/* Account Number */}
-              <View className='mb-6'>
+              <View className='mb-6 border-b border-neutral-100 pb-3'>
                 <Text className='text-sm text-gray-600 mb-1' style={{fontFamily: 'HankenGrotesk_400Regular'}}>Account Number</Text>
                 <View className='flex-row items-center justify-between'>
                   <Text className='text-lg text-black' style={{fontFamily: 'HankenGrotesk_600SemiBold'}}>
-                    {bankData.accountNumber}
+                    {bankDetails?.account_number || 'N/A'}
                   </Text>
                   <TouchableOpacity onPress={copyAccountNumber} className='ml-2'>
                     <Ionicons name="copy-outline" size={20} color="#666" />
@@ -62,25 +60,14 @@ const BankDetailsDisplay = () => {
               </View>
 
               {/* Bank Name */}
-              <View className='mb-6'>
+              <View className='mb-6 border-b border-neutral-100 pb-3'>
                 <Text className='text-sm text-gray-600 mb-1' style={{fontFamily: 'HankenGrotesk_400Regular'}}>Bank Name</Text>
                 <View className='flex-row items-center'>
                   <Text className='text-lg text-black' style={{fontFamily: 'HankenGrotesk_600SemiBold'}}>
-                    {bankData.bankName}
+                    {bankDetails?.bank_name || 'N/A'}
                   </Text>
                 </View>
               </View>
-
-              {/* Edit Bank Details Button */}
-              <TouchableOpacity 
-                className='bg-[#FEEEE6] rounded-full p-3.5  flex-row items-center justify-center'
-                onPress={() => router.push('/(access)/(rider_stacks)/bankEdit')}
-              >
-                <MaterialIcons name="edit" size={16} color="#A53F0E" />
-                <Text className='text-[#A53F0E] ml-2' style={{fontFamily: 'HankenGrotesk_500Medium'}}>
-                  Edit Bank Details
-                </Text>
-              </TouchableOpacity>
             </View>
           </View>
         </KeyboardAwareScrollView>
@@ -88,7 +75,7 @@ const BankDetailsDisplay = () => {
         {/* Edit Bank Button */}
         <View className='px-7 pb-8'>
           <SolidMainButton 
-            text='Edit Bank' 
+            text='Edit Bank Details' 
             onPress={() => router.push('/(access)/(rider_stacks)/bankEdit')} 
           />
         </View>
@@ -97,15 +84,13 @@ const BankDetailsDisplay = () => {
   )
 }
 
-// Bank Details Edit/Add Screen
-
-
 // Empty State Screen (when no bank details exist)
-const BankDetailsEmpty = () => {
+const BankDetailsEmpty = ({isLoading}: any) => {
   return (
     <SafeAreaView className='flex-1 bg-white'>
       <StatusBar style='dark'/>
       
+      <LoadingOverlay visible={isLoading}/>
       <View className='flex-1'>
         <View className='px-7 pt-6 pb-4'>
           <View className='flex-row items-center gap-2 mb-8'>
@@ -117,7 +102,7 @@ const BankDetailsEmpty = () => {
         </View>
 
         {/* Empty State Content */}
-        <View className='flex-1 justify-start mt-40 pt-40 items-center px-7'>
+        <View className='flex-1 pt-40 items-center px-7'>
           <View className='items-center mb-8 w-full'>
             {/* Bank Icon */}
             <View className='w-24 h-24 bg-gray-100 rounded-full items-center justify-center mb-4'>
@@ -145,15 +130,22 @@ const BankDetailsEmpty = () => {
   )
 }
 
+
 // Main component that decides which screen to show
 const BankDetails = () => {
-  const [hasBankDetails] = useState(true);
+  const {getRidersBank, isLoading} = useGetRiderBank()
+  const bankDetails = getRidersBank?.data
 
-  if (!hasBankDetails) {
-    return <BankDetailsEmpty />;
+  // Check if bank details exist and have valid data
+  if (!bankDetails || 
+      (!bankDetails.account_name && !bankDetails.account_number && !bankDetails.bank_name) ||
+      (bankDetails.account_name === null && bankDetails.account_number === null && bankDetails.bank_name === null)) {
+    return (
+      <BankDetailsEmpty isLoading={isLoading}/>
+    );
   }
 
-  return <BankDetailsDisplay />;
+  return <BankDetailsDisplay bankDetails={bankDetails} isLoading={isLoading}/>;
 }
 
 export default BankDetails;

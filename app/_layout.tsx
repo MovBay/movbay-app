@@ -32,6 +32,7 @@ import { NotificationProvider } from '@/context/NotificationContext';
 
 
 import "react-native-reanimated";
+import { FavoritesProvider } from '@/context/favorite-context';
 // import * as Notifications from "expo-notifications";
 
 // Notifications.setNotificationHandler({
@@ -77,50 +78,52 @@ export default function RootLayout() {
     // <NotificationProvider>
       <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
         <CartProvider>
-          <ToastProvider
-            placement="top"
-            offset={50}
-            textStyle={{
-              fontFamily: "HankenGrotesk_500Medium",
-              width: "90%",
-              fontSize: 13,
-            }}
+          <FavoritesProvider>
+            <ToastProvider
+              placement="top"
+              offset={50}
+              textStyle={{
+                fontFamily: "HankenGrotesk_500Medium",
+                width: "90%",
+                fontSize: 13,
+              }}
 
-            style={{
-              flexDirection: 'row',
-              gap: 10,
-              borderRadius: 10
-            }}
+              style={{
+                flexDirection: 'row',
+                gap: 10,
+                borderRadius: 10
+              }}
 
-              dangerIcon={
-                <MaterialIcons
-                  name="dangerous"
-                  size={22}
-                  color={"#fff"}
-                  
-                />
-              }
-              successIcon={
-                <MaterialIcons name="check-circle" size={22} color="#fff" />
-              }
-              warningIcon={
-                <MaterialIcons name="warning" size={22} color="#fff" />
-              }
-            >
-              <QueryClientProvider client={queryClient}>
-                <KeyboardProvider>
-                  <GestureHandlerRootView>
-                    <Stack>
-                      <Stack.Screen name="(noaccess)" options={{ headerShown: false }} />
-                      <Stack.Screen name="(access)" options={{ headerShown: false }} />
-                      <Stack.Screen name="+not-found" />
-                    </Stack>
-                    <StatusBar style="auto" />
-                  </GestureHandlerRootView>
-                </KeyboardProvider>
+                dangerIcon={
+                  <MaterialIcons
+                    name="dangerous"
+                    size={22}
+                    color={"#fff"}
+                    
+                  />
+                }
+                successIcon={
+                  <MaterialIcons name="check-circle" size={22} color="#fff" />
+                }
+                warningIcon={
+                  <MaterialIcons name="warning" size={22} color="#fff" />
+                }
+              >
+                <QueryClientProvider client={queryClient}>
+                  <KeyboardProvider>
+                    <GestureHandlerRootView>
+                      <Stack>
+                        <Stack.Screen name="(noaccess)" options={{ headerShown: false }} />
+                        <Stack.Screen name="(access)" options={{ headerShown: false }} />
+                        <Stack.Screen name="+not-found" />
+                      </Stack>
+                      <StatusBar style="auto" />
+                    </GestureHandlerRootView>
+                  </KeyboardProvider>
 
-              </QueryClientProvider>
-          </ToastProvider>
+                </QueryClientProvider>
+            </ToastProvider>
+          </FavoritesProvider>
         </CartProvider>
       </ThemeProvider>
     // </NotificationProvider>

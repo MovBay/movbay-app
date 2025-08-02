@@ -1,5 +1,4 @@
 "use client"
-
 import {
   View,
   Text,
@@ -25,6 +24,9 @@ import { StyleSheet } from "react-native"
 import { useToast } from "react-native-toast-notifications"
 import LoadingOverlay from "@/components/LoadingOverlay"
 
+// Import your custom hooks
+import { useAddBank, useGetRiderBank } from "@/hooks/mutations/ridersAuth"
+
 const { height: SCREEN_HEIGHT } = Dimensions.get("window")
 
 // Types
@@ -49,58 +51,16 @@ interface Bank {
   id: number
 }
 
-// Mock hook - replace with your actual implementation
-const useUpdateBankDetails = () => {
-  const [isPending, setIsPending] = useState(false)
-
-  const mutate = (
-    data: BankDetailsFormData,
-    callbacks?: {
-      onSuccess?: (response: any) => void
-      onError?: (error: any) => void
-    },
-  ) => {
-    setIsPending(true)
-
-    // Simulate API call
-    setTimeout(() => {
-      setIsPending(false)
-      // Simulate success/error randomly for demo
-      if (Math.random() > 0.2) {
-        callbacks?.onSuccess?.({ data: "Bank details updated successfully" })
-      } else {
-        callbacks?.onError?.({ message: "Failed to update bank details" })
-      }
-    }, 2000)
+// API Response interface - Updated to handle different possible structures
+interface BankDetailsResponse {
+  account_name?: string | null
+  account_number?: string | null
+  bank_name?: string | null
+  data?: {
+    account_name?: string | null
+    account_number?: string | null
+    bank_name?: string | null
   }
-
-  return { mutate, isPending }
-}
-
-// Mock hook for getting current bank details
-const useBankDetails = () => {
-  const [isLoading, setIsLoading] = useState(true)
-  const [bankDetails, setBankDetails] = useState<BankDetailsFormData | null>(null)
-
-  useEffect(() => {
-    // Simulate fetching existing bank details
-    setTimeout(() => {
-      setBankDetails({
-        accountNumber: "8094422807",
-        selectedBank: "Palmpay",
-      })
-      setIsLoading(false)
-    }, 1000)
-  }, [])
-
-  const refetch = () => {
-    setIsLoading(true)
-    setTimeout(() => {
-      setIsLoading(false)
-    }, 1000)
-  }
-
-  return { bankDetails, isLoading, refetch }
 }
 
 const BankDetailsEdit: React.FC = () => {
@@ -118,8 +78,10 @@ const BankDetailsEdit: React.FC = () => {
   const [isVerifying, setIsVerifying] = useState<boolean>(false)
   const [isAccountVerified, setIsAccountVerified] = useState<boolean>(false)
 
-  const { mutate: updateBankDetails, isPending: isUpdating } = useUpdateBankDetails()
-  const { bankDetails, isLoading, refetch } = useBankDetails()
+  // Use your actual custom hooks
+  const { mutate: addBank, isPending: isUpdating, isError, error } = useAddBank()
+  const { getRidersBank, isLoading, refetch } = useGetRiderBank()
+
   const toast = useToast()
 
   const {
@@ -142,12 +104,27 @@ const BankDetailsEdit: React.FC = () => {
   // Get selected bank code
   const selectedBankCode = banks.find((bank) => bank.name === selectedBankName)?.code || ""
 
-  // Fetch Nigerian banks from Paystack API
+  // Helper function to safely extract bank data
+  const getBankData = (response: any): BankDetailsResponse | null => {
+    if (!response) return null
+    let bankData: BankDetailsResponse | null = null
+    
+    if (response.data) {
+      bankData = response.data
+    } else {
+      bankData = response
+    }
+    
+    if (bankData?.data) {
+      bankData = bankData.data
+    }
+    return bankData
+  }
+
   useEffect(() => {
     fetchNigerianBanks()
   }, [])
 
-  // Filter banks based on search query
   useEffect(() => {
     if (searchQuery.trim() === "") {
       setFilteredBanks(banks)
@@ -157,25 +134,58 @@ const BankDetailsEdit: React.FC = () => {
     }
   }, [searchQuery, banks])
 
-  // Prefill form fields when bank details are loaded
   useEffect(() => {
-    if (bankDetails && !isLoading) {
-      reset({
-        accountNumber: bankDetails.accountNumber || "",
-        selectedBank: bankDetails.selectedBank || "",
-      })
+    if (getRidersBank && !isLoading) {
+      const bankData = getBankData(getRidersBank)
+      if (bankData) {
+        reset({
+          accountNumber: bankData.account_number || "",
+          selectedBank: bankData.bank_name || "",
+        })
+
+        if (bankData.account_name) {
+          setAccountName(bankData.account_name)
+          setIsAccountVerified(true)
+        } else {
+          setAccountName("")
+          setIsAccountVerified(false)
+        }
+      }
     }
-  }, [bankDetails, isLoading, reset])
+  }, [getRidersBank, isLoading, reset])
 
   // Verify account when both account number and bank are available
   useEffect(() => {
     if (accountNumber && accountNumber.length === 10 && selectedBankCode) {
-      verifyAccountNumber(accountNumber, selectedBankCode)
+      // Only verify if it's different from existing data or if not already verified
+      const bankData = getBankData(getRidersBank)
+      const isDifferentAccount = 
+        bankData?.account_number !== accountNumber || 
+        bankData?.bank_name !== selectedBankName
+      
+      if (isDifferentAccount || !isAccountVerified) {
+        verifyAccountNumber(accountNumber, selectedBankCode)
+      }
     } else {
-      setAccountName("")
-      setIsAccountVerified(false)
+      // Only clear if we're changing from existing data
+      const bankData = getBankData(getRidersBank)
+      if (
+        bankData?.account_number !== accountNumber || 
+        bankData?.bank_name !== selectedBankName
+      ) {
+        setAccountName("")
+        setIsAccountVerified(false)
+      }
     }
-  }, [accountNumber, selectedBankCode])
+  }, [accountNumber, selectedBankCode, selectedBankName])
+
+  // Handle mutation success/error with useEffect
+  useEffect(() => {
+    if (isError && error) {
+      console.error("Update error:", error)
+      toast.show("Error Updating Bank Details", { type: "danger" })
+    }
+  }, [isError, error, toast])
 
   const fetchNigerianBanks = async () => {
     try {
@@ -209,6 +219,7 @@ const BankDetailsEdit: React.FC = () => {
       setIsVerifying(true)
       setAccountName("")
       setIsAccountVerified(false)
+
       const response = await fetch(
         `https://api.paystack.co/bank/resolve?account_number=${accountNum}&bank_code=${bankCode}`,
         {
@@ -219,9 +230,9 @@ const BankDetailsEdit: React.FC = () => {
           },
         },
       )
+
       const data = await response.json()
-      console.log("Account verification data:", data)
-      if (data.status && data.data) {
+      if (data.status && data.data && data.data.account_name) {
         setAccountName(data.data.account_name)
         setIsAccountVerified(true)
       } else {
@@ -277,15 +288,23 @@ const BankDetailsEdit: React.FC = () => {
   const handleBankSelect = (bank: Bank) => {
     setValue("selectedBank", bank.name)
     handleCloseBankModal()
-    setAccountName("")
-    setIsAccountVerified(false)
+    
+    // Only clear verification if it's a different bank
+    const bankData = getBankData(getRidersBank)
+    if (bankData?.bank_name !== bank.name) {
+      setAccountName("")
+      setIsAccountVerified(false)
+    }
   }
 
   // Handle account number change
   const handleAccountNumberChange = (onChange: (value: string) => void) => (text: string) => {
     const numericText = text.replace(/[^0-9]/g, "").slice(0, 10)
     onChange(numericText)
-    if (numericText !== accountNumber) {
+    
+    // Only clear verification if it's a different account number
+    const bankData = getBankData(getRidersBank)
+    if (bankData?.account_number !== numericText) {
       setAccountName("")
       setIsAccountVerified(false)
     }
@@ -298,24 +317,21 @@ const BankDetailsEdit: React.FC = () => {
     }
 
     try {
-      const selectedBankData = banks.find((bank) => bank.name === data.selectedBank)
-
       const payload = {
-        accountNumber: data.accountNumber,
-        selectedBank: data.selectedBank,
-        bankCode: selectedBankData?.code || "",
-        accountName: accountName,
+        account_number: data.accountNumber,
+        bank_name: data.selectedBank,
+        account_name: accountName,
       }
 
-      updateBankDetails(data, {
+      // Use your custom hook's mutate function
+      addBank(payload, {
         onSuccess: (response) => {
-          console.log("Bank details updated:", response?.data)
           toast.show("Bank Details Updated Successfully", { type: "success" })
           refetch()
           router.back()
         },
         onError: (error: any) => {
-          console.error("Update error:", error)
+          console.error("Update error:", error.message)
           toast.show("Error Updating Bank Details", { type: "danger" })
         },
       })
@@ -414,7 +430,7 @@ const BankDetailsEdit: React.FC = () => {
                     onChangeText={handleAccountNumberChange(onChange)}
                     onBlur={onBlur}
                     value={value}
-                    keyboardType="numeric"
+                    keyboardType="number-pad"
                     style={styles.inputStyle}
                     maxLength={10}
                     autoCorrect={false}

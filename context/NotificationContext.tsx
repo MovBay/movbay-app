@@ -14,7 +14,7 @@ import { Toast } from "react-native-toast-notifications";
 import { router } from "expo-router";
 import { Platform } from "react-native";
 
-// Configure notification behavior globally
+// Configure notification behavior globally - CRITICAL for Android alerts
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
     shouldShowAlert: true,
@@ -30,6 +30,9 @@ interface NotificationContextType {
   tokenSent: boolean;
   shouldRefresh: boolean;
   clearRefreshFlag: () => void;
+  // Add callback for ride updates
+  onNewRideNotification?: () => void;
+  setOnNewRideNotification: (callback: () => void) => void;
 }
 
 const NotificationContext = createContext<NotificationContextType | undefined>(
@@ -125,6 +128,7 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({
   const [error, setError] = useState<Error | null>(null);
   const [tokenSent, setTokenSent] = useState<boolean>(false);
   const [shouldRefresh, setShouldRefresh] = useState<boolean>(false);
+  const [onNewRideNotification, setOnNewRideNotificationState] = useState<(() => void) | undefined>(undefined);
 
   const notificationListener = useRef<Notifications.EventSubscription | undefined>(undefined);
   const responseListener = useRef<Notifications.EventSubscription | undefined>(undefined);
@@ -132,6 +136,10 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({
 
   const clearRefreshFlag = () => {
     setShouldRefresh(false);
+  };
+
+  const setOnNewRideNotification = (callback: () => void) => {
+    setOnNewRideNotificationState(() => callback);
   };
 
   useEffect(() => {
@@ -147,7 +155,6 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({
         
         // Register for push notifications and get token
         const token = await registerForPushNotificationsAsync();
-        // console.log('📱 Expo Push Token:', token);
         setExpoPushToken(token);
 
         // Check if we should send the token to backend
@@ -184,13 +191,24 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({
         setNotification(notification);
         setShouldRefresh(true);
         
-        // Platform-specific handling
-        if (Platform.OS === 'ios') {
-          // iOS-specific sound handling if needed
+        // Get notification title and check if it's about new rides
+        const notificationTitle = notification.request.content.title;
+        const cleanTitle = typeof notificationTitle === 'string' 
+          ? notificationTitle.trim() 
+          : String(notificationTitle || '').replace(/^"|"$/g, '').trim();
+        
+        console.log("🔔 Received notification title:", `"${cleanTitle}"`);
+        
+        // Trigger ride refresh for new ride notifications
+        if (cleanTitle === "New Ride Alert on movbay" && onNewRideNotification) {
+          console.log("🔄 Triggering ride refresh for new order...");
+          onNewRideNotification();
         }
         
+        // Platform-specific handling for better visibility
         if (Platform.OS === 'android') {
-          // Android-specific vibration if needed
+          // Show additional visual feedback for Android
+          console.log("📱 Android notification received - should show alert");
         }
       });
 
@@ -217,11 +235,12 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({
         else if (cleanTitle === "New Order Available") {
           console.log("🚀 Navigating to orders...");
           router.push('/(access)/(user_tabs)/(drawer)/orders');
-        } 
-
-        else if (cleanTitle === "New Order Available") {
-          console.log("🚀 Navigating to orders...");
-          router.push('/(access)/(user_tabs)/(drawer)/orders');
+          
+          // Also trigger ride refresh
+          if (onNewRideNotification) {
+            console.log("🔄 Triggering ride refresh from notification response...");
+            onNewRideNotification();
+          }
         } 
         else {
           console.log("🤷‍♂️ No matching title found for:", `"${cleanTitle}"`);
@@ -241,7 +260,7 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({
         Notifications.removeNotificationSubscription(responseListener.current);
       }
     };
-  }, []);
+  }, [onNewRideNotification]); // Add dependency to re-setup listeners when callback changes
 
   return (
     <NotificationContext.Provider
@@ -251,7 +270,9 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({
         error, 
         tokenSent, 
         shouldRefresh,
-        clearRefreshFlag 
+        clearRefreshFlag,
+        onNewRideNotification,
+        setOnNewRideNotification
       }}
     >
       {children}

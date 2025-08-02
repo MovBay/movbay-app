@@ -330,6 +330,7 @@ const Orders = () => {
 
   console.log('This is out for delivery data', outForDeliveryOrdersData?.data)
   console.log('This is processing data', processingOrdersData?.data)
+  // console.log('This is processing data', processingOrdersData?.data)
   const {
     completedOrdersData,
     isLoading: completedOrdersLoading,
@@ -500,7 +501,13 @@ const Orders = () => {
   const handleTrackCourier = useCallback((order: Order) => {
     console.log("Tracking courier for order:", order.order_id)
     // Implement tracking functionality, e.g.:
-    // router.push({ pathname: "/(access)/(user_stacks)/track-order", params: { orderId: order.order_id } });
+    router.push({ 
+      pathname: "/(access)/(user_stacks)/order-track", 
+      params: { 
+        orderId: order.order_id,
+        orderData: JSON.stringify(order),
+      } 
+    });
   }, [])
 
   const navigateToHome = useCallback(() => {

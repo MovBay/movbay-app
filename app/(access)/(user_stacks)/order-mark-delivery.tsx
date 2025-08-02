@@ -221,15 +221,31 @@ const OrderMarkForDelivery = () => {
     setErrorDetails(null)
   }
 
+  const handleBackPress = () => {
+    router.back()
+  }
+
   return (
     <SafeAreaView className="bg-white flex-1">
       <LoadingOverlay visible={isPending} />
+
+      <View className="flex-row items-center px-4 py-1 border-b border-gray-100">
+        <Pressable onPress={handleBackPress} className="w-10 h-10 rounded-full bg-white items-center justify-center">
+          <MaterialIcons name="arrow-back-ios" size={16} color="black" />
+        </Pressable>
+        <Text className="flex-1 text-center text-lg font-semibold" style={{ fontFamily: "HankenGrotesk_600SemiBold" }}>
+          Processing
+        </Text>
+        <View className="w-10" />
+      </View>
+
+
       <ScrollView className="flex-1" contentContainerStyle={{ paddingBottom: 100 }}>
         <View className="">
           <View className="bg-gray-100 mb-4 relative">
             <Image
               source={{ uri: mainProduct?.product_images[0]?.image_url }}
-              style={{ width: "100%", height: 310 }}
+              style={{ width: "100%", height: 300 }}
               resizeMode="cover"
               className=""
             />
@@ -335,9 +351,9 @@ const OrderMarkForDelivery = () => {
               <Text className="text-base font-medium" style={{ fontFamily: "HankenGrotesk_500Medium" }}>
                 Status:
               </Text>
-              <View className="bg-blue-100 px-3 py-1 rounded-full">
+              <View className="bg-orange-100 px-4 py-1 rounded-full">
                 <Text
-                  className="text-blue-600 text-base font-medium capitalize"
+                  className="text-orange-600 text-sm font-medium capitalize"
                   style={{ fontFamily: "HankenGrotesk_500Medium" }}
                 >
                   {order.status}

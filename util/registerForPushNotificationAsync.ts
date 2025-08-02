@@ -5,12 +5,30 @@ import { Platform } from "react-native";
 
 export async function registerForPushNotificationsAsync() {
   if (Platform.OS === "android") {
+    // Create notification channel with HIGH priority for alerts
     await Notifications.setNotificationChannelAsync("default", {
       name: "default",
-      importance: Notifications.AndroidImportance.MAX,
+      importance: Notifications.AndroidImportance.MAX, // This is crucial for heads-up notifications
       vibrationPattern: [0, 250, 250, 250],
-      // lightColor: "#FF231F7C",
+      lightColor: "#FF231F7C",
       showBadge: true,
+      sound: "default", // Enable sound with default notification sound
+      enableVibrate: true, // Enable vibration
+      enableLights: true, // Enable LED lights
+    });
+
+    // Create a high priority channel specifically for ride notifications
+    await Notifications.setNotificationChannelAsync("ride_notifications", {
+      name: "Ride Notifications",
+      description: "Important notifications about new ride requests",
+      importance: Notifications.AndroidImportance.MAX,
+      vibrationPattern: [0, 500, 250, 500], // More noticeable vibration
+      lightColor: "#00FF00",
+      showBadge: true,
+      sound: "default",
+      enableVibrate: true,
+      enableLights: true,
+      lockscreenVisibility: Notifications.AndroidNotificationVisibility.PUBLIC,
     });
   }
 
@@ -33,6 +51,12 @@ export async function registerForPushNotificationsAsync() {
         android: {
           allowAlert: true,
           allowBadge: true,
+          allowSound: true,
+          allowDisplayInCarPlay: false,
+          allowCriticalAlerts: false,
+          provideAppNotificationSettings: false,
+          allowProvisional: false,
+          allowAnnouncements: false,
         },
       });
       finalStatus = status;
@@ -57,10 +81,10 @@ export async function registerForPushNotificationsAsync() {
           projectId,
         })
       ).data;
-      console.log(pushTokenString);
+      console.log("📱 Push Token:", pushTokenString);
       return pushTokenString;
     } catch (e: unknown) {
-      throw new Error(`${e}`);
+      throw new Error(`Failed to get push token: ${e}`);
     }
   } else {
     throw new Error("Must use physical device for push notifications");
