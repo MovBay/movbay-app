@@ -1,7 +1,7 @@
 import { View, Text, Image, ActivityIndicator } from 'react-native'
 import React, { useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query';
-import { useLogout, useProfile } from '@/hooks/mutations/auth';
+import { useLogout, useProfile, useRiderProfile } from '@/hooks/mutations/auth';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { router } from 'expo-router';
 import { Pressable } from 'react-native';
@@ -20,7 +20,7 @@ import { SolidLightButton, SolidMainButton } from '@/components/btns/CustomButto
 
 const RiderProfile = () => {
   const {mutate, isPending} = useLogout();
-  const {profile, isLoading} = useProfile()
+  const {profile, isLoading} = useRiderProfile()
   const queryCLient = useQueryClient();
   
   const handleLogout = async () => {
@@ -61,7 +61,7 @@ const RiderProfile = () => {
                   <Text className='text-base' style={{fontFamily: 'HankenGrotesk_400Regular'}}>{profile?.data?.address === null ? 'N/A' : profile?.data?.address}</Text>
                 </View>
 
-                <Pressable className='flex-row items-center gap-1 p-2.5 px-6 rounded-full bg-[#FEEEE6]' onPress={() => router.push('/profile-edit')}>
+                <Pressable className='flex-row items-center gap-1 p-2.5 px-6 rounded-full bg-[#FEEEE6]' onPress={() => router.push('/(access)/(rider_stacks)/ridersProfileEdit')}>
                   <MaterialIcons name='edit' size={15} color={'#A53F0E'}/>
                   <Text className='text-sm text-[#A53F0E]' style={{fontFamily: 'HankenGrotesk_500Medium'}}>Edit profile</Text>
                 </Pressable>
@@ -99,7 +99,7 @@ const RiderProfile = () => {
                   <Ionicons name='chevron-forward-outline' size={15} color={'#0F0F0F'}/>
                 </Pressable>
 
-                <Pressable onPress={() => router.push('/')} className='flex-row items-center justify-between mt-3 bg-neutral-100 rounded-full p-3 px-4'>
+                <Pressable onPress={() => router.push('/(access)/(rider_stacks)/riderKYC')} className='flex-row items-center justify-between mt-3 bg-neutral-100 rounded-full p-3 px-4'>
                   <View className='flex-row items-center gap-3 '>
                     <View className='w-10 h-10 bg-gray-200 rounded-full justify-center items-center'>
                       <MaterialIcons name='verified-user' size={18} color={'#0F0F0F'}/>

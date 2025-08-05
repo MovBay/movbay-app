@@ -1,5 +1,5 @@
 import type React from "react"
-import { View, Text, TouchableOpacity, Modal, Image, Dimensions, Alert, ActivityIndicator } from "react-native"
+import { View, Text, TouchableOpacity, Modal, Image, Dimensions, ActivityIndicator } from "react-native"
 import { MaterialIcons } from "@expo/vector-icons"
 import { useAcceptRide } from "@/hooks/mutations/ridersAuth"
 import { useToast } from "react-native-toast-notifications"
@@ -10,7 +10,7 @@ interface RideDetailsModalProps {
   isVisible: boolean
   onClose: () => void
   ride: any
-  onAccept: (ride: any) => void
+  onAccept: (rideId: number) => void
   onDecline: () => void
 }
 
@@ -31,7 +31,8 @@ const RideDetailsModal: React.FC<RideDetailsModalProps> = ({
     acceptRide(acceptData, {
       onSuccess: async (response) => {
         console.log("Ride accepted successfully:", response)
-        onAccept(ride)
+        // Pass the ride id to parent component for storage
+        onAccept(ride.id)
         onClose()
         toast.show("Ride accepted successfully!", { type: "success" })
       },
@@ -171,7 +172,8 @@ const RideDetailsModal: React.FC<RideDetailsModalProps> = ({
             </TouchableOpacity>
             <TouchableOpacity
               onPress={handleAcceptRide}
-              className={"bg-[#F75F15] py-3 rounded-full flex-1 items-center ml-3 flex-row justify-center"}
+              className="bg-[#F75F15] py-3 rounded-full flex-1 items-center ml-3 flex-row justify-center"
+              disabled={isAccepting}
             >
               {isAccepting && (
                 <ActivityIndicator 
@@ -181,7 +183,7 @@ const RideDetailsModal: React.FC<RideDetailsModalProps> = ({
                 />
               )}
               <Text style={{ fontFamily: "HankenGrotesk_500Medium" }} className="text-white font-semibold text-sm">
-                {!isAccepting && 'Accept'}
+                {isAccepting ? "Accepting..." : "Accept"}
               </Text>
             </TouchableOpacity>
           </View>

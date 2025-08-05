@@ -22,8 +22,8 @@ export default function TabLayout() {
         tabBarButton: HapticTab,
         tabBarBackground: () => null,
         tabBarStyle: {
-          paddingTop: 5,
-          height: 70,
+          paddingTop: 0,
+          height: 60,
           display: 'flex',
           justifyContent: 'center',
           alignItems: 'center',
@@ -52,7 +52,7 @@ export default function TabLayout() {
               justifyContent: 'center',
               alignItems: 'center',
             }}>
-              <MaterialIcons name='home-filled' size={26} color={ focused ? "#F75F15": "#5F5F5F"} />
+              <MaterialIcons name='home-filled' size={22} color={ focused ? "#F75F15": "#5F5F5F"} />
               <Text className={`text-xs ${focused ? "text-[#F75F15]": "text-[#5F5F5F]"}` } style={{fontFamily: 'HankenGrotesk_600SemiBold'}}>Home</Text>
             </View>
           ),
@@ -69,7 +69,7 @@ export default function TabLayout() {
               justifyContent: 'center',
               alignItems: 'center',
             }}>
-              <Ionicons name='wallet-outline' size={26} color={ focused ? "#F75F15": "#5F5F5F"} />
+              <Ionicons name='wallet' size={22} color={ focused ? "#F75F15": "#5F5F5F"} />
               <Text className={`text-xs ${focused ? "text-[#F75F15]": "text-[#5F5F5F]"}` } style={{fontFamily: 'HankenGrotesk_600SemiBold'}}>Wallet</Text>
             </View>
           ),
@@ -86,8 +86,8 @@ export default function TabLayout() {
               justifyContent: 'center',
               alignItems: 'center',
             }}>
-              <Ionicons name='person-outline' size={26} color={ focused ? "#F75F15": "#5F5F5F"} />
-              <Text className={`text-xs ${focused ? "text-[#F75F15]": "text-[#5F5F5F]"}` } style={{fontFamily: 'HankenGrotesk_600SemiBold'}}>Profile</Text>
+              <MaterialIcons name='dashboard-customize' size={22} color={ focused ? "#F75F15": "#5F5F5F"} />
+              <Text className={`text-xs ${focused ? "text-[#F75F15]": "text-[#5F5F5F]"}` } style={{fontFamily: 'HankenGrotesk_600SemiBold'}}>More</Text>
             </View>
           ),
         }}

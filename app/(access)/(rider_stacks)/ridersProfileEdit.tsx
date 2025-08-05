@@ -1,6 +1,6 @@
 import { View, Text, Image } from "react-native"
 import { useState, useEffect } from "react"
-import { useLogout, useProfile, useUpdateUserProfile } from "@/hooks/mutations/auth"
+import { useLogout, useProfile, useRiderProfile, useUpdateRiderUserProfile, useUpdateUserProfile } from "@/hooks/mutations/auth"
 import { router } from "expo-router"
 import { Pressable } from "react-native"
 import LoadingOverlay from "@/components/LoadingOverlay"
@@ -33,8 +33,8 @@ interface PlacePrediction {
 
 const RidersProfileEdit = () => {
   const { mutate: logout, isPending: isLoggingOut } = useLogout()
-  const { mutate: updateProfile, isPending: isUpdating } = useUpdateUserProfile()
-  const { profile, isLoading, refetch } = useProfile()
+  const { mutate: updateProfile, isPending: isUpdating } = useUpdateRiderUserProfile()
+  const { profile, isLoading, refetch } = useRiderProfile()
   const [image, setImage] = useState<string | null>(null)
   const [addressPredictions, setAddressPredictions] = useState<PlacePrediction[]>([])
   const [showAddressPredictions, setShowAddressPredictions] = useState(false)
@@ -67,7 +67,6 @@ const RidersProfileEdit = () => {
       fullname: "",
       username: "",
       phone_number: "",
-      vehicle_type: "",
       address: "",
     },
   })
@@ -333,7 +332,7 @@ const RidersProfileEdit = () => {
               </View>
 
 
-              <View className='mb-5'>
+              {/* <View className='mb-5'>
                     <Text style={styles.titleStyle}>Vehicle Type</Text>
                     <Controller
                         name="vehicle_type"
@@ -398,7 +397,7 @@ const RidersProfileEdit = () => {
                             </Text>
                         )}
                     />
-                </View>
+              </View> */}
 
               <View className="mb-5">
                 <Text style={styles.titleStyle}>Address</Text>

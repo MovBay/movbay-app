@@ -66,7 +66,7 @@ const sendTokenToBackend = async (token: string) => {
     );
     console.log('✅ Push token sent successfully:', response.data);
     
-    // Store the sent token and timestamp to avoid duplicate sends
+    // Store the sent token for reference (optional - you can remove this if not needed)
     await AsyncStorage.setItem("last_sent_push_token", token);
     await AsyncStorage.setItem("token_sent_timestamp", Date.now().toString());
     
@@ -84,38 +84,6 @@ const sendTokenToBackend = async (token: string) => {
     }
     
     return false;
-  }
-};
-
-// Helper function to check if token should be sent
-const shouldSendToken = async (currentToken: string): Promise<boolean> => {
-  try {
-    const lastSentToken = await AsyncStorage.getItem("last_sent_push_token");
-    const lastSentTimestamp = await AsyncStorage.getItem("token_sent_timestamp");
-    
-    // If no token was previously sent, send it
-    if (!lastSentToken) {
-      return true;
-    }
-    
-    // If token has changed, send it
-    if (lastSentToken !== currentToken) {
-      return true;
-    }
-    
-    // If token was sent more than 24 hours ago, send it again (optional refresh)
-    if (lastSentTimestamp) {
-      const twentyFourHours = 24 * 60 * 60 * 1000;
-      const timeSinceLastSent = Date.now() - parseInt(lastSentTimestamp);
-      if (timeSinceLastSent > twentyFourHours) {
-        return true;
-      }
-    }
-    
-    return false;
-  } catch (error) {
-    console.error('Error checking if token should be sent:', error);
-    return true; // Default to sending if there's an error checking
   }
 };
 
@@ -151,29 +119,22 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({
       initializationRef.current = true;
 
       try {
-        console.log('🚀 Initializing notifications on app reload...');
+        console.log('🚀 Initializing notifications on app open...');
         
         // Register for push notifications and get token
         const token = await registerForPushNotificationsAsync();
         setExpoPushToken(token);
 
-        // Check if we should send the token to backend
+        // Always send token to backend on app open
         if (token) {
-          const shouldSend = await shouldSendToken(token);
+          console.log('📤 Sending token to backend on app open...');
+          const success = await sendTokenToBackend(token);
+          setTokenSent(success);
           
-          if (shouldSend) {
-            console.log('📤 Sending token to backend...');
-            const success = await sendTokenToBackend(token);
-            setTokenSent(success);
-            
-            if (success) {
-              console.log('✅ Token successfully sent to backend');
-            } else {
-              console.log('❌ Failed to send token to backend');
-            }
+          if (success) {
+            console.log('✅ Token successfully sent to backend');
           } else {
-            console.log('⏭️ Token already sent recently, skipping...');
-            setTokenSent(true); // Set as true since it was already sent before
+            console.log('❌ Failed to send token to backend');
           }
         }
       } catch (error: any) {

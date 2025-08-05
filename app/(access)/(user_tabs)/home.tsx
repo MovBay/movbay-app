@@ -1,8 +1,11 @@
+"use client"
+
 import AllProductSkeleton2 from "@/components/AllProductSkeleton2"
 import Products from "@/components/Products"
 import { shopCategory } from "@/constants/datas"
 import { useProfile } from "@/hooks/mutations/auth"
 import { useCart } from "@/context/cart-context"
+import { useFavorites } from "@/context/favorite-context"
 import { useGetProducts, useGetStoreStatus } from "@/hooks/mutations/sellerAuth"
 import Ionicons from "@expo/vector-icons/Ionicons"
 import MaterialIcons from "@expo/vector-icons/MaterialIcons"
@@ -14,19 +17,18 @@ import { Image, Pressable, StyleSheet, Text, TextInput, View } from "react-nativ
 import Animated, { FadeInDown } from "react-native-reanimated"
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context"
 
-
 export default function HomeScreen() {
   const { profile, isLoading, refetch: refetchProfile } = useProfile()
   const { productData, isLoading: productLoading, refetch: refetchProducts } = useGetProducts()
   const { storeStatusData, isLoading: storeStatusLoading, refetch: storeRefetch } = useGetStoreStatus()
   const allProducts = productData?.data?.results
   const { cartLength, cartItems, isUpdating } = useCart()
+  const { favoritesLength, isUpdating: favoritesUpdating } = useFavorites()
   const [activeCategoryId, setActiveCategoryId] = useState(shopCategory[0]?.id)
   const [isRefetchingByUser, setIsRefetchingByUser] = useState(false)
   const [searchQuery, setSearchQuery] = useState("")
   const [hasInitiallyLoaded, setHasInitiallyLoaded] = useState(false)
   const searchInputRef = useRef<TextInput>(null)
-
   const ItemSeparator = () => <View style={{ height: 15 }} />
   const insets = useSafeAreaInsets()
 
@@ -35,18 +37,13 @@ export default function HomeScreen() {
     useCallback(() => {
       const refetchAllData = async () => {
         try {
-          await Promise.all([
-            refetchProfile?.(),
-            refetchProducts?.(),
-            storeRefetch?.()
-          ])
+          await Promise.all([refetchProfile?.(), refetchProducts?.(), storeRefetch?.()])
         } catch (error) {
           console.error("Error refetching data on focus:", error)
         }
       }
-
       refetchAllData()
-    }, [refetchProfile, refetchProducts, storeRefetch])
+    }, [refetchProfile, refetchProducts, storeRefetch]),
   )
 
   useEffect(() => {
@@ -141,15 +138,15 @@ export default function HomeScreen() {
                 )}
               </Pressable>
               <View>
-                {profile?.data?.fullname.length > 15 ?
+                {profile?.data?.fullname.length > 8 ? (
                   <Text style={{ fontFamily: "HankenGrotesk_600SemiBold" }} className="text-base">
-                    Hi, {profile?.data?.fullname.slice(0, 10)}...
-                  </Text> :
-
+                    Hi, {profile?.data?.fullname.slice(0, 7)}...
+                  </Text>
+                ) : (
                   <Text style={{ fontFamily: "HankenGrotesk_600SemiBold" }} className="text-base">
                     Hi, {profile?.data?.fullname}
                   </Text>
-                }
+                )}
                 <Text style={{ fontFamily: "HankenGrotesk_500Medium" }} className="text-sm text-neutral-500">
                   @{profile?.data?.username}
                 </Text>
@@ -157,19 +154,39 @@ export default function HomeScreen() {
             </View>
           )}
           <View className="flex-row gap-3 items-center">
+            {/* Notifications */}
             <Pressable className="bg-neutral-100 w-fit relative flex justify-center items-center rounded-full p-2.5">
-              <Ionicons name="notifications-outline" color={"#0F0F0F"} size={26} />
+              <Ionicons name="notifications-outline" color={"#0F0F0F"} size={22} />
               <View className="absolute top-[-4px] right-[-2px] bg-red-200 justify-center items-center rounded-full p-2 py-0.5">
                 <Text style={{ fontFamily: "HankenGrotesk_500Medium" }} className="text-xs text-red-500">
                   0
                 </Text>
               </View>
             </Pressable>
+
+            {/* Favorites */}
+            <Pressable
+              className="bg-neutral-100 w-fit flex justify-center relative items-center rounded-full p-2.5"
+              onPress={() => router.push("/(access)/(user_stacks)/saved-product")}
+            >
+              <MaterialIcons name="favorite-outline" color={"#0F0F0F"} size={22} />
+              <View className="absolute top-[-4px] right-[-2px] bg-red-200 justify-center items-center rounded-full p-2 py-0.5">
+                {favoritesUpdating ? (
+                  <ActivityIndicator size="small" color="#ef4444" />
+                ) : (
+                  <Text style={{ fontFamily: "HankenGrotesk_500Medium" }} className="text-xs text-red-500">
+                    {favoritesLength}
+                  </Text>
+                )}
+              </View>
+            </Pressable>
+
+            {/* Cart */}
             <Pressable
               className="bg-neutral-100 w-fit flex justify-center relative items-center rounded-full p-2.5"
               onPress={() => router.push("/(access)/(user_stacks)/cart")}
             >
-              <Ionicons name="cart-outline" color={"#0F0F0F"} size={26} />
+              <Ionicons name="cart-outline" color={"#0F0F0F"} size={22} />
               <View className="absolute top-[-4px] right-[-2px] bg-red-200 justify-center items-center rounded-full p-2 py-0.5">
                 {isUpdating ? (
                   <ActivityIndicator size="small" color="#ef4444" />
@@ -184,7 +201,7 @@ export default function HomeScreen() {
         </View>
       </View>
     ),
-    [profile, isLoading, cartLength, isUpdating],
+    [profile, isLoading, cartLength, isUpdating, favoritesLength, favoritesUpdating],
   )
 
   const MemoizedSearchHeader = useMemo(
@@ -243,81 +260,76 @@ export default function HomeScreen() {
               </Text>
             </View>
           ) : (
-
             <>
-
-            <FlatList
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              data={(storeStatusData?.data?.results || storeStatusData?.data || []).filter((item: any) => 
-                item?.statuses?.length > 0
-              )}
-              keyExtractor={(item, index) => `status-${item.name}-${index}`}
-              renderItem={({ item, index }) => {
-                const statusCount = item?.statuses?.length || 0
-
-                return (
-                  <Pressable onPress={()=>handleViewStatus(item.statuses[0]?.store)} className="mr-3 items-center">
-                    <View className="relative">
-                      <View
-                        className="w-20 h-20 rounded-full overflow-hidden justify-center items-center flex"
-                        style={{
-                          borderWidth: statusCount > 0 ? 2 : 0,
-                          borderColor: statusCount > 0 ? "#34A853" : "gray",
-                          borderStyle: "dotted",
-                        }}
-                      >
-                        {item?.store_image ? (
-                          <Image
-                            source={{ uri: item?.store_image }}
-                            className="rounded-full w-full h-full"
-                            style={{
-                              width: statusCount > 0 ? '90%': "100%",
-                              height: statusCount > 0 ? '90%': "100%",
-                              objectFit: "cover",
-                            }}
-                          />
-                        ) : (
-                          <View className="w-full h-full bg-gray-200 rounded-full justify-center items-center">
-                            <MaterialIcons name="store" size={30} color="gray" />
+              <FlatList
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                data={(storeStatusData?.data?.results || storeStatusData?.data || []).filter(
+                  (item: any) => item?.statuses?.length > 0,
+                )}
+                keyExtractor={(item, index) => `status-${item.name}-${index}`}
+                renderItem={({ item, index }) => {
+                  const statusCount = item?.statuses?.length || 0
+                  return (
+                    <Pressable onPress={() => handleViewStatus(item.statuses[0]?.store)} className="mr-3 items-center">
+                      <View className="relative">
+                        <View
+                          className="w-20 h-20 rounded-full overflow-hidden justify-center items-center flex"
+                          style={{
+                            borderWidth: statusCount > 0 ? 2 : 0,
+                            borderColor: statusCount > 0 ? "#34A853" : "gray",
+                            borderStyle: "dotted",
+                          }}
+                        >
+                          {item?.store_image ? (
+                            <Image
+                              source={{ uri: item?.store_image }}
+                              className="rounded-full w-full h-full"
+                              style={{
+                                width: statusCount > 0 ? "90%" : "100%",
+                                height: statusCount > 0 ? "90%" : "100%",
+                                objectFit: "cover",
+                              }}
+                            />
+                          ) : (
+                            <View className="w-full h-full bg-gray-200 rounded-full justify-center items-center">
+                              <MaterialIcons name="store" size={30} color="gray" />
+                            </View>
+                          )}
+                        </View>
+                        {/* Status Count Badge */}
+                        {statusCount > 0 && (
+                          <View className="absolute top-1 -right-0 rounded-full bg-white p-0.5 justify-center items-center">
+                            <MaterialIcons name="circle" color={"#F75F15"} size={7} />
                           </View>
                         )}
                       </View>
-
-                      {/* Status Count Badge */}
-                      {statusCount > 0 && (
-                        <View className="absolute top-1 -right-0 rounded-full bg-white p-0.5 justify-center items-center">
-                          <MaterialIcons name="circle" color={'#F75F15'} size={7}/>
-                        </View>
-                      )}
+                      <Text
+                        className="text-xs pt-2 text-neutral-600 text-center"
+                        style={{ fontFamily: "HankenGrotesk_500Medium" }}
+                      >
+                        {item?.name && item.name.length > 11
+                          ? `${item.name.slice(0, 11)}...`
+                          : item?.name || "Unknown Store"}
+                      </Text>
+                    </Pressable>
+                  )
+                }}
+                ListEmptyComponent={() => (
+                  <View className="justify-center m-auto w-full">
+                    <View className="py-3 flex-row items-center gap-3">
+                      <MaterialIcons name="info" size={20} color="gray" />
+                      <Text className="text-neutral-600 text-sm" style={{ fontFamily: "HankenGrotesk_500Medium" }}>
+                        No status available
+                      </Text>
                     </View>
-                    <Text
-                      className="text-xs pt-2 text-neutral-600 text-center"
-                      style={{ fontFamily: "HankenGrotesk_500Medium" }}
-                    >
-                      {item?.name && item.name.length > 11
-                        ? `${item.name.slice(0, 11)}...`
-                        : item?.name || "Unknown Store"}
-                    </Text>
-                  </Pressable>
-                )
-              }}
-              ListEmptyComponent={() => (
-                <View className="justify-center m-auto w-full">
-                  <View className="py-3 flex-row items-center gap-3">
-                    <MaterialIcons name="info" size={20} color="gray" />
-                    <Text className="text-neutral-600 text-sm" style={{ fontFamily: "HankenGrotesk_500Medium" }}>
-                      No status available
-                    </Text>
                   </View>
-                </View>
-              )}
-              initialNumToRender={5}
-              windowSize={5}
-              maxToRenderPerBatch={5}
-              updateCellsBatchingPeriod={30}
-            />
-
+                )}
+                initialNumToRender={5}
+                windowSize={5}
+                maxToRenderPerBatch={5}
+                updateCellsBatchingPeriod={30}
+              />
             </>
           )}
         </View>
@@ -405,7 +417,6 @@ export default function HomeScreen() {
     ),
     [searchQuery, clearSearch],
   )
-
 
   return (
     <SafeAreaView className="flex-1 flex w-full bg-white">

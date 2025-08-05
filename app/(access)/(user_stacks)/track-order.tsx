@@ -1,4 +1,4 @@
-import { View, Text, Image, TouchableOpacity, ScrollView } from 'react-native'
+import { View, Text, Image, TouchableOpacity, ScrollView, Linking } from 'react-native'
 import React, { useState, useEffect, useCallback } from 'react'
 import { StatusBar } from 'expo-status-bar'
 import { SafeAreaView } from 'react-native-safe-area-context'
@@ -8,10 +8,12 @@ import { router, useLocalSearchParams, useFocusEffect } from 'expo-router'
 import { MaterialIcons } from '@expo/vector-icons'
 import { SolidLightButton, SolidMainButton } from '@/components/btns/CustomButtoms'
 import { useTrackOrders } from '@/hooks/mutations/sellerAuth'
+import { useToast } from 'react-native-toast-notifications'
 
 const TrackOrder = () => {
   const [currentOrderStatus, setCurrentOrderStatus] = useState(0)
   const { orderTrackData } = useLocalSearchParams()
+  const toast = useToast()
 
   const parsedOrderData = orderTrackData ? JSON.parse(orderTrackData as string) : null
   const orderID = parsedOrderData?.order_id
@@ -38,7 +40,6 @@ const TrackOrder = () => {
 
   // Function to determine order status based on API response
   const determineOrderStatus = (trackData: any) => {
-    // Check if order is completed/delivered (you may need to add a completed field to your API)
     if (trackData.completed) {
       return 4 // Delivered/Completed
     } else if (trackData.arriving_soon) {
@@ -72,6 +73,27 @@ const TrackOrder = () => {
       return "Your Order is Being Processed"
     }
   }
+
+  // Call courier functionality
+  const handleCallCourier = useCallback(() => {
+    const courierPhone = newOrderTrackData?.driver?.user?.phone_number
+    
+    if (courierPhone) {
+      Linking.openURL(`tel:${courierPhone}`)
+        .catch((err) => {
+          console.error('Error calling courier:', err)
+          toast.show(`Could not call courier: ${err.message}`, { type: "danger" })
+        })
+    } else {
+      toast.show("Courier phone number not available.", { type: "warning" })
+    }
+  }, [newOrderTrackData?.driver?.user?.phone_number, toast])
+
+  // Message courier functionality (placeholder for future implementation)
+  const handleMessageCourier = useCallback(() => {
+    // This can be implemented when messaging feature is ready
+    toast.show("Messaging feature coming soon!", { type: "info" })
+  }, [toast])
 
   const orderSteps = [
     {
@@ -220,16 +242,34 @@ const TrackOrder = () => {
                   Name:
                 </Text>
                 <Text className="text-gray-900 text-sm" style={{ fontFamily: "HankenGrotesk_500Medium" }}>
-                  {newOrderTrackData?.driver?.name || 'Driver Name'}
+                  {newOrderTrackData?.driver?.user?.fullname || 'Driver Name'}
                 </Text>
               </View>
 
               <View className="flex-row justify-between">
                 <Text className="text-gray-600 text-sm" style={{ fontFamily: "HankenGrotesk_400Regular" }}>
-                  Vehicle:
+                  Vehicle Type:
                 </Text>
                 <Text className="text-gray-900 text-sm" style={{ fontFamily: "HankenGrotesk_500Medium" }}>
-                  {newOrderTrackData?.driver?.vehicle || 'Vehicle Info'}
+                  {newOrderTrackData?.driver?.kyc_verification?.[0]?.vehicle_type.toUpperCase() || 'N/A'}
+                </Text>
+              </View>
+
+              <View className="flex-row justify-between">
+                <Text className="text-gray-600 text-sm" style={{ fontFamily: "HankenGrotesk_400Regular" }}>
+                  Vehicle Color:
+                </Text>
+                <Text className="text-gray-900 text-sm" style={{ fontFamily: "HankenGrotesk_500Medium" }}>
+                  {newOrderTrackData?.driver?.kyc_verification?.[0]?.vehicle_color.toUpperCase() || 'N/A'}
+                </Text>
+              </View>
+
+              <View className="flex-row justify-between">
+                <Text className="text-gray-600 text-sm" style={{ fontFamily: "HankenGrotesk_400Regular" }}>
+                  Vehicle Plate Number:
+                </Text>
+                <Text className="text-gray-900 text-sm" style={{ fontFamily: "HankenGrotesk_500Medium" }}>
+                  {newOrderTrackData?.driver?.kyc_verification?.[0]?.plate_number || 'N/A'}
                 </Text>
               </View>
 
@@ -238,7 +278,7 @@ const TrackOrder = () => {
                   Phone:
                 </Text>
                 <Text className="text-gray-900 text-sm" style={{ fontFamily: "HankenGrotesk_500Medium" }}>
-                  {newOrderTrackData?.driver?.phone || 'Phone Number'}
+                  {newOrderTrackData?.driver?.user?.phone_number || 'Phone Number'}
                 </Text>
               </View>
             </View>
@@ -257,19 +297,13 @@ const TrackOrder = () => {
             <View className='w-[48%]'>
               <SolidLightButton
                 text='Message Courier'
-                onPress={() => {
-                  // Add messaging logic here
-                  console.log('Message courier functionality')
-                }}
+                onPress={handleMessageCourier}
               />
             </View>
             <View className='w-[48%]'>
               <SolidMainButton
                 text='Call Courier'
-                onPress={() => {
-                  // Add calling logic here
-                  console.log('Call courier functionality')
-                }}
+                onPress={handleCallCourier}
               />
             </View>
           </View>

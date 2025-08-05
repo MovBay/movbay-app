@@ -1,7 +1,7 @@
 import { View, Text, Image } from 'react-native'
 import React from 'react'
 import { useQueryClient } from '@tanstack/react-query';
-import { useLogout, useProfile } from '@/hooks/mutations/auth';
+import { useLogout, useProfile, useRiderProfile } from '@/hooks/mutations/auth';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { router } from 'expo-router';
 import { Pressable } from 'react-native';
@@ -18,8 +18,7 @@ import { SolidMainButton } from '@/components/btns/CustomButtoms';
 
 const RidersProfileView = () => {
 
-  const {isLoading, profile} = useProfile()
-  
+  const {isLoading, profile} = useRiderProfile()  
 
   return (
     <SafeAreaView className='flex-1 bg-white'>
@@ -55,12 +54,6 @@ const RidersProfileView = () => {
                     <Text className='text-sm pb-1 text-neutral-600' style={{fontFamily: 'HankenGrotesk_400Regular'}}>Username</Text>
                     <Text className='text-lg' style={{fontFamily: 'HankenGrotesk_600SemiBold'}}>@{profile?.data?.username}</Text>
                 </View>
-
-                <View  className='p-4 border border-neutral-200 rounded-lg '>
-                    <Text className='text-sm pb-1 text-neutral-600' style={{fontFamily: 'HankenGrotesk_400Regular'}}>Email Adress</Text>
-                    <Text className='text-lg' style={{fontFamily: 'HankenGrotesk_600SemiBold'}}>kingsleysunday998@gmail.com</Text>
-                </View>
-
 
                 <View  className='p-4 border border-neutral-200 rounded-lg '>
                     <Text className='text-sm pb-1 text-neutral-600' style={{fontFamily: 'HankenGrotesk_400Regular'}}>Phone Number</Text>

@@ -71,9 +71,6 @@ export const useGetRides = () => {
   };
 };
 
-// https://api.movbay.com/logistics/rides/
-
-
 
 // ================= RIDERS BANK ===================
 export const useGetRiderBank = () => {
@@ -113,7 +110,6 @@ export const useAddBank = () => {
 }
 
 
-
 // ====================== ACCEPT RIDE ====================
 export const useAcceptRide = (id: any) => {
   const queryClient = useQueryClient()
@@ -125,13 +121,36 @@ export const useAcceptRide = (id: any) => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["ride"] })
+      queryClient.invalidateQueries({ queryKey: ["myRide"] })
     },
   })
 
   return acceptRide
 }
 
+// ====================== GET RIDER'S SPECIFIC RIDE ====================
+export const useGetRidersRide = (id: any) => {
+  const { data, isLoading, isError, isFetched, refetch } = useQuery({
+    queryKey: ["myRide", id],
+    queryFn: async () => {
+      const token = (await AsyncStorage.getItem("movebay_token")) || "";
+      return get_requests(`/logistics/myrides/${id}`, token);
+    },
+    enabled: !!id && id !== null && !isNaN(Number(id)),
+    refetchInterval: 30000,
+    refetchIntervalInBackground: true,
+  });
 
+  return {
+    myRidersRide: data,
+    isLoading,
+    isError,
+    isFetched,
+    refetch,
+  };
+};
+
+// ====================== MARK AS PICKED UP / DELIVERED ====================
 export const usePickedUp = (id: any) => {
   const queryClient = useQueryClient()
 
@@ -142,9 +161,48 @@ export const usePickedUp = (id: any) => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["ride"] })
+      queryClient.invalidateQueries({ queryKey: ["myRide"] })
     },
   })
 
   return pickedUp
 }
 
+export const useDelivered = (orderID: any) => {
+  const queryClient = useQueryClient()
+
+  const delivered = useMutation({
+    mutationFn: async (data: any) => {
+      const token = (await AsyncStorage.getItem("movebay_token")) || ""
+      return post_requests(`/order/${orderID}/mark-as-delivered`, data, token)
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["ride"] })
+      queryClient.invalidateQueries({ queryKey: ["myRide"] })
+    },
+  })
+
+  return delivered
+};
+
+// ====================== VERIFY ORDER ====================
+export const useVerifyDeliveryOrder = (orderID: any) => {
+  const queryClient = useQueryClient()
+
+  const verifyOrder = useMutation({
+    mutationFn: async (data: any) => {
+      const token = (await AsyncStorage.getItem("movebay_token")) || ""
+      return post_requests(`/verify-order/${orderID}/`, data, token)
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["ride"] })
+      queryClient.invalidateQueries({ queryKey: ["myRide"] })
+    },
+  })
+
+  return verifyOrder
+};
+
+
+// verify-order/MOVIBGAZ6WS/
+// logistics/MOVIBGAZ6WS/mark-as-delivered/

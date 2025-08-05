@@ -80,3 +80,79 @@ export const useUpdateUserProfile = () => {
 
   return updateProfile
 }
+
+
+
+
+
+export const useRiderProfile = () => {
+  const { data, isLoading, isError, isFetched, refetch } = useQuery({
+    queryKey: ["riderProfile"],
+    queryFn: async () => {
+      const token = (await AsyncStorage.getItem("movebay_token")) || "";
+      return get_requests("/users/riderprofile/", token);
+    },
+  });
+
+  return {
+    profile: data,
+    isLoading,
+    isError,
+    isFetched,
+    refetch,
+  };
+};
+
+export const useUpdateRiderUserProfile = () => {
+  const queryClient = useQueryClient()
+
+  const updateRiderProfile = useMutation({
+    mutationFn: async (data: FormData) => {
+      const token = (await AsyncStorage.getItem("movebay_token")) || ""
+      return put_request_with_image(`/users/riderprofile/`, data, token)
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["riderProfile"] })
+    },
+  })
+
+  return updateRiderProfile
+}
+
+
+
+// =================== RIDERS KYC =====================
+// /logistics/kyc/
+export const useRiderKYC = () => {
+  const { data, isLoading, isError, isFetched, refetch } = useQuery({
+    queryKey: ["riderKYC"],
+    queryFn: async () => {
+      const token = (await AsyncStorage.getItem("movebay_token")) || "";
+      return get_requests("/logistics/kyc/", token);
+    },
+  });
+
+  return {
+    riderKYC: data,
+    isLoading,
+    isError,
+    isFetched,
+    refetch,
+  };
+};
+
+export const useUpdateRiderKYC = () => {
+  const queryClient = useQueryClient()
+
+  const updateRiderKYC = useMutation({
+    mutationFn: async (data: FormData) => {
+      const token = (await AsyncStorage.getItem("movebay_token")) || ""
+      return put_request_with_image(`/logistics/kyc/`, data, token)
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["riderKYC"] })
+    },
+  })
+
+  return updateRiderKYC
+}
