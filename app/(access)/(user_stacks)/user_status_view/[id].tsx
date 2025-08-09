@@ -15,7 +15,7 @@ import { SafeAreaView } from "react-native-safe-area-context"
 import { SolidLightButton, SolidMainButton } from "@/components/btns/CustomButtoms"
 import MaterialIcons from "@expo/vector-icons/MaterialIcons"
 import { TextInput } from "react-native-gesture-handler"
-import { useGetSingleStatus } from "@/hooks/mutations/sellerAuth"
+import { useGetOpenStore, useGetSingleStatus } from "@/hooks/mutations/sellerAuth"
 import { useLocalSearchParams, router } from "expo-router"
 import { useEffect, useRef, useState, useCallback, useMemo } from "react"
 
@@ -40,6 +40,11 @@ interface ImageLoadingState {
 const UserStatusView = () => {
   const { id } = useLocalSearchParams<{ id: string }>()
   const { singleStatusData, isLoading } = useGetSingleStatus(id)
+
+  const {openStore, isLoading: openStoreLoading} = useGetOpenStore(singleStatusData?.data[0]?.store)
+  const openStoreData = openStore?.data
+  // console.log('This is status data', openStore?.data)
+
 
   // State management
   const [currentStatusIndex, setCurrentStatusIndex] = useState(0)
@@ -175,6 +180,7 @@ const UserStatusView = () => {
     )
   }
 
+
   return (
     <SafeAreaView className="flex-1 bg-black">
       <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} className="flex-1">
@@ -204,33 +210,35 @@ const UserStatusView = () => {
 
         {/* Header with profile and follow button */}
         <View className="flex-row justify-between items-center px-4 mt-4 mb-3">
-          <View className="flex-row items-center gap-3">
-            <TouchableOpacity onPress={() => router.back()} className="p-1" activeOpacity={0.7}>
-              <MaterialIcons name="arrow-back" size={22} color="white" />
-            </TouchableOpacity>
+          {openStoreLoading? <ActivityIndicator size="small" color="#F75F15" /> : (
+            <View className="flex-row items-center gap-3">
+              <TouchableOpacity onPress={() => router.back()} className="p-1" activeOpacity={0.7}>
+                <MaterialIcons name="arrow-back" size={22} color="white" />
+              </TouchableOpacity>
 
-            <View className="relative">
-              <View className="w-11 h-11 rounded-full bg-gray-100 justify-center items-center overflow-hidden">
-                <Image
-                  source={require("../../../../assets/images/profile.png")}
-                  className="w-full h-full"
-                  resizeMode="cover"
-                />
+              <View className="relative">
+                <View className="w-11 h-11 rounded-full bg-gray-100 justify-center items-center overflow-hidden">
+                  <Image
+                    source={{uri: openStoreData?.store_image}}
+                    className="w-full h-full"
+                    resizeMode="cover"
+                  />
+                </View>
+                <View className="absolute -right-0.5 -top-0.5 rounded-lg bg-white p-0.5">
+                  <MaterialIcons name="verified" color="#4285F4" size={12} />
+                </View>
               </View>
-              <View className="absolute -right-0.5 -top-0.5 rounded-lg bg-white p-0.5">
-                <MaterialIcons name="verified" color="#4285F4" size={12} />
+
+              <View>
+                <Text className="text-base text-white font-medium" style={{ fontFamily: "HankenGrotesk_500Medium" }}>
+                  {openStoreData?.name}
+                </Text>
+                <Text className="text-xs text-white/60" style={{ fontFamily: "HankenGrotesk_400Regular" }}>
+                  {formattedDate}
+                </Text>
               </View>
             </View>
-
-            <View>
-              <Text className="text-base text-white font-medium" style={{ fontFamily: "HankenGrotesk_500Medium" }}>
-                Store Name
-              </Text>
-              <Text className="text-xs text-white/60" style={{ fontFamily: "HankenGrotesk_400Regular" }}>
-                {formattedDate}
-              </Text>
-            </View>
-          </View>
+          )}
 
           <View>
             <SolidLightButton text="Follow" />

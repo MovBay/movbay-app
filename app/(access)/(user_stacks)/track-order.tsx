@@ -14,11 +14,11 @@ const TrackOrder = () => {
   const [currentOrderStatus, setCurrentOrderStatus] = useState(0)
   const { orderTrackData } = useLocalSearchParams()
   const toast = useToast()
-
   const parsedOrderData = orderTrackData ? JSON.parse(orderTrackData as string) : null
   const orderID = parsedOrderData?.order_id
   const { newTrackOrder, isLoading, refetch } = useTrackOrders(orderID)
   const newOrderTrackData = newTrackOrder?.data
+
   console.log('This is order track', newOrderTrackData)
 
   // Refetch data whenever the screen comes into focus
@@ -37,6 +37,16 @@ const TrackOrder = () => {
       setCurrentOrderStatus(status)
     }
   }, [newOrderTrackData])
+
+  // Show toast notification when order is completed (removed redirect logic)
+  useEffect(() => {
+    if (newOrderTrackData?.completed) {
+      toast.show("Order completed! You can now rate the product.", { 
+        type: "success",
+        duration: 3000
+      })
+    }
+  }, [newOrderTrackData?.completed, toast])
 
   // Function to determine order status based on API response
   const determineOrderStatus = (trackData: any) => {
@@ -58,9 +68,8 @@ const TrackOrder = () => {
   // Get status text based on current status
   const getStatusText = () => {
     if (!newOrderTrackData) return "Loading status..."
-
     if (newOrderTrackData.completed) {
-      return "Order Completed"
+      return "Order Completed Successfully!"
     } else if (newOrderTrackData.arriving_soon) {
       return "Order Arriving Soon"
     } else if (newOrderTrackData.rider_en_route) {
@@ -77,7 +86,7 @@ const TrackOrder = () => {
   // Call courier functionality
   const handleCallCourier = useCallback(() => {
     const courierPhone = newOrderTrackData?.driver?.user?.phone_number
-    
+        
     if (courierPhone) {
       Linking.openURL(`tel:${courierPhone}`)
         .catch((err) => {
@@ -94,6 +103,22 @@ const TrackOrder = () => {
     // This can be implemented when messaging feature is ready
     toast.show("Messaging feature coming soon!", { type: "info" })
   }, [toast])
+
+
+  const handleRateProduct = useCallback(() => {
+    const productId = newOrderTrackData?.order_items?.[0]?.product?.id || 
+                    newOrderTrackData?.product_id || 
+                    parsedOrderData?.product_id;
+
+    router.push({
+      pathname: '/(access)/(user_stacks)/productReview',
+      params: {
+        orderData: JSON.stringify(newOrderTrackData),
+        orderID: orderID,
+        productId: productId // Add product ID to params
+      }
+    })
+  }, [newOrderTrackData, orderID, parsedOrderData])
 
   const orderSteps = [
     {
@@ -175,7 +200,6 @@ const TrackOrder = () => {
   return (
     <SafeAreaView className="flex-1 bg-white">
       <StatusBar style="dark" />
-
       {/* Loading Overlay */}
       <LoadingOverlay visible={isLoading} />
 
@@ -245,7 +269,6 @@ const TrackOrder = () => {
                   {newOrderTrackData?.driver?.user?.fullname || 'Driver Name'}
                 </Text>
               </View>
-
               <View className="flex-row justify-between">
                 <Text className="text-gray-600 text-sm" style={{ fontFamily: "HankenGrotesk_400Regular" }}>
                   Vehicle Type:
@@ -254,7 +277,6 @@ const TrackOrder = () => {
                   {newOrderTrackData?.driver?.kyc_verification?.[0]?.vehicle_type.toUpperCase() || 'N/A'}
                 </Text>
               </View>
-
               <View className="flex-row justify-between">
                 <Text className="text-gray-600 text-sm" style={{ fontFamily: "HankenGrotesk_400Regular" }}>
                   Vehicle Color:
@@ -263,7 +285,6 @@ const TrackOrder = () => {
                   {newOrderTrackData?.driver?.kyc_verification?.[0]?.vehicle_color.toUpperCase() || 'N/A'}
                 </Text>
               </View>
-
               <View className="flex-row justify-between">
                 <Text className="text-gray-600 text-sm" style={{ fontFamily: "HankenGrotesk_400Regular" }}>
                   Vehicle Plate Number:
@@ -272,7 +293,6 @@ const TrackOrder = () => {
                   {newOrderTrackData?.driver?.kyc_verification?.[0]?.plate_number || 'N/A'}
                 </Text>
               </View>
-
               <View className="flex-row justify-between">
                 <Text className="text-gray-600 text-sm" style={{ fontFamily: "HankenGrotesk_400Regular" }}>
                   Phone:
@@ -291,8 +311,8 @@ const TrackOrder = () => {
           )}
         </View>
 
-        {/* Action Buttons - Conditionally rendered */}
-        {newOrderTrackData?.driver && (
+        {/* Action Buttons - Conditionally rendered and disabled when order is completed */}
+        {newOrderTrackData?.driver && !newOrderTrackData?.completed && (
           <View className='flex-row justify-between items-center'>
             <View className='w-[48%]'>
               <SolidLightButton
@@ -306,6 +326,25 @@ const TrackOrder = () => {
                 onPress={handleCallCourier}
               />
             </View>
+          </View>
+        )}
+
+        {/* Completion Message with Rate Product Button */}
+        {newOrderTrackData?.completed && (
+          <View className="bg-green-50 border border-green-200 rounded-2xl p-5 mb-1">
+            <View className="flex-row items-center mb-3">
+              <MaterialIcons name="check-circle" size={24} color="#16A34A" />
+              <Text className="text-green-700 text-lg ml-2" style={{ fontFamily: "HankenGrotesk_600SemiBold" }}>
+                Order Completed!
+              </Text>
+            </View>
+            <Text className="text-green-800 text-sm mb-4" style={{ fontFamily: "HankenGrotesk_400Regular" }}>
+              Your order has been successfully delivered. How was your experience?
+            </Text>
+            <SolidMainButton
+              text='Rate Product'
+              onPress={handleRateProduct}
+            />
           </View>
         )}
 

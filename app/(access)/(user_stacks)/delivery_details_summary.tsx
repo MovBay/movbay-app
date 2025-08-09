@@ -23,6 +23,7 @@ interface OrderData {
     alternative_address: string;
     alternative_name: string;
     alternative_email: string;
+    alternative_phone: string;
     postal_code: number;
   };
   items: Array<{
@@ -159,7 +160,7 @@ const DeliveryDetailsSummary = () => {
     })
   }
 
-  console.log('Final data', orderData)
+  console.log('Final data', parsedData)
 
   if (!parsedData) {
     return (
@@ -218,11 +219,18 @@ const DeliveryDetailsSummary = () => {
                 label="Full Name" 
                 value={parsedData.delivery.alternative_name}
               />
+
+               <SummaryItem 
+                label="Phone Number" 
+                value={parsedData.delivery.alternative_phone || "Not provided"}
+              />
+              
               <SummaryItem 
                 label="Email Address" 
                 value={parsedData.delivery.alternative_email || "Not provided"}
                 isLast={true}
               />
+             
             </SummarySection>
           )}
 

@@ -200,10 +200,10 @@ const OrderSuccess = () => {
       <View className="px-4 pb-6 pt-4 bg-white border-t border-gray-100">
         <View className="flex-row justify-between items-center">
           <View className='w-[48%]'>
-            <SolidLightButton text='Go back home' onPress={() => router.replace('/(access)/(user_tabs)/home')} />
+            <SolidLightButton text='Go back home' onPress={() =>{router.dismissAll(); router.replace('/(access)/(user_tabs)/home')}} />
           </View>
           <View className='w-[48%]'>
-            <SolidMainButton text='Track Order' onPress={() => router.replace('/(access)/(user_stacks)/order_history_buyer')} />
+            <SolidMainButton text='Track Order' onPress={() => {router.dismissAll(); router.replace('/(access)/(user_stacks)/order_history_buyer')}} />
           </View>
         </View>
       </View>

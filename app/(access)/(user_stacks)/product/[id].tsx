@@ -1,5 +1,5 @@
-import { View, Text, Image, Pressable, Modal, Dimensions, FlatList, StyleSheet } from "react-native"
-import { useState } from "react"
+import { View, Text, Image, Pressable, Modal, Dimensions, FlatList, StyleSheet, ScrollView } from "react-native"
+import { useCallback, useState } from "react"
 import { SafeAreaView } from "react-native-safe-area-context"
 import { router, useLocalSearchParams } from "expo-router"
 import { products } from "@/constants/datas"
@@ -7,19 +7,21 @@ import { KeyboardAwareScrollView } from "react-native-keyboard-controller"
 import MaterialIcons from "@expo/vector-icons/MaterialIcons"
 import Ionicons from "@expo/vector-icons/Ionicons"
 import { SolidLightButton, SolidMainButton } from "@/components/btns/CustomButtoms"
-import { useGetSingleProducts, useGetStore } from "@/hooks/mutations/sellerAuth"
+import { useGetSingleProductReviews, useGetSingleProducts, useGetSingleRelatedProduct, useGetStore } from "@/hooks/mutations/sellerAuth"
 import ProductSkeleton from "@/components/ProductSkeleton"
 import LoadingOverlay from "@/components/LoadingOverlay"
 import { Video, ResizeMode } from "expo-av"
 import { useCart } from "@/context/cart-context"
 import { useProfile } from "@/hooks/mutations/auth"
+import { Toast } from "react-native-toast-notifications"
+import RelatedProducts from "@/components/RelatedProducts"
+import AllProductSkeleton2 from "@/components/AllProductSkeleton2"
 
 const { width: screenWidth } = Dimensions.get("window")
 
 // Custom Success Modal Component
 const CustomSuccessModal = ({ visible, onClose }: { visible: boolean; onClose: () => void }) => {
   if (!visible) return null
-
   return (
     <Modal visible={visible} transparent={true} animationType="fade" onRequestClose={onClose}>
       <View style={styles.modalOverlay}>
@@ -27,11 +29,9 @@ const CustomSuccessModal = ({ visible, onClose }: { visible: boolean; onClose: (
           <View style={styles.modalContent}>
             <Image source={require("../../../../assets/images/success.png")} style={styles.successImage} />
           </View>
-
           <View style={styles.textContainer}>
             <Text style={styles.modalTitle}>Product Added Successfully!</Text>
             <Text style={styles.modalDescription}>Your item has been added to cart and is ready for checkout.</Text>
-
             <View className="flex-row justify-between gap-1">
               <View className="w-[49%]">
                 <SolidLightButton text="Close" onPress={onClose} />
@@ -41,7 +41,7 @@ const CustomSuccessModal = ({ visible, onClose }: { visible: boolean; onClose: (
                   text="View Cart"
                   onPress={() => {
                     onClose()
-                    router.push("/(access)/(user_stacks)/cart")
+                    router.replace("/(access)/(user_stacks)/cart")
                   }}
                 />
               </View>
@@ -64,7 +64,6 @@ const VideoModal = ({
   videoUrl: string | null
 }) => {
   const [status, setStatus] = useState({})
-
   if (!visible || !videoUrl) return null
 
   return (
@@ -80,7 +79,6 @@ const VideoModal = ({
                 <Ionicons name="close" size={16} color="white" />
               </Pressable>
             </View>
-
             <View style={{ flex: 1, justifyContent: "center", alignItems: "center", paddingHorizontal: 20 }}>
               <Video
                 style={{
@@ -95,7 +93,6 @@ const VideoModal = ({
                 onPlaybackStatusUpdate={(status) => setStatus(() => status)}
               />
             </View>
-
             <View className="p-4">
               <Text className="text-white text-center text-sm" style={{ fontFamily: "HankenGrotesk_400Regular" }}>
                 Tap the video to play/pause or use the controls
@@ -108,6 +105,93 @@ const VideoModal = ({
   )
 }
 
+// Empty State Component
+const EmptyState = ({ title, description, icon }: { title: string; description: string; icon: string }) => (
+  <View className="flex-1 justify-center items-center py-10 px-5">
+    <View className="bg-gray-100 rounded-full p-5 mb-4">
+      <MaterialIcons name={icon as any} size={30} color="#9CA3AF" />
+    </View>
+    <Text className="text-lg font-semibold text-gray-800 mb-2" style={{ fontFamily: "HankenGrotesk_600SemiBold" }}>
+      {title}
+    </Text>
+    <Text className="text-sm text-gray-500 text-center" style={{ fontFamily: "HankenGrotesk_400Regular" }}>
+      {description}
+    </Text>
+  </View>
+)
+
+// Horizontal Product List Component (to replace nested FlatList)
+const HorizontalProductList = ({ 
+  data, 
+  isLoading, 
+  title, 
+  emptyTitle, 
+  emptyDescription 
+}: { 
+  data: any[], 
+  isLoading: boolean, 
+  title?: string,
+  emptyTitle: string,
+  emptyDescription: string
+}) => {
+  const renderProduct = useCallback(
+    ({ item }: { item: any }) => (
+      <View style={{ width: (screenWidth) / 3.5}}>
+        <RelatedProducts
+          id={item.id.toString()}
+          title={item.title}
+          original_price={item.original_price}
+          product_images={item.product_images}
+          description={item.description}
+          discounted_price={item.discounted_price}
+          stock_available={item.stock_available}
+          store={item.store}
+        />
+      </View>
+    ),
+    [],
+  )
+
+  return (
+    <View className="mt-5">
+      {isLoading ? (
+        <View className="">
+         
+          <AllProductSkeleton2 />
+        </View>
+      ) : data && data.length > 0 ? (
+
+        <View>
+           <Text className="pt-3 pb-5 text-base font-bold border-t border-neutral-200 " style={{fontFamily: 'HankenGrotesk_500Medium'}}>
+            {title}
+          </Text>
+          <FlatList
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={{paddingBottom: 10 }}
+            data={data}
+            keyExtractor={(item) => `product-${item.id}`}
+            renderItem={renderProduct}
+            ItemSeparatorComponent={() => <View style={{ width: 0 }} />}
+            keyboardShouldPersistTaps="handled"
+            removeClippedSubviews={false}
+            maxToRenderPerBatch={5}
+            updateCellsBatchingPeriod={50}
+            initialNumToRender={5}
+            windowSize={5}
+          />
+        </View>
+      ) : (
+        <EmptyState 
+          title={emptyTitle}
+          description={emptyDescription}
+          icon="inventory"
+        />
+      )}
+    </View>
+  )
+}
+
 const Product = () => {
   const { id } = useLocalSearchParams<{ id: string }>()
   const product = products.find((item) => item.id === id || item.id === id)
@@ -117,11 +201,22 @@ const Product = () => {
   const [isSuccessModalVisible, setIsSuccessModalVisible] = useState(false)
 
   const { userProductData, isLoading } = useGetSingleProducts(id)
+  const {userRelatedProductData, isLoading: productLoading} = useGetSingleRelatedProduct(id)
   const eachData = userProductData?.data
   const {storeData, isLoading: storeLoading} = useGetStore()
+  const {singleProductReviewData, isLoading: reivewLoading} = useGetSingleProductReviews(id)
+  const reviews = singleProductReviewData?.data
+  console.log('This is reviews s', reviews)
 
-  // Use the global cart context
-  const { addToCart, isUpdating } = useCart()
+  // Use the global cart context with stock management
+  const { addToCart, isUpdating, getItemQuantity, isItemAtStockLimit, getRemainingStock } = useCart()
+
+  // Stock calculations
+  const isOutOfStock = eachData?.stock_available === 0
+  const isLowStock = eachData?.stock_available <= 5 && eachData?.stock_available > 0
+  const currentQuantityInCart = getItemQuantity(eachData?.id?.toString() || "")
+  const isAtStockLimit = isItemAtStockLimit(eachData?.id?.toString() || "", eachData?.stock_available || 0)
+  const remainingStock = getRemainingStock(eachData?.id?.toString() || "", eachData?.stock_available || 0)
 
   // Check if this product belongs to the current user's store
   const isOwnProduct = eachData?.store?.id === storeData?.data?.id
@@ -143,14 +238,23 @@ const Product = () => {
     setIsVideoModalVisible(false)
   }
 
-  // Navigate back to shop
-  const handleBackToShop = () => {
-    router.push("/(access)/(user_tabs)/home")
-  }
-
-  // Updated handleAddToCart to use global cart context
+  // Updated handleAddToCart with stock validation
   const handleAddToCart = async () => {
     if (eachData) {
+      // Check if product is out of stock
+      if (isOutOfStock) {
+        Toast.show("This product is currently out of stock", { type: "warning" })
+        return
+      }
+
+      // Check if item is at stock limit
+      if (isAtStockLimit) {
+        Toast.show(`Only ${eachData.stock_available} ${eachData.stock_available === 1 ? 'item' : 'items'} available in stock`, { 
+          type: "warning" 
+        })
+        return
+      }
+
       try {
         const cartItem = {
           id: eachData.id.toString(),
@@ -162,12 +266,17 @@ const Product = () => {
           stock_available: eachData.stock_available,
         }
 
-        await addToCart(cartItem)
-        setIsSuccessModalVisible(true)
-
-        console.log("Item added to cart successfully:", cartItem.title)
+        const result = await addToCart(cartItem)
+        
+        if (result.success) {
+          setIsSuccessModalVisible(true)
+          console.log("Item added to cart successfully:", cartItem.title)
+        } else {
+          Toast.show(result.message, { type: "warning" })
+        }
       } catch (error) {
         console.error("Error adding item to cart:", error)
+        Toast.show("Failed to add item to cart", { type: "error" })
       }
     }
   }
@@ -186,10 +295,11 @@ const Product = () => {
     <SafeAreaView className="bg-white flex-1">
       <LoadingOverlay visible={isUpdating} />
       
-      {/* Main Content with bottom padding to accommodate fixed buttons */}
-      <KeyboardAwareScrollView 
+      {/* Main Content - Using ScrollView instead of KeyboardAwareScrollView to avoid nesting issues */}
+      <ScrollView 
         className=""
         contentContainerStyle={{ paddingBottom: 100 }} // Add padding to prevent content from being hidden behind fixed buttons
+        showsVerticalScrollIndicator={false}
       >
         {isLoading || eachData === undefined ? (
           <ProductSkeleton />
@@ -200,14 +310,12 @@ const Product = () => {
                 style={{ width: "100%", height: "100%", objectFit: "cover" }}
                 source={{ uri: eachData?.product_images[0]?.image_url }}
               />
-
               <Pressable
                 onPress={() => router.back()}
                 className="absolute top-4 left-5 bg-white/80 p-2.5 rounded-full justify-center items-center flex"
               >
                 <MaterialIcons name="chevron-left" size={20} color={"black"} />
               </Pressable>
-
               <Pressable className="absolute top-4 right-5  bg-white/80 p-2.5 rounded-full justify-center items-center flex">
                 <MaterialIcons name="question-mark" size={20} color={"black"} />
               </Pressable>
@@ -223,9 +331,24 @@ const Product = () => {
               
               {/* Stock Badge */}
               {!isOwnProduct && (
-                <View className="bg-white/50 rounded-full p-2 px-3 right-3 bottom-3 absolute z-50">
-                  <Text className="text-sm" style={{ fontFamily: "HankenGrotesk_600SemiBold" }}>
-                    {eachData?.stock_available}
+                <View className={`rounded-full p-2 px-3 right-3 bottom-3 absolute z-50 ${
+                  isOutOfStock
+                    ? 'bg-red-500'
+                    : isAtStockLimit
+                     ? 'bg-gray-500'
+                     : isLowStock
+                        ? 'bg-yellow-500'
+                        : 'bg-white'
+                }`}>
+                  <Text className={`text-sm ${
+                    isOutOfStock || isLowStock || isAtStockLimit ? 'text-white' : 'text-black'
+                  }`} style={{ fontFamily: "HankenGrotesk_600SemiBold" }}>
+                    {isOutOfStock
+                      ? 'Out of Stock'
+                      : isAtStockLimit
+                        ? 'Max in Cart'
+                       : `${remainingStock} left`
+                    }
                   </Text>
                 </View>
               )}
@@ -262,15 +385,14 @@ const Product = () => {
                     )
                   }
                 </View>
-
-              {eachData?.verified  === true ? 
-                <View className="bg-blue-100 flex-row justify-center gap-1 items-center p-1.5 px-2 my-2 rounded-full">
+              {eachData?.verified  === true ?
+                 <View className="bg-blue-100 flex-row justify-center gap-1 items-center p-1.5 px-2 my-2 rounded-full">
                   <MaterialIcons name="verified" size={15} color={"#4285F4"} />
                   <Text className="text-[#4285F4] text-sm" style={{ fontFamily: "HankenGrotesk_400Regular" }}>
                      Verified
                   </Text>
-                </View>: 
-                <View className="bg-red-50 flex-row justify-center gap-1 items-center p-1.5 px-2 my-2 rounded-full">
+                </View>:
+                 <View className="bg-red-50 flex-row justify-center gap-1 items-center p-1.5 px-2 my-2 rounded-full">
                     <MaterialIcons name="sentiment-very-dissatisfied" size={15} color={"red"} />
                     <Text className="text-red-600 text-sm" style={{ fontFamily: "HankenGrotesk_400Regular" }}>
                       Unverified
@@ -285,20 +407,76 @@ const Product = () => {
                 </Text>
                 <View className="flex-row justify-between">
                   <View className="flex-row items-center gap-3">
-                    <Text className="text-base pt-2" style={{ fontFamily: "HankenGrotesk_500Medium" }}>
+                    <Text className={`text-lg pt-2 ${isOutOfStock ? 'text-gray-500' : ''}`} style={{ fontFamily: "HankenGrotesk_500Medium" }}>
                       ₦ {eachData?.original_price.toLocaleString()}
                     </Text>
                     <Text
-                      className="text-base pt-2 italic line-through text-neutral-500"
+                      className={`text-lg pt-2 italic line-through text-neutral-500 ${isOutOfStock ? 'text-gray-400' : ''}`}
                       style={{ fontFamily: "HankenGrotesk_500Medium" }}
                     >
                       ₦ {eachData?.discounted_price.toLocaleString()}
                     </Text>
                   </View>
-
                   <Pressable className="bg-neutral-100 p-2 rounded-full flex justify-center items-center">
                     <Ionicons name="share-outline" size={20} />
                   </Pressable>
+                </View>
+
+                <View className="pt-2">
+                  {isOutOfStock ? (
+                    <View className="bg-red-50 border border-red-200 rounded-lg p-3 mb-3">
+                      <View className="flex-row items-center">
+                        <MaterialIcons name="error" size={20} color="#DC2626" />
+                        <Text className="text-red-600 text-sm ml-2 font-semibold" style={{ fontFamily: "HankenGrotesk_600SemiBold" }}>
+                          Out of Stock
+                        </Text>
+                      </View>
+                      <Text className="text-red-500 text-sm mt-1" style={{ fontFamily: "HankenGrotesk_400Regular" }}>
+                        This product is currently unavailable
+                      </Text>
+                    </View>
+                  ) : isAtStockLimit ? (
+                    <View className="bg-gray-50 border border-gray-200 rounded-lg p-3 mb-3">
+                      <View className="flex-row items-center">
+                        <MaterialIcons name="info" size={20} color="#6B7280" />
+                        <Text className="text-gray-600 text-sm ml-2 font-semibold" style={{ fontFamily: "HankenGrotesk_600SemiBold" }}>
+                          Maximum quantity reached
+                        </Text>
+                      </View>
+                      <Text className="text-gray-500 text-sm mt-1" style={{ fontFamily: "HankenGrotesk_400Regular" }}>
+                        You have {currentQuantityInCart} of {eachData?.stock_available} available items in your cart
+                      </Text>
+                    </View>
+                  ) : isLowStock ? (
+                    <View className="bg-red-50 border border-red-200 rounded-lg p-3 mb-5">
+                      <View className="flex-row items-center">
+                        <Ionicons name="alarm" size={20} color="#D97706" />
+                        <Text className="text-red-800 text-sm ml-2 font-semibold" style={{ fontFamily: "HankenGrotesk_600SemiBold" }}>
+                          Low Stock - Only {remainingStock} more can be added!
+                        </Text>
+                      </View>
+                      <Text className="text-yellow-600 text-sm mt-1" style={{ fontFamily: "HankenGrotesk_400Regular" }}>
+                        {currentQuantityInCart > 0
+                          ? `You have ${currentQuantityInCart} in cart. ${remainingStock} more available.`
+                         : "Hurry, grab it before it's gone!"
+                        }
+                      </Text>
+                    </View>
+                  ) : (
+                    <View className="bg-green-50 border border-green-200 rounded-lg p-3 mb-3">
+                      <View className="flex-row items-center">
+                        <MaterialIcons name="check-circle" size={20} color="#059669" />
+                        <Text className="text-green-700 text-sm ml-2 font-semibold" style={{ fontFamily: "HankenGrotesk_600SemiBold" }}>
+                          In Stock ({remainingStock} more can be added)
+                        </Text>
+                      </View>
+                      {currentQuantityInCart > 0 && (
+                        <Text className="text-green-600 text-sm mt-1" style={{ fontFamily: "HankenGrotesk_400Regular" }}>
+                          You currently have {currentQuantityInCart} in your cart
+                        </Text>
+                      )}
+                    </View>
+                  )}
                 </View>
 
                 <View className="flex-row gap-3 border-b border-neutral-200 pb-3">
@@ -314,44 +492,42 @@ const Product = () => {
                 </View>
 
                 {/* Watch Product Video Button */}
-                  {eachData?.video_url && (
+                {eachData?.video_url && (
+                  <Pressable
+                    onPress={openVideoModal}
+                    className="bg-[#FEEEE6] p-3 rounded-full mt-3 flex-row items-center justify-center gap-2"
+                  >
+                    <Ionicons name="play-circle" size={24} color="#A53F0E" />
+                    <Text className="text-[#A53F0E] text-sm" style={{ fontFamily: "HankenGrotesk_600SemiBold" }}>
+                      Watch Product Video
+                    </Text>
+                  </Pressable>
+                )}
+              </View>
+
+              {/* Updated Image Gallery Section */}
+              <View className="py-4">
+                <View className="flex-row flex-wrap gap-2">
+                  {eachData?.product_images?.map((singleData: any, index: number) => (
                     <Pressable
-                      onPress={openVideoModal}
-                      className="bg-[#F75F15] p-3 rounded-full mt-3 flex-row items-center justify-center gap-2"
+                      key={index}
+                      onPress={() => openImagePreview(index)}
+                      style={{
+                        width: (screenWidth - 50) / 3 - 5,
+                        height: 100,
+                        marginBottom: 8,
+                      }}
+                      className="overflow-hidden rounded-md bg-gray-50 border border-gray-100"
                     >
-                      <Ionicons name="play-circle" size={24} color="white" />
-                      <Text className="text-white text-sm" style={{ fontFamily: "HankenGrotesk_600SemiBold" }}>
-                        Watch Product Video
-                      </Text>
+                      <Image
+                        source={{ uri: singleData?.image_url }}
+                        style={{ width: "100%", height: "100%" }}
+                        resizeMode="cover"
+                      />
                     </Pressable>
-                  )}
+                  ))}
                 </View>
-
-                {/* Updated Image Gallery Section */}
-                <View className="py-4">
-                  <View className="flex-row flex-wrap gap-2">
-                    {eachData?.product_images?.map((singleData: any, index: number) => (
-                      <Pressable
-                        key={index}
-                        onPress={() => openImagePreview(index)}
-                        style={{
-                          width: (screenWidth - 50) / 3 - 5,
-                          height: 100,
-                          marginBottom: 8,
-                        }}
-                        className="overflow-hidden rounded-md bg-gray-50 border border-gray-100"
-                      >
-                        <Image
-                          source={{ uri: singleData?.image_url }}
-                          style={{ width: "100%", height: "100%" }}
-                          resizeMode="cover"
-                        />
-                      </Pressable>
-                    ))}
-                  </View>
-
-                  
-
+                
                 {/* Image Preview Modal */}
                 <Modal
                   visible={isImagePreviewVisible}
@@ -370,7 +546,6 @@ const Product = () => {
                             <Ionicons name="close" size={20} color="white" />
                           </Pressable>
                         </View>
-
                         <FlatList
                           data={eachData?.product_images}
                           renderItem={renderImageItem}
@@ -399,9 +574,8 @@ const Product = () => {
                       Seller's delivery starts within 1–2 working days for out-of-state orders.
                     </Text>
                   </View>
-
-                  <View className="pt-5">
-                    <Text className="text-base" style={{ fontFamily: "HankenGrotesk_600SemiBold" }}>
+                  <View className="">
+                    {/* <Text className="text-base" style={{ fontFamily: "HankenGrotesk_600SemiBold" }}>
                       Color Variation
                     </Text>
                     <View className="flex-row gap-3 items-center">
@@ -416,20 +590,18 @@ const Product = () => {
                           )}
                         </View>
                       ))}
-                    </View>
-
+                    </View> */}
                     <View className="pt-5 pb-3 border-b border-neutral-200">
-                      <Text className="text-base" style={{ fontFamily: "HankenGrotesk_600SemiBold" }}>
+                      <Text className="text-base font-bold" style={{ fontFamily: "HankenGrotesk_600SemiBold" }}>
                         Description
                       </Text>
                       <Text className="text-sm pt-2" style={{ fontFamily: "HankenGrotesk_400Regular" }}>
                         {eachData?.description}
                       </Text>
                     </View>
-
                     <View className="pt-5 border-b border-gray-200 pb-5 flex-col gap-2">
                       <View className="flex-row items-center gap-2">
-                        <Text className="text-sm " style={{ fontFamily: "HankenGrotesk_500Medium" }}>
+                        <Text className="text-base " style={{ fontFamily: "HankenGrotesk_500Medium" }}>
                           Pickup Available
                         </Text>
                         {eachData?.pickup_available === true ? (
@@ -438,9 +610,8 @@ const Product = () => {
                           <Ionicons name="close-circle" size={20} color={"red"} />
                         )}
                       </View>
-
                       <View className="flex-row items-center gap-2">
-                        <Text className="text-sm " style={{ fontFamily: "HankenGrotesk_500Medium" }}>
+                        <Text className="text-base " style={{ fontFamily: "HankenGrotesk_500Medium" }}>
                           Delivery Available
                         </Text>
                         {eachData?.delivery_available === true ? (
@@ -450,15 +621,13 @@ const Product = () => {
                         )}
                       </View>
                     </View>
-
                     <View className="bg-[#FEEEE6] p-3 rounded-md mt-3">
                       <Text className="text-sm text-[#A53F0E]" style={{ fontFamily: "HankenGrotesk_600SemiBold" }}>
                         Pay with wallet or card in MovBay—fast, safe, and fully protected!
                       </Text>
                     </View>
-
-                    <View className="flex-row items-center justify-between pt-5 pb-3 border-b border-neutral-200">
-                      <View className="flex-row gap-4 items-center">
+                    <View className="flex-row items-center justify-between pt-5 pb-4 border-b border-neutral-200">
+                      <Pressable  className="flex-row gap-4 items-center">
                         <View className="w-10 h-10 overflow-hidden rounded-full bg-gray-300 justify-center items-center flex">
                           <Image
                             source={{ uri: eachData?.store.store_image }}
@@ -481,48 +650,114 @@ const Product = () => {
                             <MaterialIcons name="star" size={15} color={"#FBBC05"} />
                           </View>
                         </View>
-                      </View>
-
+                      </Pressable>
                       {!isOwnProduct && (
-                        <Pressable className="bg-[#FEEEE6] p-3 rounded-full px-6">
-                          <Text style={{ fontFamily: "HankenGrotesk_500Medium" }} className="text-sm text-[#A53F0E]">
-                            Follow
-                          </Text>
-                        </Pressable>
+                        <View className="flex-row gap-1">
+                          <Pressable onPress={()=>router.push('/(access)/(user_stacks)/viewSellerStore')} className="bg-[#FEEEE6] p-3 rounded-full px-5">
+                            <Text style={{ fontFamily: "HankenGrotesk_500Medium" }} className="text-sm text-[#A53F0E]">
+                              View Store
+                            </Text>
+                          </Pressable>
+                          <Pressable
+                              className="bg-[#F75F15] p-3 rounded-full px-5">
+                            <Text style={{ fontFamily: "HankenGrotesk_500Medium" }} className="text-sm text-white">
+                              Follow
+                            </Text>
+                          </Pressable>
+                        </View>
                       )}
                     </View>
 
-                    <View className="pt-5">
-                      <Text className="text-sm" style={{ fontFamily: "HankenGrotesk_600SemiBold" }}>
+                    {/* Reviews Section */}
+                    <View className="" style={{ marginTop: 30 }}>
+                      <Text className="text-base font-bold " style={{ fontFamily: "HankenGrotesk_600SemiBold" }}>
                         Reviews
                       </Text>
+                      {reviews.length === 0 ? (
+                        <EmptyState
+                          title="No Reviews Yet"
+                          description="Be the first to review this product!"
+                          icon="message"
+                        />
+                      ): (
 
                       <View>
-                        {product?.reviews?.map((review, index) => (
-                          <View key={index} className="pt-3 pb-3 border-b border-neutral-200">
+                        {reviews?.map((review:any, index:any) => (
+                          <View key={index} className="mt-3 pt-5  border-t border-neutral-200">
                             <View className="flex-row justify-between ">
-                              <View>
-                                <Text style={{ fontFamily: "HankenGrotesk_500Medium" }} className="text-sm">
-                                  {review?.username}
-                                </Text>
-                                <View className="flex-row">
-                                  <MaterialIcons name="star" size={15} color={"#FBBC05"} />
-                                  <MaterialIcons name="star" size={15} color={"#FBBC05"} />
-                                  <MaterialIcons name="star" size={15} color={"#FBBC05"} />
-                                  <MaterialIcons name="star" size={15} color={"#FBBC05"} />
+                              <View className="flex-row gap-2 items-center">
+                                <View className="w-10 h-10 overflow-hidden rounded-full bg-neutral-200 justify-center items-center flex">
+                                  <Text style={{ fontFamily: "HankenGrotesk_600SemiBold" }} className="text-lg text-black">
+                                    {review?.user?.fullname.slice(0, 1).toUpperCase()}
+                                  </Text>
+                                </View>
+                                <View>
+                                  <Text style={{ fontFamily: "HankenGrotesk_500Medium" }} className="text-sm text-black">
+                                    @{review?.user?.username.toLowerCase()}
+                                  </Text>
+
+                                  {review?.rating === '1Star' && (
+                                    <View className="flex-row">
+                                      <MaterialIcons name="star" size={15} color={"#FBBC05"} />
+                                      <MaterialIcons name="star-outline" size={15} color={"#FBBC05"} />
+                                      <MaterialIcons name="star-outline" size={15} color={"#FBBC05"} />
+                                      <MaterialIcons name="star-outline" size={15} color={"#FBBC05"} />
+                                      <MaterialIcons name="star-outline" size={15} color={"#FBBC05"} />
+                                    </View>
+                                  )}
+
+                                  {review?.rating === '2Star' && (
+                                    <View className="flex-row">
+                                      <MaterialIcons name="star" size={15} color={"#FBBC05"} />
+                                      <MaterialIcons name="star" size={15} color={"#FBBC05"} />
+                                      <MaterialIcons name="star" size={15} color={"#FBBC05"} />
+                                      <MaterialIcons name="star" size={15} color={"#FBBC05"} />
+                                      <MaterialIcons name="star-outline" size={15} color={"#FBBC05"} />
+                                    </View>
+                                  )}
+
+                                  {review?.rating === '3Star' && (
+                                    <View className="flex-row">
+                                      <MaterialIcons name="star" size={15} color={"#FBBC05"} />
+                                      <MaterialIcons name="star" size={15} color={"#FBBC05"} />
+                                      <MaterialIcons name="star" size={15} color={"#FBBC05"} />
+                                      <MaterialIcons name="star" size={15} color={"#FBBC05"} />
+                                      <MaterialIcons name="star-outline" size={15} color={"#FBBC05"} />
+                                    </View>
+                                  )}
+
+                                  {review?.rating === '4Star' && (
+                                    <View className="flex-row">
+                                      <MaterialIcons name="star" size={15} color={"#FBBC05"} />
+                                      <MaterialIcons name="star" size={15} color={"#FBBC05"} />
+                                      <MaterialIcons name="star" size={15} color={"#FBBC05"} />
+                                      <MaterialIcons name="star" size={15} color={"#FBBC05"} />
+                                      <MaterialIcons name="star-outline" size={15} color={"#FBBC05"} />
+                                    </View>
+                                  )}
+
+                                  {review?.rating === '5Star' && (
+                                    <View className="flex-row">
+                                      <MaterialIcons name="star" size={15} color={"#FBBC05"} />
+                                      <MaterialIcons name="star" size={15} color={"#FBBC05"} />
+                                      <MaterialIcons name="star" size={15} color={"#FBBC05"} />
+                                      <MaterialIcons name="star" size={15} color={"#FBBC05"} />
+                                      <MaterialIcons name="star" size={15} color={"#FBBC05"} />
+                                    </View>
+                                  )}
                                 </View>
                               </View>
-
                               <Text style={{ fontFamily: "HankenGrotesk_500Medium" }} className="text-sm">
-                                {review.date}
+                                10th June, 2025
                               </Text>
                             </View>
-                            <Text style={{ fontFamily: "HankenGrotesk_500Medium" }} className="text-sm pt-3">
-                              {review.review}
+                            <Text style={{ fontFamily: "HankenGrotesk_500Medium" }} className="text-sm pt-3 text-black">
+                              {review.comment}
                             </Text>
                           </View>
                         ))}
                       </View>
+                      )}
                     </View>
                   </View>
                 </View>
@@ -530,32 +765,61 @@ const Product = () => {
             </View>
           </View>
         )}
-      </KeyboardAwareScrollView>
+
+
+        <View className="px-5">
+          {/* Horizontal Product Lists - No longer nested in ScrollView */}
+          <HorizontalProductList
+            data={userRelatedProductData?.data?.more_from_seller}
+            title="More From this Seller"
+            isLoading={isLoading}
+            emptyTitle="No More Products"
+            emptyDescription="This seller doesn't have any other products available at the moment."
+          />
+
+          <HorizontalProductList
+            data={userRelatedProductData?.data?.related_products}
+            title="Related Products"
+            isLoading={isLoading}
+            emptyTitle="No Related Products"
+            emptyDescription="We couldn't find any related products for this item."
+          />
+        </View>
+      </ScrollView>
 
       {/* Fixed Action Buttons at Bottom */}
       {!isLoading && eachData && (
         <View style={styles.fixedBottomContainer} className="bg-neutral-50">
-          {isOwnProduct ? (
-            // Show options for own product
-            <View className="flex-row gap-3 justify-center">
-              <View className="w-[48%]">
-                <SolidLightButton text="Edit Product" onPress={() => router.push(`/(access)/(user_tabs)/(drawer)/products`)} />
-              </View>
-              <View className="w-[48%]">
-                <SolidMainButton text="Back to Shop" onPress={handleBackToShop} />
-              </View>
-            </View>
-          ) : (
-            // Show options for other products
+          {!isOwnProduct && (
             <View className="flex-row gap-3 justify-center">
               <View className="w-[48%]">
                 <SolidLightButton text="Chat" />
               </View>
               <View className="w-[48%]">
-                <SolidMainButton
-                  text="Add to Cart"
-                  onPress={handleAddToCart}
-                />
+                {isOutOfStock ? (
+                  <Pressable className="bg-[#F75F15] p-4 rounded-full justify-center items-center" style={{opacity: 0.6}} disabled>
+                    <Text className="text-white text-center font-semibold" style={{ fontFamily: "HankenGrotesk_600SemiBold" }}>
+                      Out of Stock
+                    </Text>
+                  </Pressable>
+                ) : isAtStockLimit ? (
+                  <Pressable className="bg-[#F75F15] p-4 rounded-full justify-center items-center" style={{opacity: 0.6}} disabled>
+                    <Text className="text-white text-center font-semibold" style={{ fontFamily: "HankenGrotesk_600SemiBold" }}>
+                      Max Quantity Reached
+                    </Text>
+                  </Pressable>
+                ) : (
+                  <SolidMainButton
+                    text={
+                      remainingStock <= 3 && remainingStock > 0
+                        ? `Add to Cart (${remainingStock} left)`
+                        : currentQuantityInCart > 0
+                         ? `Add Another (${remainingStock} left)`
+                         : "Add to Cart"
+                    }
+                    onPress={handleAddToCart}
+                  />
+                )}
               </View>
             </View>
           )}
@@ -564,7 +828,6 @@ const Product = () => {
 
       {/* Success Modal */}
       <CustomSuccessModal visible={isSuccessModalVisible} onClose={() => setIsSuccessModalVisible(false)} />
-
       {/* Video Modal */}
       <VideoModal visible={isVideoModalVisible} onClose={closeVideoModal} videoUrl={eachData?.video_url} />
     </SafeAreaView>

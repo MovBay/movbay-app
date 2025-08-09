@@ -19,7 +19,7 @@ interface ProductsProps {
   stock_available?: number
 }
 
-const Products = memo(
+const RelatedProducts = memo(
   ({
     id,
     title,
@@ -111,13 +111,13 @@ const Products = memo(
     const isInFavorites = isItemInFavorites(id)
 
     return (
-      <View className="w-[50%] mb-4">
+      <View className="mb-4" style={{ width: "95%" }}>
         <Pressable onPress={() => handleViewProduct(id)}>
-          <Animated.View className="w-full relative" entering={FadeInDown.duration(200).delay(100).springify()}>
-            <View className="w-full h-48 bg-slate-200 rounded-3xl relative">
+          <Animated.View className="w-full relative">
+            <View className="w-full bg-slate-200 rounded-xl relative" style={{height: 100}}>
               <Image
                 source={{ uri: product_images[0]?.image_url }}
-                style={{ width: "100%", height: "100%", objectFit: "cover", borderRadius: 16 }}
+                style={{ width: "100%", height: "100%", objectFit: "cover", borderRadius: 12 }}
               />
               
               {/* Stock Status Badge */}
@@ -130,7 +130,7 @@ const Products = memo(
               ) : (
                 /* Cart Button */
                 <Pressable
-                  className={`absolute bottom-2 right-2 p-3 flex justify-center items-center rounded-full ${
+                  className={`absolute bottom-2 right-2 p-2 flex justify-center items-center rounded-full ${
                     isAtStockLimit 
                       ? 'bg-gray-300 opacity-50' 
                       : 'bg-[#FEEEE6]'
@@ -140,7 +140,7 @@ const Products = memo(
                 >
                   <Ionicons 
                     name="cart-outline" 
-                    size={20} 
+                    size={15} 
                     color={isAtStockLimit ? "#9CA3AF" : "#F75F15"} 
                   />
                 </Pressable>
@@ -166,29 +166,29 @@ const Products = memo(
             </View>
 
             <View className="bg-blue-100 flex-row justify-center w-[80%] gap-2 items-center p-1.5 my-2 rounded-full">
-              <MaterialIcons name="verified" size={15} color={"#4285F4"} />
-              <Text className="text-[#4285F4] text-sm" style={{ fontFamily: "HankenGrotesk_500Medium" }}>
+              <MaterialIcons name="verified" size={12} color={"#4285F4"} />
+              <Text className="text-[#4285F4] text-xs" style={{ fontFamily: "HankenGrotesk_500Medium", fontSize: 8 }}>
                 Verified Seller
               </Text>
             </View>
             
             <View>
               <View>
-                {title.length > 35 ? (
+                {title.length > 15 ? (
                   <Text className={`text-sm ${isOutOfStock ? 'text-gray-500' : ''}`} style={{ fontFamily: "HankenGrotesk_500Medium" }}>
-                    {title.slice(0, 35)}...
+                    {title.slice(0, 15)}...
                   </Text>
                 ) : (
                   <Text className={`text-sm ${isOutOfStock ? 'text-gray-500' : ''}`} style={{ fontFamily: "HankenGrotesk_500Medium" }}>
                     {title}
                   </Text>
                 )}
-                <View className="flex-row items-center gap-3">
-                  <Text className={`text-base pt-2 ${isOutOfStock ? 'text-gray-500' : ''}`} style={{ fontFamily: "HankenGrotesk_600SemiBold" }}>
+                <View className="flex-row items-center gap-1">
+                  <Text className={`text-sm pt-2 ${isOutOfStock ? 'text-gray-500' : ''}`} style={{ fontFamily: "HankenGrotesk_600SemiBold" }}>
                     ₦ {original_price.toLocaleString()}
                   </Text>
                   <Text
-                    className={`text-sm pt-2 italic line-through text-neutral-500 ${isOutOfStock ? 'text-gray-400' : ''}`}
+                    className={`text-xs pt-2 italic line-through text-neutral-500 ${isOutOfStock ? 'text-gray-400' : ''}`}
                     style={{ fontFamily: "HankenGrotesk_500Medium" }}
                   >
                     ₦ {discounted_price.toLocaleString()}
@@ -199,10 +199,10 @@ const Products = memo(
 
             {/* Favorite Button */}
             <Pressable
-              className="absolute top-2 left-2 p-3 flex justify-center items-center rounded-full bg-[#FEEEE6]"
+              className="absolute top-2 left-2 p-2 flex justify-center items-center rounded-full bg-[#FEEEE6]"
               onPress={handleToggleFavorite}
             >
-              <MaterialIcons name={isInFavorites ? "favorite" : "favorite-outline"} size={20} color={"#F75F15"} />
+              <MaterialIcons name={isInFavorites ? "favorite" : "favorite-outline"} size={15} color={"#F75F15"} />
             </Pressable>
           </Animated.View>
         </Pressable>
@@ -211,6 +211,6 @@ const Products = memo(
   },
 )
 
-Products.displayName = "Products"
+RelatedProducts.displayName = "RelatedProducts"
 
-export default Products
+export default RelatedProducts

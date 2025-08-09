@@ -1,5 +1,3 @@
-"use client"
-
 import AllProductSkeleton2 from "@/components/AllProductSkeleton2"
 import Products from "@/components/Products"
 import { shopCategory } from "@/constants/datas"
@@ -19,8 +17,16 @@ import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context"
 
 export default function HomeScreen() {
   const { profile, isLoading, refetch: refetchProfile } = useProfile()
-  const { productData, isLoading: productLoading, refetch: refetchProducts } = useGetProducts()
+  const { 
+    productData, 
+    isLoading: productLoading, 
+    refetch: refetchProducts,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+  } = useGetProducts()
   const { storeStatusData, isLoading: storeStatusLoading, refetch: storeRefetch } = useGetStoreStatus()
+  
   const allProducts = productData?.data?.results
   const { cartLength, cartItems, isUpdating } = useCart()
   const { favoritesLength, isUpdating: favoritesUpdating } = useFavorites()
@@ -29,6 +35,7 @@ export default function HomeScreen() {
   const [searchQuery, setSearchQuery] = useState("")
   const [hasInitiallyLoaded, setHasInitiallyLoaded] = useState(false)
   const searchInputRef = useRef<TextInput>(null)
+
   const ItemSeparator = () => <View style={{ height: 15 }} />
   const insets = useSafeAreaInsets()
 
@@ -94,6 +101,18 @@ export default function HomeScreen() {
       }
     }
 
+    // Sort products: in-stock items first, then out-of-stock
+    filtered.sort((a: any, b: any) => {
+      const aInStock = a.stock_available > 0
+      const bInStock = b.stock_available > 0
+      
+      if (aInStock && !bInStock) return -1  // a comes first
+      if (!aInStock && bInStock) return 1   // b comes first
+      
+      // If both are in stock or both out of stock, maintain original order
+      return 0
+    })
+
     return filtered
   }, [allProducts, searchQuery, activeCategoryId])
 
@@ -113,6 +132,24 @@ export default function HomeScreen() {
   const handleViewStatus = (id: string) => {
     router.push(`/user_status_view/${id}` as any)
   }
+
+  // Handle loading more products
+  const handleLoadMore = useCallback(() => {
+    if (hasNextPage && !isFetchingNextPage && searchQuery.trim() === "") {
+      fetchNextPage()
+    }
+  }, [hasNextPage, isFetchingNextPage, fetchNextPage, searchQuery])
+
+  // Footer component for loading indicator
+  const renderFooter = useCallback(() => {
+    if (!isFetchingNextPage) return null
+    
+    return (
+      <View className="bg-white rounded-lg w-8 h-8 flex shadow-md shadow-slate-700 elevation-md items-center justify-center m-auto mb-20 mt-10">
+        <ActivityIndicator size="small" color="#F75F15" />
+      </View>
+    )
+  }, [isFetchingNextPage])
 
   const MemoizedFixedHeader = useMemo(
     () => (
@@ -163,7 +200,6 @@ export default function HomeScreen() {
                 </Text>
               </View>
             </Pressable>
-
             {/* Favorites */}
             <Pressable
               className="bg-neutral-100 w-fit flex justify-center relative items-center rounded-full p-2.5"
@@ -180,7 +216,6 @@ export default function HomeScreen() {
                 )}
               </View>
             </Pressable>
-
             {/* Cart */}
             <Pressable
               className="bg-neutral-100 w-fit flex justify-center relative items-center rounded-full p-2.5"
@@ -230,7 +265,7 @@ export default function HomeScreen() {
               <Ionicons name="search" size={20} color={"gray"} />
             </View>
           </View>
-          <Pressable className="bg-[#F6F6F6] justify-center items-center flex-col rounded-full p-3.5">
+          <Pressable onPress={()=>router.push('/(access)/(user_stacks)/filterOptions')} className="bg-[#F6F6F6] justify-center items-center flex-col rounded-full p-3.5">
             <Ionicons name="filter" size={20} color={"gray"} />
           </Pressable>
         </View>
@@ -248,7 +283,6 @@ export default function HomeScreen() {
 
   const ContentHeader = useCallback(() => {
     if (searchQuery.length > 0) return null
-
     return (
       <View className="px-6 bg-white">
         <View className="pt-1">
@@ -333,7 +367,6 @@ export default function HomeScreen() {
             </>
           )}
         </View>
-
         {/* Shop Categories - Horizontal FlatList */}
         <View className="pt-5 pb-5">
           <FlatList
@@ -347,7 +380,6 @@ export default function HomeScreen() {
               const animationProps = !hasInitiallyLoaded
                 ? { entering: FadeInDown.duration(500).delay(200).springify() }
                 : {}
-
               return (
                 <AnimationWrapper {...animationProps}>
                   <Pressable
@@ -385,6 +417,8 @@ export default function HomeScreen() {
         product_images={item.product_images}
         description={item.description}
         discounted_price={item.discounted_price}
+        stock_available={item.stock_available}
+        store={item.store}
       />
     ),
     [],
@@ -442,17 +476,20 @@ export default function HomeScreen() {
           data={filteredProducts}
           keyExtractor={(item) => `product-${item.id}`}
           numColumns={2}
-          columnWrapperStyle={{ justifyContent: "center", gap: 10, paddingHorizontal: 18 }}
+          columnWrapperStyle={{ justifyContent: "space-between", gap: 10, paddingHorizontal: 18 }}
           ListHeaderComponent={ContentHeader}
           renderItem={renderProduct}
           ItemSeparatorComponent={ItemSeparator}
           ListEmptyComponent={EmptyComponent}
+          ListFooterComponent={renderFooter}
           keyboardShouldPersistTaps="handled"
           removeClippedSubviews={false}
           maxToRenderPerBatch={10}
           updateCellsBatchingPeriod={50}
           initialNumToRender={10}
           windowSize={10}
+          onEndReached={handleLoadMore}
+          onEndReachedThreshold={0.5}
         />
       )}
     </SafeAreaView>

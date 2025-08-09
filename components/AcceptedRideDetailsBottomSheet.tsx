@@ -34,7 +34,7 @@ const AcceptedRideDetailsBottomSheet: React.FC<AcceptedRideDetailsBottomSheetPro
   const { mutate: markForPickup, isPending: isPickupPending } = usePickedUp(ride?.order?.order_id)
   const { mutate: markAsDelivered, isPending: isDeliveryPending } = useDelivered(ride?.order?.order_id)
 
-  console.log('order id', ride?.order?.order_id)
+  // console.log('order id', ride?.order?.order_id)
 
   // Memoize computed values
   const orderStatus = useMemo(() => ride?.out_for_delivery, [ride?.out_for_delivery])
@@ -149,59 +149,123 @@ const AcceptedRideDetailsBottomSheet: React.FC<AcceptedRideDetailsBottomSheetPro
     }
   }, [ride, getCoordinatesFromAddress, markForPickup, toast, onMarkForPickup, onClose, isCompleted, onRefetchMyRide])
 
-  const handleMarkAsDelivered = useCallback(async () => {
-    try {
-      if (isCompleted) {
-        toast.show("This ride is already completed", { type: "info" })
-        return
-      }
-
-      // Get the full drop-off address for delivered status
-      const deliveryAddress = ride?.order?.delivery?.delivery_address
-      const city = ride?.order?.delivery?.city
-      const state = ride?.order?.delivery?.state
-      
-      if (!deliveryAddress || !city || !state) {
-        toast.show("Incomplete delivery address information", { type: "warning" })
-        return
-      }
-
-      const fullAddress = `${deliveryAddress}, ${city}, ${state}`
-      const coordinates = await getCoordinatesFromAddress(fullAddress)
-      
-      markAsDelivered(
-        {
-          dropoff_latitude: coordinates.latitude,
-          dropoff_longitude: coordinates.longitude,
-          address: fullAddress
-        },
-        {
-          onSuccess: async (data) => {
-            toast.show("Order marked as delivered! Please verify with recipient.", { type: "success" })
-            
-            // Refetch my ride data to update the UI
-            onRefetchMyRide()
-            onClose()
-            
-            // Navigate to delivery code verification screen
-            router.push({
-              pathname: '/(access)/(rider_stacks)/deliveryCode',
-              params: { orderId: ride?.order?.order_id }
-            })
-          },
-          onError: (error: any) => {
-            console.error("Delivery request failed:", error)
-            const errorMessage = `Failed to mark as delivered: ${error.message || "Unknown error"}`
-            toast.show(errorMessage, { type: "danger" })
-          },
-        }
-      )
-    } catch (error: any) {
-      console.error("Error marking as delivered:", error)
-      const errorMessage = `Error marking as delivered: ${error.message || "Unknown error"}`
-      toast.show(errorMessage, { type: "danger" })
+const handleMarkAsDelivered = useCallback(async () => {
+  try {
+    console.log("🚚 Starting mark as delivered process...")
+    console.log("🚚 Ride data:", ride)
+    
+    if (isCompleted) {
+      toast.show("This ride is already completed", { type: "info" })
+      return
     }
-  }, [ride, getCoordinatesFromAddress, markAsDelivered, toast, onRefetchMyRide, onClose, isCompleted, router])
+
+    // Validate order ID first
+    const orderId = ride?.order?.order_id
+    if (!orderId) {
+      console.error("🚚 Order ID not found in ride data")
+      toast.show("Order ID not found. Cannot mark as delivered.", { type: "danger" })
+      return
+    }
+
+    console.log("🚚 Order ID:", orderId)
+
+    // Get the full drop-off address for delivered status
+    const deliveryAddress = ride?.order?.delivery?.delivery_address
+    const city = ride?.order?.delivery?.city
+    const state = ride?.order?.delivery?.state
+    
+    if (!deliveryAddress || !city || !state) {
+      console.error("🚚 Incomplete delivery address:", { deliveryAddress, city, state })
+      toast.show("Incomplete delivery address information", { type: "warning" })
+      return
+    }
+
+    const fullAddress = `${deliveryAddress}, ${city}, ${state}`
+    console.log("🚚 Full delivery address:", fullAddress)
+    
+    // Get coordinates
+    const coordinates = await getCoordinatesFromAddress(fullAddress)
+    console.log("🚚 Delivery coordinates:", coordinates)
+    
+    // Prepare payload - try different formats that your API might expect
+    const payloadOptions = [
+      // Option 1: Current format
+      {
+        dropoff_latitude: coordinates.latitude,
+        dropoff_longitude: coordinates.longitude,
+        address: fullAddress
+      },
+      // Option 2: Alternative format
+      {
+        latitude: coordinates.latitude,
+        longitude: coordinates.longitude,
+        delivery_address: fullAddress,
+        status: "delivered"
+      },
+      // Option 3: Minimal format
+      {
+        status: "delivered",
+        location: {
+          lat: coordinates.latitude,
+          lng: coordinates.longitude
+        }
+      }
+    ]
+
+    const payload = payloadOptions[0] // Start with current format
+    console.log("🚚 Sending payload:", payload)
+    
+    markAsDelivered(payload, {
+      onSuccess: async (data) => {
+        console.log("🚚 Delivery marked successfully:", data)
+        toast.show("Order marked as delivered! Please verify with recipient.", { type: "success" })
+        
+        // Refetch data to update UI
+        await onRefetchMyRide()
+        onClose()
+        
+        // Optional: Navigate to verification screen
+        router.push({
+          pathname: '/(access)/(rider_stacks)/deliveryCode',
+          params: { orderId: ride?.order?.order_id }
+        })
+      },
+      onError: (error: any) => {
+        console.error("🚚 Delivery request failed:", error)
+        
+        // More detailed error handling
+        let errorMessage = "Failed to mark as delivered"
+        
+        if (error?.response?.status === 404) {
+          errorMessage = "Delivery endpoint not found. Please contact support."
+        } else if (error?.response?.status === 400) {
+          errorMessage = "Invalid request data. Please try again."
+        } else if (error?.response?.status === 401) {
+          errorMessage = "Authentication failed. Please login again."
+        } else if (error?.response?.status === 403) {
+          errorMessage = "You don't have permission to mark this order as delivered."
+        } else if (error?.response?.data?.message) {
+          errorMessage = error.response.data.message
+        } else if (error?.message) {
+          errorMessage = error.message
+        }
+        
+        toast.show(errorMessage, { type: "danger" })
+      },
+    })
+  } catch (error: any) {
+    console.error("🚚 Error in mark as delivered process:", error)
+    
+    let errorMessage = "Error processing delivery"
+    if (error?.message?.includes("Address not found")) {
+      errorMessage = "Could not find delivery location. Please check the address."
+    } else if (error?.message) {
+      errorMessage = error.message
+    }
+    
+    toast.show(errorMessage, { type: "danger" })
+  }
+}, [ride, getCoordinatesFromAddress, markAsDelivered, toast, onRefetchMyRide, onClose, isCompleted, router])
 
   const handleMainAction = useCallback(() => {
     if (isCompleted) return
@@ -213,7 +277,7 @@ const AcceptedRideDetailsBottomSheet: React.FC<AcceptedRideDetailsBottomSheetPro
     }
   }, [isCompleted, isOutForDelivery, handleMarkAsDelivered, handleMarkForPickup])
 
-  console.log('This is ride', ride)
+  // console.log('This is ride', ride)
 
   // Memoize store data to prevent unnecessary re-renders
   const storeData = useMemo(() => ({

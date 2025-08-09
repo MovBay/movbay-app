@@ -29,13 +29,13 @@ export const OnboardArrowHeader = ({onPressBtn}: ButtonProps)=>{
                     buttonStyle={{
                         backgroundColor: "#FEEEE6",
                         borderRadius: 100,
-                        width: 45,
-                        height: 45,
+                        width: 35,
+                        height: 35,
                     }}
                 >
                  <MaterialIcons
                     name={'chevron-left'}
-                    size={28}
+                    size={25}
                     color={"#F75F15"}
                 />
             </Button>

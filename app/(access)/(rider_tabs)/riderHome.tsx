@@ -722,8 +722,8 @@ const RiderHome = () => {
   const ridesData = getRides?.data
   const newRides = isOnline && Array.isArray(ridesData) ? ridesData.filter((ride: any) => ride?.accepted === false) : []
 
-    const rideData = myRidersRide?.data
-    console.log('This is ride data', rideData)
+    // const rideData = myRidersRide?.data
+    // console.log('This is ride data', rideData)
   // Check my ride status for button configuration
   const getAcceptedRideButtonConfig = () => {
     if (!myRidersRide?.data) return null
@@ -769,66 +769,73 @@ const RiderHome = () => {
   const isLoading = isInitializing || onlineCheckLoading || isKYCLoading || isRiderLoading || (!location && !isInitializing)
 
   return (
-    <SafeAreaView className="flex-1 bg-neutral-900">
-      <StatusBar style="light" />
+    <SafeAreaView className="flex-1 bg-white">
+      <StatusBar style="dark" />
       <LoadingOverlay visible={isLoading} />
       
       <View style={{ height: height * 0.6 }} className="relative">
         <View className="px-5 py-3 absolute bg-white rounded-xl top-2 left-4 right-4 z-10" 
         >
-          <View className="flex-row items-center">
-            <Pressable
-              onPress={() => router.push("/(access)/(rider_tabs)/riderProfile")}
-              className="flex w-9 h-9 mr-2 rounded-full bg-neutral-200 justify-center items-center overflow-hidden"
-            >
-              {profile?.data?.profile_picture === null ? (
-                <MaterialIcons name="person-4" size={25} color={"gray"} style={{padding: 3}}/>
+
+          {isLoading ? (
+            <View className="pt-4">
+              <ActivityIndicator size={"small"} color={"gray"} />
+            </View>
               ) : (
-                <Image
-                  source={{ uri: profile?.data?.profile_picture }}
-                  style={{ objectFit: "cover", width: "100%", height: "100%" }}
-                />
-              )}
-            </Pressable>
-            <View className="flex-1">
-              <View className="flex-row items-center">
-                <View>
-                  <Text
-                    style={{ fontFamily: "HankenGrotesk_500Medium" }}
-                    className="text-black font-semibold text-sm mr-2"
-                  >
-                    {profile?.data?.fullname}
-                  </Text>
-                  <Text
-                    style={{ fontFamily: "HankenGrotesk_500Medium", fontSize: 10 }}
-                    className="text-black font-semibold mr-2"
-                  >
-                    @{profile?.data?.username}
-                  </Text>
-                </View>
-                {isTracking && (
-                  <View className="ml-2 flex-row items-center">
-                    <View className="w-2 h-2 rounded-full bg-green-500 mr-1" />
-                    <Text style={{ fontFamily: "HankenGrotesk_500Medium" }} className="text-white text-xs">
-                      Tracking
+            <View className="flex-row items-center">
+              <Pressable
+                onPress={() => router.push("/(access)/(rider_tabs)/riderProfile")}
+                className="flex w-9 h-9 mr-2 rounded-full bg-neutral-200 justify-center items-center overflow-hidden"
+              >
+                {profile?.data?.profile_picture === null ? (
+                  <MaterialIcons name="person-4" size={25} color={"gray"} style={{padding: 3}}/>
+                ) : (
+                  <Image
+                    source={{ uri: profile?.data?.profile_picture }}
+                    style={{ objectFit: "cover", width: "100%", height: "100%" }}
+                  />
+                )}
+              </Pressable>
+              <View className="flex-1">
+                <View className="flex-row items-center">
+                  <View>
+                    <Text
+                      style={{ fontFamily: "HankenGrotesk_500Medium" }}
+                      className="text-black font-semibold text-sm mr-2"
+                    >
+                      {profile?.data?.fullname}
+                    </Text>
+                    <Text
+                      style={{ fontFamily: "HankenGrotesk_500Medium", fontSize: 10 }}
+                      className="text-black font-semibold mr-2"
+                    >
+                      @{profile?.data?.username}
                     </Text>
                   </View>
-                )}
+                  {isTracking && (
+                    <View className="ml-2 flex-row items-center">
+                      <View className="w-2 h-2 rounded-full bg-green-500 mr-1" />
+                      <Text style={{ fontFamily: "HankenGrotesk_500Medium" }} className="text-white text-xs">
+                        Tracking
+                      </Text>
+                    </View>
+                  )}
+                </View>
               </View>
-            </View>
-            <TouchableOpacity
-              className={`px-3 py-1 rounded-full border ${
-                isOnline === true ? "bg-green-50 border-green-200" : "bg-red-50 border-red-200"
-              }`}
-            >
-              <Text
-                style={{ fontFamily: "HankenGrotesk_500Medium" }}
-                className={`text-xs font-medium ${isOnline === true ? "text-green-700" : "text-red-700"}`}
+              <TouchableOpacity
+                className={`px-3 py-1 rounded-full border ${
+                  isOnline === true ? "bg-green-50 border-green-200" : "bg-red-50 border-red-200"
+                }`}
               >
-                {isOnline === true ? "Online" : "Offline"}
-              </Text>
-            </TouchableOpacity>
-          </View>
+                <Text
+                  style={{ fontFamily: "HankenGrotesk_500Medium" }}
+                  className={`text-xs font-medium ${isOnline === true ? "text-green-700" : "text-red-700"}`}
+                >
+                  {isOnline === true ? "Online" : "Offline"}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          )}
         </View>
 
         {isTracking && trackingInfo && (
@@ -888,7 +895,7 @@ const RiderHome = () => {
             provider={PROVIDER_GOOGLE}
             region={mapRegion}
             style={{ width: "100%", height: "120%" }}
-            customMapStyle={darkMapStyle}
+            // customMapStyle={darkMapStyle}
             showsUserLocation={true}
             showsMyLocationButton={true}
             followsUserLocation={true}

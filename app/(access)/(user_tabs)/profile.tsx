@@ -14,7 +14,8 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { Modal } from 'react-native';
 import { TouchableOpacity } from 'react-native';
 import { SolidLightButton, SolidMainButton } from '@/components/btns/CustomButtoms';
-
+import { useCart } from "@/context/cart-context"
+import { useFavorites } from '@/context/favorite-context';
 
 
 
@@ -22,6 +23,8 @@ const Profile = () => {
   const {mutate, isPending} = useLogout();
   const {profile, isLoading} = useProfile()
   const queryCLient = useQueryClient();
+  const {clearCart} = useCart()
+  const {clearFavorites} = useFavorites()
   
   const handleLogout = async () => {
     mutate();
@@ -30,8 +33,21 @@ const Profile = () => {
     await AsyncStorage.removeItem("movebay_token");
     await AsyncStorage.removeItem("movebay_usertype");
     await AsyncStorage.removeItem("movebay_onboarding");
+    await clearCart()
+    await clearFavorites()
     router.replace("/login");
   };
+
+    const [showDialog, setShowDialog] = useState(false);
+  
+    const handlePress = () => {
+      setShowDialog(true);
+    };
+  
+    const closeDialog = () => {
+      setShowDialog(false);
+    };
+  
 
   return (
     <SafeAreaView className='flex-1 bg-white'>
@@ -114,7 +130,17 @@ const Profile = () => {
                     <View className='w-10 h-10 bg-gray-200 rounded-full justify-center items-center'>
                       <MaterialIcons name='favorite-outline' size={18} color={'#0F0F0F'}/>
                     </View>
-                    <Text className='text-base' style={{fontFamily: 'HankenGrotesk_600SemiBold'}}>Save</Text>
+                    <Text className='text-base' style={{fontFamily: 'HankenGrotesk_600SemiBold'}}>Saved</Text>
+                  </View>
+                  <Ionicons name='chevron-forward-outline' size={15} color={'#0F0F0F'}/>
+                </Pressable>
+
+                <Pressable onPress={() => router.push('/(access)/(user_stacks)/cart')} className='flex-row items-center justify-between mt-3 bg-neutral-100 rounded-full p-3 px-4'>
+                  <View className='flex-row items-center gap-3 '>
+                    <View className='w-10 h-10 bg-gray-200 rounded-full justify-center items-center'>
+                      <MaterialIcons name='shopping-basket' size={18} color={'#0F0F0F'}/>
+                    </View>
+                    <Text className='text-base' style={{fontFamily: 'HankenGrotesk_600SemiBold'}}>Cart</Text>
                   </View>
                   <Ionicons name='chevron-forward-outline' size={15} color={'#0F0F0F'}/>
                 </Pressable>
@@ -151,7 +177,7 @@ const Profile = () => {
                   <Ionicons name='chevron-forward-outline' size={15} color={'#0F0F0F'}/>
                 </Pressable>
 
-                <Pressable onPress={handleLogout} className='flex-row items-center justify-between mt-3 bg-neutral-100 rounded-full p-3 px-4'>
+                <Pressable onPress={handlePress} className='flex-row items-center justify-between mt-3 bg-neutral-100 rounded-full p-3 px-4'>
                   <View className='flex-row items-center gap-3 '>
                     <View className='w-10 h-10 bg-gray-200 rounded-full justify-center items-center'>
                       <MaterialIcons name='logout' size={18} color={'#0F0F0F'}/>
@@ -164,17 +190,43 @@ const Profile = () => {
               </View>
             </View>
           </KeyboardAwareScrollView>
-
-          {/* Fixed Delete Button at Bottom */}
-          {/* <View className='px-7 pb-4 pt-2 bg-white border-t border-gray-100'>
-            <Pressable
-              onPress={handlePress}
-              className='bg-red-500 p-4 rounded-full'
-            >
-              <Text className='text-white text-base text-center' style={{fontFamily: 'HankenGrotesk_600SemiBold'}}>Delete MovBay</Text>
-            </Pressable>
-          </View> */}
         </View>
+
+
+        <Modal
+            visible={showDialog}
+            transparent={true}
+            animationType="fade"
+            onRequestClose={closeDialog}
+          >
+            <View className='flex-1 justify-center items-center bg-black/50'>
+              <View className='bg-white rounded-2xl p-8 mx-6 w-[90%]'>
+                <View className='items-center justify-center m-auto rounded-full p-5 bg-neutral-100 w-fit mb-5'>
+                  <Ionicons name="log-out-outline" size={30} color={'gray'}/>
+                </View>
+                <Text className='text-xl text-center mb-2' style={{fontFamily: 'HankenGrotesk_600SemiBold'}}>
+                  Logout from account
+                </Text>
+                <Text className='text-neutral-500 text-center mb-6 w-[90%] m-auto text-sm' style={{fontFamily: 'HankenGrotesk_500Medium'}}>
+                  Are you sure you want to logout from your account? {'\n'} it will clear your cart and saved items, You can always login again later.
+                </Text>
+  
+                <View className='flex-row items-center justify-between'>
+                  <View className='w-[49%]'>
+                    <SolidLightButton onPress={closeDialog} text='Cancle'/>
+                  </View>
+  
+                  <View className='w-[49%]'>
+                    {isPending? 
+                      <View className='p-3.5 bg-[#F75F15] justify-center items-center rounded-full'>
+                        <ActivityIndicator size={'small'} color={'white'} />
+                      </View> :
+                    <SolidMainButton onPress={handleLogout} text='Logout'/>}
+                  </View>
+                </View>
+              </View>
+            </View>
+        </Modal>
 
 
 

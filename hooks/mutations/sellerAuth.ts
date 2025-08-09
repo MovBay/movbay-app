@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { get_requests, post_request_with_image, post_requests, put_request_with_image } from "../helpers/axios_helpers";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
@@ -18,6 +18,26 @@ export const useGetStore = () => {
 
   return {
     storeData: data,
+    isLoading,
+    isError,
+    isFetched,
+    refetch,
+  };
+};
+
+
+export const useGetOpenStore = (id: any) => {
+  const { data, isLoading, isError, isFetched, refetch } = useQuery({
+    queryKey: ["openStore", id],
+    queryFn: async () => {
+      const token = (await AsyncStorage.getItem("movebay_token")) || "";
+      return get_requests(`/stores/${id}/`, token);
+    },
+    enabled: !!id,
+  });
+
+  return {
+    openStore: data,
     isLoading,
     isError,
     isFetched,
@@ -86,6 +106,8 @@ export const useGetUserProducts = () => {
   };
 };
 
+
+
 export const useGetSingleUserProducts = (id: any) => {
   const { data, isLoading, isError, isFetched, refetch } = useQuery({
     queryKey: ["user-product", id],
@@ -109,9 +131,96 @@ export const useGetSingleUserProducts = (id: any) => {
 
 // ============== ALL PRODUCTS ==================
 
+// export const useGetProducts = () => {
+//   const { data, isLoading, isError, isFetched, refetch } = useQuery({
+//     queryKey: ["product"],
+//     queryFn: async () => {
+//       const token = (await AsyncStorage.getItem("movebay_token")) || "";
+//       return get_requests("/products/", token);
+//     },
+//   });
+
+//   return {
+//     productData: data,
+//     isLoading,
+//     isError,
+//     isFetched,
+//     refetch,
+//   };
+// };
+
+
+
 export const useGetProducts = () => {
+  const {
+    data,
+    isLoading,
+    isError,
+    isFetched,
+    refetch,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+    error,
+  } = useInfiniteQuery({
+    queryKey: ["products"],
+    queryFn: async ({ pageParam = 1 }) => {
+      const token = (await AsyncStorage.getItem("movebay_token")) || "";
+      const response = await get_requests(`/products/?page=${pageParam}`, token);
+      return response.data;
+    },
+    getNextPageParam: (lastPage) => {
+      // Extract page number from next URL
+      if (lastPage?.next) {
+        try {
+          const url = new URL(lastPage.next);
+          const page = url.searchParams.get('page');
+          return page ? parseInt(page) : undefined;
+        } catch (error) {
+          console.error('Error parsing next page URL:', error);
+          return undefined;
+        }
+      }
+      return undefined;
+    },
+    initialPageParam: 1,
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    gcTime: 10 * 60 * 1000, // 10 minutes (formerly cacheTime)
+  });
+
+  // Flatten all pages into a single array
+  const allProducts = data?.pages?.flatMap(page => page?.results || []) || [];
+  
+  // Get total count from first page
+  const totalCount = data?.pages?.[0]?.count || 0;
+
+  return {
+    productData: {
+      data: {
+        results: allProducts,
+        count: totalCount,
+      }
+    },
+    isLoading,
+    isError,
+    isFetched,
+    refetch,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+    error,
+    // Additional helper properties
+    totalProducts: allProducts.length,
+    totalCount,
+    hasMore: hasNextPage,
+    loadingMore: isFetchingNextPage,
+  };
+};
+
+// If you also want to keep the original useGetProducts for backward compatibility
+export const useGetProductsOriginal = () => {
   const { data, isLoading, isError, isFetched, refetch } = useQuery({
-    queryKey: ["product"],
+    queryKey: ["products-original"],
     queryFn: async () => {
       const token = (await AsyncStorage.getItem("movebay_token")) || "";
       return get_requests("/products/", token);
@@ -129,6 +238,12 @@ export const useGetProducts = () => {
 
 
 
+
+// ====================================
+
+
+
+
 export const useGetSingleProducts = (id: any) => {
   const { data, isLoading, isError, isFetched, refetch } = useQuery({
     queryKey: ["user-product", id],
@@ -141,6 +256,26 @@ export const useGetSingleProducts = (id: any) => {
 
   return {
     userProductData: data,
+    isLoading,
+    isError,
+    isFetched,
+    refetch,
+  };
+};
+
+
+export const useGetSingleRelatedProduct = (id: any) => {
+  const { data, isLoading, isError, isFetched, refetch } = useQuery({
+    queryKey: ["userRelated", id],
+    queryFn: async () => {
+      const token = (await AsyncStorage.getItem("movebay_token")) || "";
+      return get_requests(`/products/more-from-seller/${id}`, token);
+    },
+    enabled: !!id,
+  });
+
+  return {
+    userRelatedProductData: data,
     isLoading,
     isError,
     isFetched,
@@ -538,3 +673,42 @@ export const useTrackOrders = (orderId: any) => {
     refetch,
   };
 };
+
+
+
+// ==================== GET AND CREATE REVIEWS ========================
+export const useGetSingleProductReviews = (id: any) => {
+  const { data, isLoading, isError, isFetched, refetch } = useQuery({
+    queryKey: ["rateProduct", id],
+    queryFn: async () => {
+      const token = (await AsyncStorage.getItem("movebay_token")) || "";
+      return get_requests(`/rate-product/${id}`, token);
+    },
+    enabled: !!id,
+  });
+
+  return {
+    singleProductReviewData: data,
+    isLoading,
+    isError,
+    isFetched,
+    refetch,
+  };
+};
+
+
+export const useReviewProduct = (id: any) => {
+  const queryClient = useQueryClient()
+
+  const reviewProduct = useMutation({
+    mutationFn: async (data: any) => {
+      const token = (await AsyncStorage.getItem("movebay_token")) || ""
+      return post_requests(`/rate-product/${id}`, data, token)
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["rateProduct"] })
+    },
+  })
+
+  return reviewProduct
+}

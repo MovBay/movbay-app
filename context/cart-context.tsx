@@ -20,13 +20,15 @@ interface CartContextType {
   isLoading: boolean
   isUpdating: boolean
   totalAmount: number
-  addToCart: (item: Omit<CartItem, 'quantity' | 'dateAdded'>) => Promise<void>
+  addToCart: (item: Omit<CartItem, 'quantity' | 'dateAdded'>) => Promise<{ success: boolean; message: string }>
   removeFromCart: (itemId: string) => Promise<void>
-  updateQuantity: (itemId: string, newQuantity: number) => void
+  updateQuantity: (itemId: string, newQuantity: number) => { success: boolean; message: string }
   clearCart: () => Promise<void>
   loadCart: () => Promise<void>
   isItemInCart: (itemId: string) => boolean
   getItemQuantity: (itemId: string) => number
+  isItemAtStockLimit: (itemId: string, stockAvailable: number) => boolean
+  getRemainingStock: (itemId: string, stockAvailable: number) => number
   formatPrice: (price: number) => string
 }
 
@@ -74,21 +76,52 @@ export const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
     }
   }, [])
 
-  // Add item to cart with optimistic updates
-  const addToCart = useCallback(async (item: Omit<CartItem, 'quantity' | 'dateAdded'>) => {
+  // Check if item is at stock limit
+  const isItemAtStockLimit = useCallback((itemId: string, stockAvailable: number): boolean => {
+    const currentQuantity = getItemQuantity(itemId)
+    return currentQuantity >= stockAvailable
+  }, [cartItems])
+
+  // Get remaining stock for an item
+  const getRemainingStock = useCallback((itemId: string, stockAvailable: number): number => {
+    const currentQuantity = getItemQuantity(itemId)
+    return Math.max(0, stockAvailable - currentQuantity)
+  }, [cartItems])
+
+  // Add item to cart with stock validation
+  const addToCart = useCallback(async (item: Omit<CartItem, 'quantity' | 'dateAdded'>): Promise<{ success: boolean; message: string }> => {
     setIsUpdating(true)
     try {
       const existingCart = await getCartFromStorage()
       const existingItemIndex = existingCart.findIndex((cartItem) => cartItem.id === item.id)
-
+      
       let updatedCart: CartItem[]
+      let currentQuantity = 0
 
       if (existingItemIndex >= 0) {
+        currentQuantity = existingCart[existingItemIndex].quantity
+        
+        // Check if adding one more would exceed stock
+        if (currentQuantity >= item.stock_available) {
+          return {
+            success: false,
+            message: `Only ${item.stock_available} items available in stock`
+          }
+        }
+
         // Item already exists, increase quantity
         updatedCart = existingCart.map((cartItem, index) =>
           index === existingItemIndex ? { ...cartItem, quantity: cartItem.quantity + 1 } : cartItem
         )
       } else {
+        // Check if item is out of stock
+        if (item.stock_available === 0) {
+          return {
+            success: false,
+            message: 'This product is currently out of stock'
+          }
+        }
+
         // New item, add to cart
         const newCartItem: CartItem = {
           ...item,
@@ -105,10 +138,18 @@ export const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
       await saveCartToStorage(updatedCart)
       
       console.log('Item added to cart successfully:', item.title)
+      return {
+        success: true,
+        message: `${item.title} has been added to your cart`
+      }
     } catch (error) {
       console.error('Error adding item to cart:', error)
       // Revert on error
       loadCart()
+      return {
+        success: false,
+        message: 'Failed to add item to cart'
+      }
     } finally {
       setIsUpdating(false)
     }
@@ -139,13 +180,35 @@ export const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
     }
   }, [cartItems])
 
-  // Update quantity with immediate UI updates - THIS IS THE KEY FIX
-  const updateQuantity = useCallback((itemId: string, newQuantity: number) => {
-    if (newQuantity < 1) return
+  // Update quantity with stock validation
+  const updateQuantity = useCallback((itemId: string, newQuantity: number): { success: boolean; message: string } => {
+    if (newQuantity < 1) {
+      return {
+        success: false,
+        message: 'Quantity must be at least 1'
+      }
+    }
+
+    // Find the item to get its stock limit
+    const item = cartItems.find(cartItem => cartItem.id === itemId)
+    if (!item) {
+      return {
+        success: false,
+        message: 'Item not found in cart'
+      }
+    }
+
+    // Check if new quantity exceeds stock
+    if (newQuantity > item.stock_available) {
+      return {
+        success: false,
+        message: `Only ${item.stock_available} items available in stock`
+      }
+    }
 
     // Update UI immediately for instant feedback
-    const updatedCart = cartItems.map((item) => 
-      item.id === itemId ? { ...item, quantity: newQuantity } : item
+    const updatedCart = cartItems.map((cartItem) => 
+      cartItem.id === itemId ? { ...cartItem, quantity: newQuantity } : cartItem
     )
     setCartItems(updatedCart)
     
@@ -156,6 +219,10 @@ export const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
     })
     
     console.log('Quantity updated successfully')
+    return {
+      success: true,
+      message: 'Quantity updated successfully'
+    }
   }, [cartItems])
 
   // Clear entire cart with optimistic updates
@@ -214,6 +281,8 @@ export const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
     loadCart,
     isItemInCart,
     getItemQuantity,
+    isItemAtStockLimit,
+    getRemainingStock,
     formatPrice,
   }
 
