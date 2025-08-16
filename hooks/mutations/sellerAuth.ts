@@ -31,7 +31,7 @@ export const useGetOpenStore = (id: any) => {
     queryKey: ["openStore", id],
     queryFn: async () => {
       const token = (await AsyncStorage.getItem("movebay_token")) || "";
-      return get_requests(`/stores/${id}/`, token);
+      return get_requests(`/view-store/${id}/`, token);
     },
     enabled: !!id,
   });
@@ -712,3 +712,86 @@ export const useReviewProduct = (id: any) => {
 
   return reviewProduct
 }
+
+
+export const useFollowStore = (id: any) => {
+  const queryClient = useQueryClient()
+  const followStore = useMutation({
+    mutationFn: async (storeId: any) => {
+      const token = (await AsyncStorage.getItem("movebay_token")) || ""
+      return post_requests(`/follow/${storeId}/`, {}, token)
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["follow"] })
+      queryClient.invalidateQueries({ queryKey: ["followedStores"] })
+      queryClient.invalidateQueries({ queryKey: ["store"] })
+
+    },
+    onError: (error) => {
+      console.error("Follow store error:", error)
+    }
+  })
+
+  return followStore
+}
+
+export const useUnFollowStore = (id: any) => {
+  const queryClient = useQueryClient()
+
+  const unFollowStore = useMutation({
+    mutationFn: async (storeId: any) => {
+      const token = (await AsyncStorage.getItem("movebay_token")) || ""
+      return post_requests(`/unfollow/${storeId}/`, {}, token)
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["follow"] })
+      queryClient.invalidateQueries({ queryKey: ["followedStores"] })
+      queryClient.invalidateQueries({ queryKey: ["store"] })
+    },
+    onError: (error) => {
+      console.error("Unfollow store error:", error)
+    }
+  })
+
+  return unFollowStore
+}
+
+
+export const useGetFollowedStores = () => {
+  const { data, isLoading, isError, isFetched, refetch } = useQuery({
+    queryKey: ["follow"],
+    queryFn: async () => {
+      const token = (await AsyncStorage.getItem("movebay_token")) || "";
+      return get_requests(`/following/`, token);
+    },
+  });
+
+  return {
+    getFollowedStores: data,
+    isLoading,
+    isError,
+    isFetched,
+    refetch,
+  };
+};
+
+
+
+export const useGetFollowers = () => {
+  const { data, isLoading, isError, isFetched, refetch } = useQuery({
+    queryKey: ["follow"],
+    queryFn: async () => {
+      const token = (await AsyncStorage.getItem("movebay_token")) || "";
+      return get_requests(`/followers/`, token);
+    },
+  });
+
+  return {
+    getFollowers: data,
+    isLoading,
+    isError,
+    isFetched,
+    refetch,
+  };
+};
+// http://localhost:8000/follow/29/

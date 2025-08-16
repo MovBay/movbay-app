@@ -68,7 +68,7 @@ export default function TabLayout() {
               justifyContent: 'center',
               alignItems: 'center',
             }}>
-              <MaterialIcons name='storefront' size={22} color={ focused ? "#F75F15": "#5F5F5F"} />
+              <Ionicons name='storefront' size={22} color={ focused ? "#F75F15": "#5F5F5F"} />
               <Text className={`text-xs ${focused ? "text-[#F75F15]": "text-[#5F5F5F]"}` } style={{fontFamily: 'HankenGrotesk_600SemiBold'}}>Sell</Text>
             </View>
           ),

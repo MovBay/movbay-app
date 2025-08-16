@@ -7,7 +7,7 @@ import { KeyboardAwareScrollView } from "react-native-keyboard-controller"
 import MaterialIcons from "@expo/vector-icons/MaterialIcons"
 import Ionicons from "@expo/vector-icons/Ionicons"
 import { SolidLightButton, SolidMainButton } from "@/components/btns/CustomButtoms"
-import { useGetSingleProductReviews, useGetSingleProducts, useGetSingleRelatedProduct, useGetStore } from "@/hooks/mutations/sellerAuth"
+import { useFollowStore, useGetFollowedStores, useGetSingleProductReviews, useGetSingleProducts, useGetSingleRelatedProduct, useGetStore, useUnFollowStore } from "@/hooks/mutations/sellerAuth"
 import ProductSkeleton from "@/components/ProductSkeleton"
 import LoadingOverlay from "@/components/LoadingOverlay"
 import { Video, ResizeMode } from "expo-av"
@@ -16,6 +16,7 @@ import { useProfile } from "@/hooks/mutations/auth"
 import { Toast } from "react-native-toast-notifications"
 import RelatedProducts from "@/components/RelatedProducts"
 import AllProductSkeleton2 from "@/components/AllProductSkeleton2"
+import { ActivityIndicator } from "react-native"
 
 const { width: screenWidth } = Dimensions.get("window")
 
@@ -192,6 +193,12 @@ const HorizontalProductList = ({
   )
 }
 
+
+const isStoreFollowed = (storeId:any, followedStores:any) => {
+  if (!followedStores || !Array.isArray(followedStores)) return false;
+  return followedStores.some(item => item.followed_store.id === storeId);
+};
+
 const Product = () => {
   const { id } = useLocalSearchParams<{ id: string }>()
   const product = products.find((item) => item.id === id || item.id === id)
@@ -206,7 +213,46 @@ const Product = () => {
   const {storeData, isLoading: storeLoading} = useGetStore()
   const {singleProductReviewData, isLoading: reivewLoading} = useGetSingleProductReviews(id)
   const reviews = singleProductReviewData?.data
-  console.log('This is reviews s', reviews)
+
+  const {getFollowedStores, } = useGetFollowedStores()
+
+  const followedStoresData = getFollowedStores?.data || []
+  const currentStoreId = eachData?.store?.id
+  const isCurrentStoreFollowed = isStoreFollowed(currentStoreId, followedStoresData)
+  const {isPending, mutate} = useFollowStore(storeData?.data?.id || "")
+  const {isPending: unFollowPending, mutate: unfollowMutate} = useUnFollowStore(storeData?.data?.id || "")
+  
+
+
+
+  console.log('This is follow', getFollowedStores?.data)
+
+
+  
+  const handleFollowUnfollowStore = async () => {
+    if (!currentStoreId) {
+      Toast.show("Store ID not found", { type: "error" })
+      return
+    }
+
+    try {
+      if (isCurrentStoreFollowed) {
+        // Unfollow the store
+        await unfollowMutate(currentStoreId)
+        Toast.show("Store unfollowed successfully", { type: "success" })
+      } else {
+        // Follow the store
+        await mutate(currentStoreId)
+        Toast.show("Store followed successfully", { type: "success" })
+      }
+    } catch (error) {
+      console.error("Error following/unfollowing store:", error)
+      const errorMessage = isCurrentStoreFollowed 
+        ? "Failed to unfollow store" 
+        : "Failed to follow store"
+      Toast.show(errorMessage, { type: "error" })
+    }
+  }
 
   // Use the global cart context with stock management
   const { addToCart, isUpdating, getItemQuantity, isItemAtStockLimit, getRemainingStock } = useCart()
@@ -355,21 +401,6 @@ const Product = () => {
             </View>
 
             <View className="px-5 pt-3">
-              {/* Owner Notice Banner */}
-              {isOwnProduct && (
-                <View className="bg-[#E8F0FE] border border-[#4285F4] rounded-lg p-4 mb-4 flex-row items-center">
-                  <MaterialIcons name="info" size={20} color="#4285F4" />
-                  <View className="ml-3 flex-1">
-                    <Text className="text-[#4285F4] text-sm font-semibold" style={{ fontFamily: "HankenGrotesk_600SemiBold" }}>
-                      This is your product
-                    </Text>
-                    <Text className="text-[#4285F4] text-sm" style={{ fontFamily: "HankenGrotesk_400Regular" }}>
-                      You're viewing a product from your store
-                    </Text>
-                  </View>
-                </View>
-              )}
-
               <View className="flex-row justify-between items-center">
                 <View className="flex-row gap-2">
                   <MaterialIcons size={20} name="location-pin" />
@@ -653,17 +684,38 @@ const Product = () => {
                       </Pressable>
                       {!isOwnProduct && (
                         <View className="flex-row gap-1">
-                          <Pressable onPress={()=>router.push('/(access)/(user_stacks)/viewSellerStore')} className="bg-[#FEEEE6] p-3 rounded-full px-5">
+                         <Pressable onPress={()=>router.push(`/(access)/(user_stacks)/viewSellerStore?storeId=${eachData?.store?.id}`)} className="bg-[#FEEEE6] p-3 rounded-full px-5">
                             <Text style={{ fontFamily: "HankenGrotesk_500Medium" }} className="text-sm text-[#A53F0E]">
                               View Store
                             </Text>
                           </Pressable>
-                          <Pressable
-                              className="bg-[#F75F15] p-3 rounded-full px-5">
-                            <Text style={{ fontFamily: "HankenGrotesk_500Medium" }} className="text-sm text-white">
-                              Follow
-                            </Text>
-                          </Pressable>
+
+                          {isPending || unFollowPending ? (
+                            <Pressable
+                              className="bg-[#F75F15] p-3 rounded-full px-5 w-20">
+                              <ActivityIndicator size="small" color="white" />
+                            </Pressable>
+                          ): (
+                            <>
+                              { isCurrentStoreFollowed ? (
+                                <Pressable
+                                  onPress={handleFollowUnfollowStore}
+                                  className="bg-[#F75F15] p-3 rounded-full px-5">
+                                  <Text style={{ fontFamily: "HankenGrotesk_500Medium" }} className="text-sm text-white">
+                                    Unfollow
+                                  </Text>
+                                </Pressable>
+                              ): (
+                                <Pressable
+                                  onPress={handleFollowUnfollowStore}
+                                  className="bg-[#F75F15] p-3 rounded-full px-5">
+                                  <Text style={{ fontFamily: "HankenGrotesk_500Medium" }} className="text-sm text-white">
+                                    Follow
+                                  </Text>
+                                </Pressable>
+                              )}
+                            </>
+                          )}
                         </View>
                       )}
                     </View>

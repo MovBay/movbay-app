@@ -8,6 +8,7 @@ interface ButtonProps {
     text?: string;
     description?: string;
     onPressBtn?: () => void;
+    icon?: keyof typeof MaterialIcons.glyphMap;
 }
 export const OnboardHeader = ({text, description}: ButtonProps)=>{
     return (
@@ -65,6 +66,32 @@ export const OnboardArrowTextHeader = ({onPressBtn}: ButtonProps)=>{
                 />
             </Button>
             
+        </View>
+    )
+}
+
+
+
+export const CartButton = ({onPressBtn, icon}: ButtonProps)=>{
+    return (
+        <View className="mb-5">
+            <Button
+                    type="solid"
+                    size="sm"
+                    onPress={onPressBtn}
+                    buttonStyle={{
+                        backgroundColor: "#FEEEE6",
+                        borderRadius: 100,
+                        width: 35,
+                        height: 35,
+                    }}
+                >
+                 <MaterialIcons
+                    name={icon}
+                    size={25}
+                    color={"#F75F15"}
+                />
+            </Button>
         </View>
     )
 }
