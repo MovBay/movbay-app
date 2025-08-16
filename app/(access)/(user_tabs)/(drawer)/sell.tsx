@@ -21,7 +21,7 @@ const Sell =()=> {
     navigation.dispatch(DrawerActions.openDrawer())
   }
   const {storeData, refetch, isLoading} = useGetStore()
-  // console.log('Store Data:', storeData)
+  console.log('Store Data:', storeData?.data)
   
   // State for pull-to-refresh
   const [refreshing, setRefreshing] = useState(false);
@@ -87,7 +87,7 @@ const Sell =()=> {
     
                   <View className='relative'>
                     <View className='w-24 h-24 object-cover overflow-hidden flex rounded-full border-2 border-green-800 p-1'>
-                      <Image source={{uri: storeData?.data?.store_image}} style={{width: '100%', height: '100%', objectFit: 'cover', borderRadius: 50}}/>
+                      <Image source={{uri: storeData?.data?.store_image_url}} style={{width: '100%', height: '100%', objectFit: 'cover', borderRadius: 50}}/>
                     </View>
                     <View className='bg-white absolute top-1 right-0 p-0.5 rounded-full'>
                       <MaterialIcons name='verified' size={25} color={'#4285F4'}/>

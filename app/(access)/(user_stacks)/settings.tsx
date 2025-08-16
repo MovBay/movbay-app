@@ -13,6 +13,11 @@ import { useToast } from "react-native-toast-notifications"
 import Ionicons from "@expo/vector-icons/Ionicons"
 import { MaterialIcons } from "@expo/vector-icons"
 import { SolidLightButton, SolidMainButton } from "@/components/btns/CustomButtoms"
+import { useDeleteAccount } from "@/hooks/mutations/sellerAuth"
+import { useQueryClient } from "@tanstack/react-query"
+import AsyncStorage from "@react-native-async-storage/async-storage"
+import { useCart } from "@/context/cart-context"
+import { useFavorites } from "@/context/favorite-context"
 
 const Settings = () => {
   const [showDialog, setShowDialog] = useState(false);
@@ -25,9 +30,35 @@ const Settings = () => {
     setShowDialog(false);
   };
 
+  const { mutate: deleteAccount, isPending } = useDeleteAccount()
+  const queryCLient = useQueryClient(); 
+  const {clearCart} = useCart()
+    const {clearFavorites} = useFavorites()
+
+  const handleDeleteAccount = async () => {
+    try {
+      await deleteAccount()
+      await queryCLient.clear();
+  
+      await AsyncStorage.removeItem("movebay_token");
+      await AsyncStorage.removeItem("movebay_usertype");
+      await AsyncStorage.removeItem("movebay_onboarding");
+      await clearCart()
+      await clearFavorites()
+      router.replace('/(noaccess)/login')
+    } catch (error) {
+      console.error("Error deleting account:", error)
+    }
+  }
+
+
+
+
   return (
     <SafeAreaView className="flex-1 bg-white">
       <StatusBar style="dark" />
+
+      <LoadingOverlay visible={isPending} />
 
       <View className="flex-1">
         <KeyboardAwareScrollView
@@ -101,7 +132,7 @@ const Settings = () => {
                 </View>
 
                 <View className='w-[49%]'>
-                  <SolidMainButton onPress={closeDialog} text='Yes'/>
+                  <SolidMainButton onPress={handleDeleteAccount} text='Yes'/>
                 </View>
               </View>
             </View>

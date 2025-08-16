@@ -60,7 +60,7 @@ const UserStatusView = () => {
   const openStoreData = openStore?.data
   const storeId = openStoreData?.id
 
-  console.log("This is single own status data", storeData?.data?.id, storeId)
+  // console.log("This is single own status data", storeData?.data?.id, storeId)
 
   const { getFollowedStores } = useGetFollowedStores()
 

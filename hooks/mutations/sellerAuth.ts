@@ -794,4 +794,22 @@ export const useGetFollowers = () => {
     refetch,
   };
 };
-// http://localhost:8000/follow/29/
+
+
+// users/delete-account
+export const useDeleteAccount = () => {
+  const queryClient = useQueryClient()
+
+  const deleteAccount = useMutation({
+    mutationFn: async () => {
+      const token = (await AsyncStorage.getItem("movebay_token")) || ""
+      return post_requests(`/users/delete-account/`, {}, token)
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["user-profile"] })
+      queryClient.invalidateQueries({ queryKey: ["store"] })
+    },
+  })
+
+  return deleteAccount
+}

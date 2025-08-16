@@ -12,6 +12,7 @@ import { router, useLocalSearchParams } from 'expo-router'
 import LoadingOverlay from '@/components/LoadingOverlay'
 import { useActivate, useLogin } from '@/hooks/mutations/auth'
 import { Toast, useToast } from 'react-native-toast-notifications'
+import AsyncStorage from '@react-native-async-storage/async-storage'
 // import useLogin from '@/hooks/mutations/useLogin'
 
 interface OtpData {
@@ -54,8 +55,22 @@ const OtpScreen = () => {
       mutate(data, {
 
         onSuccess: (response: any) => {
-          console.log('Login successful:', response?.data);
-          toast.show('Verified successfully!', { type: "success" });  
+          // console.log('Login successful:', response?.data);
+          toast.show('Verified successfully!', { type: "success" });
+            AsyncStorage.setItem('movebay_token', response?.data?.token?.access);
+            AsyncStorage.setItem('movebay_usertype', response?.data?.user_type);
+            // console.log('Login successful:', response?.data?.user_type, response?.data?.token?.access);
+            if(response?.data?.user_type === 'Rider') {
+              toast.show('Welcome to Movbay', { type: "success" });
+              console.log('Login successful:', response?.data?.user_type, response?.data?.token?.access);
+              router.replace('/(access)/(rider_tabs)/riderHome');
+            }
+  
+  
+            if(response?.data?.user_type === 'User') {
+              toast.show('Welcome to Movbay', { type: "success" });
+              router.replace('/(access)/(user_tabs)/home');
+            }
           reset();
           router.replace('/verified');        
         },

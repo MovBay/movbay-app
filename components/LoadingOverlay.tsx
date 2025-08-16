@@ -32,7 +32,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: 'rgba(0, 0, 0, 0.2)',
-    zIndex: 999,
+    zIndex: 2000,
   },
   overlay: {
     backgroundColor: 'white',
