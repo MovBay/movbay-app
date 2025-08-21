@@ -7,7 +7,7 @@ interface ButtonProps {
 }
 export const SolidMainButton = ({text, onPress, ...props}: ButtonProps)=>{
     return (
-        <TouchableOpacity {...props} onPress={onPress} className="flex items-center gap-4 bg-[#F75F15] p-4 w-full rounded-full">
+        <TouchableOpacity {...props} onPress={onPress} className="flex items-center gap-4 bg-[#F75F15] p-4 py-3.5 w-full rounded-full">
             <Text className="text-white text-[13px]" style={{fontFamily: 'HankenGrotesk_700Bold'}}>{text}</Text>
         </TouchableOpacity>
     )
@@ -15,7 +15,7 @@ export const SolidMainButton = ({text, onPress, ...props}: ButtonProps)=>{
 
 export const SolidInactiveButton = ({text, ...props}: ButtonProps)=>{
     return (
-        <Pressable style={{opacity: 0.6}} {...props} className="flex items-center gap-4 bg-[#F75F15] p-4 w-full rounded-full">
+        <Pressable style={{opacity: 0.6}} {...props} className="flex items-center gap-4 bg-[#F75F15] p-4 py-3.5 w-full rounded-full">
             <Text className="text-white text-[13px]" style={{fontFamily: 'HankenGrotesk_700Bold'}}>{text}</Text>
         </Pressable>
     )
@@ -23,7 +23,7 @@ export const SolidInactiveButton = ({text, ...props}: ButtonProps)=>{
 
 export const SolidLightButton = ({text, onPress, ...props}: ButtonProps)=>{
     return (
-        <TouchableOpacity {...props} onPress={onPress} className="flex items-center gap-4 bg-[#FEEEE6] p-4 w-full rounded-full">
+        <TouchableOpacity {...props} onPress={onPress} className="flex items-center gap-4 bg-[#FEEEE6] border border-[#f3d0be] p-4 py-3.5 w-full rounded-full">
             <Text className="text-[#A53F0E] text-[13px]" style={{fontFamily: 'HankenGrotesk_700Bold'}}>{text}</Text>
         </TouchableOpacity>
     )

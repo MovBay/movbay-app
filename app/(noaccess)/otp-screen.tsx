@@ -66,13 +66,11 @@ const OtpScreen = () => {
               router.replace('/(access)/(rider_tabs)/riderHome');
             }
   
-  
             if(response?.data?.user_type === 'User') {
               toast.show('Welcome to Movbay', { type: "success" });
               router.replace('/(access)/(user_tabs)/home');
             }
           reset();
-          router.replace('/verified');        
         },
         onError: (error: any) => {
           console.log('Login failed:', error.response.data);

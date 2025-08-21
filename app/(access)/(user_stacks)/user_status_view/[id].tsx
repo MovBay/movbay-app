@@ -60,7 +60,7 @@ const UserStatusView = () => {
   const openStoreData = openStore?.data
   const storeId = openStoreData?.id
 
-  // console.log("This is single own status data", storeData?.data?.id, storeId)
+  console.log("This is single own status data", openStoreData)
 
   const { getFollowedStores } = useGetFollowedStores()
 
@@ -389,7 +389,7 @@ const UserStatusView = () => {
             </View>
           )}
 
-          {/* {storeData?.data?.id !== storeId && (
+          {storeData?.data?.id !== storeId && (
             <View className="flex-row justify-between mx-4 my-4 gap-3 pointer-events-auto">
               <View className="flex-1">
                 <SolidMainButton text="Buy Now" />
@@ -398,7 +398,7 @@ const UserStatusView = () => {
                 <SolidLightButton text="Add to Cart" />
               </View>
             </View>
-          )} */}
+          )}
         </TouchableOpacity>
 
         {/* Message input */}
@@ -408,7 +408,7 @@ const UserStatusView = () => {
 
             <View className="flex-row justify-between items-center w-full">
 
-              <View className="bg-neutral-900 w-[85%] rounded-full flex-row items-end p-2">
+              <View className="bg-neutral-900 rounded-full flex-row items-end p-2">
                 <TextInput
                   placeholder="Send a message..."
                   placeholderTextColor="#9CA3AF"
@@ -435,13 +435,6 @@ const UserStatusView = () => {
                   <MaterialIcons name="send" size={20} color="white" />
                 </TouchableOpacity>
               </View>
-
-              <TouchableOpacity
-                onPress={handleSendMessage}
-                className="bg-[#FEEEE6] rounded-full w-[7%] p-3 px-4 justify-center items-center"
-              >
-                <Ionicons name="cart" size={25} color="#A53F0E" />
-              </TouchableOpacity>
             </View>
 
             {messageText.length > 0 && (

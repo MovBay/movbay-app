@@ -289,18 +289,82 @@ const ProductCreate = () => {
   const watchedOriginalPrice = watch("original_price")
   const watchedDiscountedPrice = watch("discounted_price")
 
-  // Memoized category items
   const categoryItems = useMemo(() => [
-    { label: "Electronics", value: "electronics" },
-    { label: "Fashion", value: "fashion" },
-    { label: "Beauty", value: "beauty" },
-    { label: "Car", value: "car" },
-    { label: "Sport", value: "sport" },
-    { label: "Shoes", value: "shoes" },
-    { label: "Bags", value: "bags" },
+    { label: "Fashion & Clothing", value: "fashion" },
+    { label: "Electronics & Gadgets", value: "electronics" },
+    { label: "Beauty & Personal Care", value: "beauty" },
+    { label: "Automotive & Cars", value: "car" },
+    { label: "Sports & Fitness", value: "sport" },
+    { label: "Shoes & Footwear", value: "shoes" },
+    { label: "Bags & Luggage", value: "bags" },
     { label: "Home & Garden", value: "home_garden" },
-    { label: "Books", value: "books" },
+    { label: "Books & Education", value: "books_education" },
+    { label: "Health & Wellness", value: "health_wellness" },
+    { label: "Food & Beverages", value: "food_beverages" },
+    { label: "Baby & Kids", value: "baby_kids" },
+    { label: "Jewelry & Accessories", value: "jewelry_accessories" },
+    { label: "Art & Crafts", value: "art_crafts" },
+    { label: "Pet Supplies", value: "pet_supplies" },
+    { label: "Musical Instruments", value: "musical_instruments" },
+    { label: "Office & Business", value: "office_business" },
+    { label: "Travel & Outdoor", value: "travel_outdoor" },
+    { label: "Gaming & Entertainment", value: "gaming_entertainment" },
+    { label: "Tools & Hardware", value: "tools_hardware" },
+    { label: "Toys & Games", value: "toys_games" },
+    { label: "Photography & Video", value: "photography_video" },
+    { label: "Furniture & Decor", value: "furniture_decor" },
     { label: "Other", value: "other" },
+  ],[])
+
+  const brandItems = useMemo(() => [
+    { label: "Apple", value: "Apple" },
+    { label: "Samsung", value: "Samsung" },
+    { label: "Nike", value: "Nike" },
+    { label: "Adidas", value: "Adidas" },
+    { label: "Sony", value: "Sony" },
+    { label: "LG", value: "LG" },
+    { label: "HP", value: "HP" },
+    { label: "Dell", value: "Dell" },
+    { label: "Canon", value: "Canon" },
+    { label: "Nikon", value: "Nikon" },
+    { label: "Microsoft", value: "Microsoft" },
+    { label: "Google", value: "Google" },
+    { label: "Huawei", value: "Huawei" },
+    { label: "Xiaomi", value: "Xiaomi" },
+    { label: "OnePlus", value: "OnePlus" },
+    { label: "Puma", value: "Puma" },
+    { label: "Reebok", value: "Reebok" },
+    { label: "Under Armour", value: "Under Armour" },
+    { label: "New Balance", value: "New Balance" },
+    { label: "Converse", value: "Converse" },
+    { label: "Vans", value: "Vans" },
+    { label: "Jordan", value: "Jordan" },
+    { label: "Gucci", value: "Gucci" },
+    { label: "Louis Vuitton", value: "Louis Vuitton" },
+    { label: "Chanel", value: "Chanel" },
+    { label: "Prada", value: "Prada" },
+    { label: "Versace", value: "Versace" },
+    { label: "Balenciaga", value: "Balenciaga" },
+    { label: "Dior", value: "Dior" },
+    { label: "Hermès", value: "Hermès" },
+    { label: "Rolex", value: "Rolex" },
+    { label: "Casio", value: "Casio" },
+    { label: "Seiko", value: "Seiko" },
+    { label: "Fossil", value: "Fossil" },
+    { label: "Citizen", value: "Citizen" },
+    { label: "Timex", value: "Timex" },
+    { label: "Toyota", value: "Toyota" },
+    { label: "Honda", value: "Honda" },
+    { label: "Ford", value: "Ford" },
+    { label: "BMW", value: "BMW" },
+    { label: "Mercedes-Benz", value: "Mercedes-Benz" },
+    { label: "Audi", value: "Audi" },
+    { label: "Volkswagen", value: "Volkswagen" },
+    { label: "Hyundai", value: "Hyundai" },
+    { label: "Kia", value: "Kia" },
+    { label: "Nissan", value: "Nissan" },
+    { label: "Mazda", value: "Mazda" },
+    { label: "Other", value: "Other" },
   ], [])
 
   const conditionItems = useMemo(() => [
@@ -613,25 +677,29 @@ const ProductCreate = () => {
                 />
               </View>
 
-              {/* Brand */}
+              {/* Brand - Updated to Dropdown */}
               <View className="mb-5">
                 <Text style={styles.titleStyle}>Brand (Optional)</Text>
                 <Controller
                   name="brand"
                   control={control}
                   render={({ field: { onChange, onBlur, value } }) => (
-                    <TextInput
-                      placeholder="E.g - Apple, Samsung, Nike"
-                      placeholderTextColor={"#AFAFAF"}
-                      onChangeText={onChange}
-                      onBlur={onBlur}
-                      value={value}
-                      keyboardType="default"
-                      style={styles.inputStyle}
-                      autoCapitalize="words"
-                      autoCorrect={false}
-                      maxLength={50}
-                    />
+                    <View className="relative">
+                      <RNPickerSelect
+                        onValueChange={(itemValue) => onChange(itemValue)}
+                        value={value}
+                        items={brandItems}
+                        placeholder={{
+                          label: "Select a Brand",
+                          value: "",
+                        }}
+                        style={pickerSelectStyles}
+                        useNativeAndroidPickerStyle={false}
+                      />
+                      <View className="absolute right-6 top-4">
+                        <MaterialIcons name="arrow-drop-down" size={25} color={"gray"} />
+                      </View>
+                    </View>
                   )}
                 />
               </View>

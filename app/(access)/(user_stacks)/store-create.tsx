@@ -1,4 +1,4 @@
-import { View, Text, Image } from 'react-native'
+import { View, Text, Image, FlatList, TouchableOpacity, ScrollView } from 'react-native'
 import React, { useState } from 'react'
 import { router } from 'expo-router';
 import { Pressable } from 'react-native';
@@ -20,6 +20,37 @@ import { useCreateStore } from '@/hooks/mutations/sellerAuth';
 import { Alert } from 'react-native';
 import { useToast } from 'react-native-toast-notifications';
 
+const GOOGLE_PLACES_API_KEY = process.env.EXPO_PUBLIC_GOOGLE_PLACES_API_KEY;
+
+// Expanded store categories
+const storeCategories = [
+    { label: "Everything", value: "everything" },
+    { label: "Fashion & Clothing", value: "fashion" },
+    { label: "Electronics & Gadgets", value: "electronics" },
+    { label: "Beauty & Personal Care", value: "beauty" },
+    { label: "Automotive & Cars", value: "car" },
+    { label: "Sports & Fitness", value: "sport" },
+    { label: "Shoes & Footwear", value: "shoes" },
+    { label: "Bags & Luggage", value: "bags" },
+    { label: "Home & Garden", value: "home_garden" },
+    { label: "Books & Education", value: "books_education" },
+    { label: "Health & Wellness", value: "health_wellness" },
+    { label: "Food & Beverages", value: "food_beverages" },
+    { label: "Baby & Kids", value: "baby_kids" },
+    { label: "Jewelry & Accessories", value: "jewelry_accessories" },
+    { label: "Art & Crafts", value: "art_crafts" },
+    { label: "Pet Supplies", value: "pet_supplies" },
+    { label: "Musical Instruments", value: "musical_instruments" },
+    { label: "Office & Business", value: "office_business" },
+    { label: "Travel & Outdoor", value: "travel_outdoor" },
+    { label: "Gaming & Entertainment", value: "gaming_entertainment" },
+    { label: "Tools & Hardware", value: "tools_hardware" },
+    { label: "Toys & Games", value: "toys_games" },
+    { label: "Photography & Video", value: "photography_video" },
+    { label: "Furniture & Decor", value: "furniture_decor" },
+    { label: "Other", value: "other" },
+];
+
 // Custom Modal Component
 const CustomSuccessModal = ({ visible, onClose }: { visible: boolean; onClose: () => void }) => {
     if (!visible) return null;
@@ -27,10 +58,6 @@ const CustomSuccessModal = ({ visible, onClose }: { visible: boolean; onClose: (
     return (
         <View style={styles.modalOverlay}>
             <View style={styles.modalContainer}>
-                {/* <Pressable onPress={onClose} style={styles.closeButton}>
-                    <MaterialIcons name='close' size={24} color={'#000'}/>
-                </Pressable> */}
-                
                 <View style={styles.modalContent}>
                     <Image 
                         source={require('../../../assets/images/success.png')} 
@@ -61,10 +88,29 @@ const CustomSuccessModal = ({ visible, onClose }: { visible: boolean; onClose: (
     );
 };
 
+// Address Prediction Item Component
+const AddressPredictionItem = ({ item, onPress }: { item: any; onPress: () => void }) => (
+    <TouchableOpacity onPress={onPress} style={styles.predictionItem}>
+        <MaterialIcons name="location-on" size={20} color="#666" style={styles.locationIcon} />
+        <View style={styles.predictionTextContainer}>
+            <Text style={styles.predictionMainText}>{item.structured_formatting?.main_text || item.description}</Text>
+            {item.structured_formatting?.secondary_text && (
+                <Text style={styles.predictionSecondaryText}>{item.structured_formatting.secondary_text}</Text>
+            )}
+        </View>
+    </TouchableOpacity>
+);
+
 const StoreCreate = () => {
     const [image, setImage] = useState<string | null>(null);
     const [CACDocument, setCACDocument] = useState<DocumentPicker.DocumentPickerAsset | null>(null);
     const [NINImage, setNINImage] = useState<string | null>(null);
+    
+    // Address prediction states
+    const [addressPredictions, setAddressPredictions] = useState<any[]>([]);
+    const [showAddressPredictions, setShowAddressPredictions] = useState(false);
+    const [address1Input, setAddress1Input] = useState('');
+    const [address2Input, setAddress2Input] = useState('');
 
     const toast = useToast()
 
@@ -75,11 +121,52 @@ const StoreCreate = () => {
 
     const { mutate, isPending } = useCreateStore()
 
+    const fetchAddressPredictions = async (input: string) => {
+        if (input.length < 3) {
+            setAddressPredictions([])
+            setShowAddressPredictions(false)
+            return
+        }
+        if (!GOOGLE_PLACES_API_KEY) {
+            console.error("Google Places API Key is not set.")
+            return
+        }
+        try {
+            const response = await fetch(
+                `https://maps.googleapis.com/maps/api/place/autocomplete/json?input=${encodeURIComponent(
+                    input,
+                )}&key=${GOOGLE_PLACES_API_KEY}&types=address&components=country:ng`, // Restrict to Nigeria
+            )
+
+            const data = await response.json()
+
+            if (data.predictions) {
+                setAddressPredictions(data.predictions)
+                setShowAddressPredictions(true)
+            }
+        } catch (error) {
+            console.error("Error fetching address predictions:", error)
+        }
+    }
+
+    const handleAddressSelection = (prediction: any, isAddress1: boolean) => {
+        const selectedAddress = prediction.description;
+        if (isAddress1) {
+            setAddress1Input(selectedAddress);
+            setValue('address1', selectedAddress);
+        } else {
+            setAddress2Input(selectedAddress);
+            setValue('address2', selectedAddress);
+        }
+        setShowAddressPredictions(false);
+        setAddressPredictions([]);
+    };
+
     const pickImage = async () => {
         let result = await ImagePicker.launchImageLibraryAsync({
             mediaTypes: ['images'],
             allowsEditing: true,
-            aspect: [4, 3],
+            aspect: [4, 4],
             quality: 1,
         });
 
@@ -122,6 +209,7 @@ const StoreCreate = () => {
         handleSubmit,
         formState: { errors },
         reset,
+        setValue,
     } = useForm({
         defaultValues: {
             name: "",
@@ -209,6 +297,31 @@ const StoreCreate = () => {
         });
     };
 
+    // Render address predictions using map instead of FlatList
+    const renderAddressPredictions = () => {
+        if (!showAddressPredictions || addressPredictions.length === 0) {
+            return null;
+        }
+
+        return (
+            <View style={styles.predictionsContainer}>
+                <ScrollView 
+                    style={{ maxHeight: 200 }}
+                    nestedScrollEnabled={true}
+                    keyboardShouldPersistTaps="handled"
+                >
+                    {addressPredictions.map((item) => (
+                        <AddressPredictionItem
+                            key={item.place_id}
+                            item={item}
+                            onPress={() => handleAddressSelection(item, address1Input.length >= 3)}
+                        />
+                    ))}
+                </ScrollView>
+            </View>
+        );
+    };
+
     return (
         <SafeAreaView className='flex-1 bg-white'>
             <StatusBar style='dark'/>
@@ -223,6 +336,7 @@ const StoreCreate = () => {
                         paddingBottom: 20
                     }}
                     showsVerticalScrollIndicator={false}
+                    keyboardShouldPersistTaps="handled"
                 >
                     <View className=''>
                         <View className='flex-row items-center gap-2'>
@@ -306,17 +420,7 @@ const StoreCreate = () => {
                                             <RNPickerSelect
                                                 onValueChange={(itemValue) => onChange(itemValue)}
                                                 value={value}
-                                                items={[
-                                                    { label: "Everything", value: "everything" },
-                                                    { label: "Fashion", value: "fashion" },
-                                                    { label: "Electronics", value: "electronics" },
-                                                    { label: "Beauty", value: "beauty" },
-                                                    { label: "Car", value: "car" },
-                                                    { label: "Sport", value: "sport" },
-                                                    { label: "Shoes", value: "shoes" },
-                                                    { label: "Bags", value: "bags" },
-                                                    { label: "Other", value: "other" },
-                                                ]}
+                                                items={storeCategories}
                                                 placeholder={{
                                                     label: "Select a Store Category",
                                                     value: "",
@@ -401,28 +505,41 @@ const StoreCreate = () => {
                                 />
                             </View>
 
+                            {/* Address 1 with Google Places Autocomplete */}
                             <View className='mb-5'>
-                                <Text style={styles.titleStyle}>Address 1</Text>
-                                <Controller
-                                    name="address1"
-                                    control={control}
-                                    rules={{
-                                        required: "Address 1 is required",
-                                    }}
-                                    render={({ field: { onChange, onBlur, value } }) => (
-                                        <TextInput 
-                                            placeholder='Enter Address 1'
-                                            placeholderTextColor={"#AFAFAF"}
-                                            onChangeText={onChange}
-                                            onBlur={onBlur}
-                                            value={value}
-                                            keyboardType="default"
-                                            style={styles.inputStyle}
-                                            autoCapitalize="words"
-                                            autoCorrect={false}
-                                        />
-                                    )}
-                                />
+                                <Text style={styles.titleStyle}>Address</Text>
+                                <View style={styles.addressContainer}>
+                                    <Controller
+                                        name="address1"
+                                        control={control}
+                                        rules={{
+                                            required: "Address is required",
+                                        }}
+                                        render={({ field: { onChange, onBlur, value } }) => (
+                                            <TextInput 
+                                                placeholder='Enter Address:'
+                                                placeholderTextColor={"#AFAFAF"}
+                                                onChangeText={(text) => {
+                                                    onChange(text);
+                                                    setAddress1Input(text);
+                                                    fetchAddressPredictions(text);
+                                                }}
+                                                onBlur={onBlur}
+                                                value={value}
+                                                keyboardType="default"
+                                                style={styles.inputStyle}
+                                                autoCapitalize="words"
+                                                autoCorrect={false}
+                                                onFocus={() => {
+                                                    if (address1Input.length >= 3) {
+                                                        setShowAddressPredictions(true);
+                                                    }
+                                                }}
+                                            />
+                                        )}
+                                    />
+                                    {renderAddressPredictions()}
+                                </View>
 
                                 <ErrorMessage
                                     errors={errors}
@@ -435,28 +552,41 @@ const StoreCreate = () => {
                                 />
                             </View>
 
-                            <View className='mb-5'>
+                            {/* Address 2 with Google Places Autocomplete */}
+                            {/* <View className='mb-5'>
                                 <Text style={styles.titleStyle}>Address 2 (Optional)</Text>
-                                <Controller
-                                    name="address2"
-                                    control={control}
-                                    render={({ field: { onChange, onBlur, value } }) => (
-                                        <TextInput 
-                                            placeholder='Enter Address 2'
-                                            placeholderTextColor={"#AFAFAF"}
-                                            onChangeText={onChange}
-                                            onBlur={onBlur}
-                                            value={value}
-                                            keyboardType="default"
-                                            style={styles.inputStyle}
-                                            autoCapitalize="words"
-                                            autoCorrect={false}
-                                        />
-                                    )}
-                                />
-                            </View>
+                                <View style={styles.addressContainer}>
+                                    <Controller
+                                        name="address2"
+                                        control={control}
+                                        render={({ field: { onChange, onBlur, value } }) => (
+                                            <TextInput 
+                                                placeholder='Enter Address 2'
+                                                placeholderTextColor={"#AFAFAF"}
+                                                onChangeText={(text) => {
+                                                    onChange(text);
+                                                    setAddress2Input(text);
+                                                    fetchAddressPredictions(text);
+                                                }}
+                                                onBlur={onBlur}
+                                                value={value}
+                                                keyboardType="default"
+                                                style={styles.inputStyle}
+                                                autoCapitalize="words"
+                                                autoCorrect={false}
+                                                onFocus={() => {
+                                                    if (address2Input.length >= 3) {
+                                                        setShowAddressPredictions(true);
+                                                    }
+                                                }}
+                                            />
+                                        )}
+                                    />
 
-                            <View className='mb-5'>
+                                </View>
+                            </View> */}
+
+                            <View className='mb-5 pt-2'>
                                 <Text style={styles.titleStyle}>Upload CAC PDF (Optional for Verification)</Text>
                                 <View className='flex-row gap-3 items-center mt-2'>
                                     <View className='w-[40%]'>
@@ -533,10 +663,69 @@ const styles = StyleSheet.create({
 
     titleStyle: {
         fontFamily: "HankenGrotesk_500Medium",
-        fontSize: 15,
+        fontSize: 14,
         color: "#3A3541",
         paddingBottom: 8,
         paddingTop: 6
+    },
+
+    // Address container for autocomplete
+    addressContainer: {
+        // position: 'relative',
+        // zIndex: 1000,
+    },
+
+    // Address predictions styles
+    predictionsContainer: {
+        position: 'absolute',
+        top: 56,
+        left: 0,
+        right: 0,
+        backgroundColor: '#fff',
+        borderRadius: 7,
+        borderWidth: 1,
+        borderColor: '#E5E5E5',
+        maxHeight: 200,
+        zIndex: 1500,
+        elevation: 5,
+        shadowColor: '#000',
+        shadowOffset: {
+            width: 0,
+            height: 2,
+        },
+        shadowOpacity: 0.25,
+        shadowRadius: 3.84,
+    },
+
+    predictionItem: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingHorizontal: 16,
+        paddingVertical: 12,
+        borderBottomWidth: 1,
+        borderBottomColor: '#F0F0F0',
+
+    },
+
+    locationIcon: {
+        marginRight: 12,
+    },
+
+    predictionTextContainer: {
+        flex: 1,
+    },
+
+    predictionMainText: {
+        fontSize: 14,
+        fontFamily: 'HankenGrotesk_500Medium',
+        color: '#000',
+        marginBottom: 2,
+    },
+
+    predictionSecondaryText: {
+        fontSize: 12,
+        fontFamily: 'HankenGrotesk_400Regular',
+        color: '#666',
     },
 
     // Custom Modal Styles

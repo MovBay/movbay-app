@@ -1,4 +1,4 @@
-import { View, Text, Image, Pressable, Modal, Dimensions, FlatList, StyleSheet, ScrollView } from "react-native"
+import { View, Text, Image, Pressable, Modal, Dimensions, FlatList, StyleSheet, ScrollView, TextInput } from "react-native"
 import { useCallback, useState } from "react"
 import { SafeAreaView } from "react-native-safe-area-context"
 import { router, useLocalSearchParams } from "expo-router"
@@ -17,6 +17,9 @@ import { Toast } from "react-native-toast-notifications"
 import RelatedProducts from "@/components/RelatedProducts"
 import AllProductSkeleton2 from "@/components/AllProductSkeleton2"
 import { ActivityIndicator } from "react-native"
+import { Controller, useForm } from "react-hook-form"
+import { ErrorMessage } from "@hookform/error-message"
+import { useCreateChat } from "@/hooks/mutations/chatAuth"
 
 const { width: screenWidth } = Dimensions.get("window")
 
@@ -201,7 +204,6 @@ const isStoreFollowed = (storeId:any, followedStores:any) => {
 
 const Product = () => {
   const { id } = useLocalSearchParams<{ id: string }>()
-  const product = products.find((item) => item.id === id || item.id === id)
   const [selectedImageIndex, setSelectedImageIndex] = useState(0)
   const [isImagePreviewVisible, setIsImagePreviewVisible] = useState(false)
   const [isVideoModalVisible, setIsVideoModalVisible] = useState(false)
@@ -221,12 +223,9 @@ const Product = () => {
   const isCurrentStoreFollowed = isStoreFollowed(currentStoreId, followedStoresData)
   const {isPending, mutate} = useFollowStore(storeData?.data?.id || "")
   const {isPending: unFollowPending, mutate: unfollowMutate} = useUnFollowStore(storeData?.data?.id || "")
-  
-
 
 
   console.log('This is follow', getFollowedStores?.data)
-
 
   
   const handleFollowUnfollowStore = async () => {
@@ -238,12 +237,20 @@ const Product = () => {
     try {
       if (isCurrentStoreFollowed) {
         // Unfollow the store
-        await unfollowMutate(currentStoreId)
-        Toast.show("Store unfollowed successfully", { type: "success" })
+        await unfollowMutate(currentStoreId, {
+          onSuccess: (response) => {
+            console.log("This is Response", response.data)
+            Toast.show("Store unfollowed successfully", { type: "success" })
+          },
+        })
       } else {
         // Follow the store
-        await mutate(currentStoreId)
-        Toast.show("Store followed successfully", { type: "success" })
+        await mutate(currentStoreId, {
+          onSuccess: (response) => {
+            console.log("This is Response", response.data)
+            Toast.show("Store followed successfully", { type: "success" })
+          },
+        })
       }
     } catch (error) {
       console.error("Error following/unfollowing store:", error)
@@ -336,6 +343,62 @@ const Product = () => {
       />
     </View>
   )
+
+
+
+  // ================= MESSAGE ================
+  const {mutate: messageMutate, isPending: messagePending} = useCreateChat() 
+
+  const {
+      control,
+      handleSubmit,
+      formState: { errors },
+      reset,
+      watch,
+  } = useForm({
+      defaultValues: {
+          content: ""
+      },
+  });
+
+  const [showDialog, setShowDialog] = useState(false);
+  const handlePress = () => {
+      setShowDialog(true);
+  };
+  
+  const closeDialog = () => {
+      setShowDialog(false);
+  };
+
+
+      const onSubmit = (data: any) => {
+        if (!data.content || data.content.trim() === "") {
+          Toast.show("Message content cannot be empty", { type: "warning" });
+          return;
+        }
+          const form_data = {
+              content: data.content,
+              product_id: id
+          };
+          
+          try{
+          messageMutate(form_data, {
+              onSuccess: async (response) => {
+                  closeDialog()
+                  console.log(response.data);
+                  Toast.show("Message sent successfully", { type: "success" });  
+                  router.push(`/(access)/(user_tabs)/message`);            
+              },
+              onError: (error: any) => {
+                  closeDialog()
+                  console.log(error.response.data);
+              },
+          });
+          }catch(error){
+              console.log(error);
+          }
+      }
+    
 
   return (
     <SafeAreaView className="bg-white flex-1">
@@ -442,7 +505,7 @@ const Product = () => {
                       ₦ {eachData?.original_price.toLocaleString()}
                     </Text>
                     <Text
-                      className={`text-lg pt-2 italic line-through text-neutral-500 ${isOutOfStock ? 'text-gray-400' : ''}`}
+                      className={`text-lg pt-2  line-through text-neutral-500 ${isOutOfStock ? 'text-gray-400' : ''}`}
                       style={{ fontFamily: "HankenGrotesk_500Medium" }}
                     >
                       ₦ {eachData?.discounted_price.toLocaleString()}
@@ -455,14 +518,14 @@ const Product = () => {
 
                 <View className="pt-2">
                   {isOutOfStock ? (
-                    <View className="bg-red-50 border border-red-200 rounded-lg p-3 mb-3">
+                    <View className="bg-yellow-50 border border-yellow-200 rounded-lg p-2 mb-3">
                       <View className="flex-row items-center">
                         <MaterialIcons name="error" size={20} color="#DC2626" />
-                        <Text className="text-red-600 text-sm ml-2 font-semibold" style={{ fontFamily: "HankenGrotesk_600SemiBold" }}>
+                        <Text className="text-yellow-600 text-sm ml-2 font-semibold" style={{ fontFamily: "HankenGrotesk_600SemiBold" }}>
                           Out of Stock
                         </Text>
                       </View>
-                      <Text className="text-red-500 text-sm mt-1" style={{ fontFamily: "HankenGrotesk_400Regular" }}>
+                      <Text className="text-yellow-500 text-sm mt-1" style={{ fontFamily: "HankenGrotesk_400Regular" }}>
                         This product is currently unavailable
                       </Text>
                     </View>
@@ -479,25 +542,19 @@ const Product = () => {
                       </Text>
                     </View>
                   ) : isLowStock ? (
-                    <View className="bg-red-50 border border-red-200 rounded-lg p-3 mb-5">
+                    <View className="bg-yellow-50 border border-yellow-200 rounded-lg p-2 mb-5">
                       <View className="flex-row items-center">
                         <Ionicons name="alarm" size={20} color="#D97706" />
-                        <Text className="text-red-800 text-sm ml-2 font-semibold" style={{ fontFamily: "HankenGrotesk_600SemiBold" }}>
+                        <Text className="text-yellow-600 text-sm ml-2 font-semibold" style={{ fontFamily: "HankenGrotesk_400Regular" }}>
                           Low Stock - Only {remainingStock} more can be added!
                         </Text>
                       </View>
-                      <Text className="text-yellow-600 text-sm mt-1" style={{ fontFamily: "HankenGrotesk_400Regular" }}>
-                        {currentQuantityInCart > 0
-                          ? `You have ${currentQuantityInCart} in cart. ${remainingStock} more available.`
-                         : "Hurry, grab it before it's gone!"
-                        }
-                      </Text>
                     </View>
                   ) : (
-                    <View className="bg-green-50 border border-green-200 rounded-lg p-3 mb-3">
+                    <View className="bg-green-50 border border-green-200 rounded-lg p-2 mb-3">
                       <View className="flex-row items-center">
-                        <MaterialIcons name="check-circle" size={20} color="#059669" />
-                        <Text className="text-green-700 text-sm ml-2 font-semibold" style={{ fontFamily: "HankenGrotesk_600SemiBold" }}>
+                        <MaterialIcons name="check-circle" size={16} color="#059669" />
+                        <Text className="text-green-700 text-sm ml-2 font-semibold" style={{ fontFamily: "HankenGrotesk_400Regular" }}>
                           In Stock ({remainingStock} more can be added)
                         </Text>
                       </View>
@@ -508,18 +565,6 @@ const Product = () => {
                       )}
                     </View>
                   )}
-                </View>
-
-                <View className="flex-row gap-3 border-b border-neutral-200 pb-3">
-                  <View className="flex-row">
-                    <MaterialIcons name="star" size={14} color={"#FBBC05"} />
-                    <MaterialIcons name="star" size={14} color={"#FBBC05"} />
-                    <MaterialIcons name="star" size={14} color={"#FBBC05"} />
-                    <MaterialIcons name="star" size={14} color={"#FBBC05"} />
-                  </View>
-                  <Text className="text-sm" style={{ fontFamily: "HankenGrotesk_500Medium" }}>
-                    (1,020)
-                  </Text>
                 </View>
 
                 {/* Watch Product Video Button */}
@@ -839,13 +884,76 @@ const Product = () => {
         </View>
       </ScrollView>
 
+      {showDialog && (
+          <View style={styles.modalOverlaya}>
+              <Pressable style={styles.modalBackdrop} onPress={closeDialog} />
+              <View className='bg-white rounded-2xl p-6 mx-6 w-[90%]'>
+                  <Text className='text-xl text-center mb-2' style={{fontFamily: 'HankenGrotesk_600SemiBold'}}>
+                      Enter message to send
+                  </Text>
+                  <View className=''>
+                      <Controller
+                          name="content"
+                          control={control}
+                          rules={{
+                              required: "Messgae is required",
+                          }}
+                          render={({ field: { onChange, onBlur, value } }) => (
+                              <TextInput 
+                                  placeholder='Enter Message'
+                                  placeholderTextColor={"#AFAFAF"}
+                                  onChangeText={onChange}
+                                  onBlur={onBlur}
+                                  value={value}
+                                  keyboardType="default"
+                                  autoCapitalize="sentences"
+                                  autoCorrect={false}
+                                  multiline={true}
+                                  numberOfLines={4}
+                                  textAlignVertical="top"
+                                  
+                                  style={styles.inputStyle}
+                                  className='border border-neutral-200'
+                              />
+                          )}
+                      />
+                   
+                      
+                      <ErrorMessage
+                          errors={errors}
+                          name="content"
+                          render={({ message }) => (
+                              <Text className="pl-2 pt-3 text-sm text-red-600">
+                                  {message}
+                              </Text>
+                          )}
+                      />
+                  </View>
+                  <View className='flex-row items-center justify-between mt-5'>
+                      <View className='w-[48%]'>
+                          <SolidLightButton onPress={closeDialog} text='Cancel'/>
+                      </View>
+                      <View className='w-[48%]'>
+                        {messagePending ? (
+                          <Pressable className="bg-[#F75F15] p-4 rounded-full justify-center items-center" style={{opacity: 0.6}} disabled>
+                            <ActivityIndicator size="small" color="white" />
+                          </Pressable>
+                        ): (
+                          <SolidMainButton onPress={handleSubmit(onSubmit)} text='Send'/>
+                        )}
+                      </View>
+                  </View>
+              </View>
+          </View>
+      )}
+
       {/* Fixed Action Buttons at Bottom */}
       {!isLoading && eachData && (
         <View style={styles.fixedBottomContainer} className="bg-neutral-50">
           {!isOwnProduct && (
             <View className="flex-row gap-3 justify-center">
               <View className="w-[48%]">
-                <SolidLightButton text="Chat" />
+                <SolidLightButton text="Chat" onPress={handlePress}/>
               </View>
               <View className="w-[48%]">
                 {isOutOfStock ? (
@@ -943,6 +1051,36 @@ const styles = StyleSheet.create({
     paddingTop: 15,
     paddingBottom: 20,
   },
+
+  modalOverlaya: {
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      justifyContent: 'center',
+      alignItems: 'center',
+      backgroundColor: 'rgba(0, 0, 0, 0.5)',
+  },
+
+
+  inputStyle: {
+      borderRadius: 7,
+      paddingHorizontal: 16,
+      paddingVertical: 16,
+      paddingTop: 10,
+      fontFamily: "HankenGrotesk_400Regular",
+      backgroundColor: '#F6F6F6',
+      height: 100,
+  },
+
+    modalBackdrop: {
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+    },
 })
 
 export default Product

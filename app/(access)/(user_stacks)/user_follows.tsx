@@ -25,14 +25,13 @@ const UserFollows = () => {
   const {getFollowers, isLoading: isFollowersLoading} = useGetFollowers()
   const followersData = getFollowers?.data || [];
   console.log('Followers data:', followersData);
-
   console.log('Followed stores data:', followedStoresData);
 
   // Empty state component for followers
   const EmptyFollowersComponent = () => (
-    <View className="flex-1 items-center pt-20">
+    <View className="flex-1 items-center pt-20 w-[90%] mx-auto">
       <View className="bg-gray-100 rounded-full p-5 mb-4">
-        <MaterialIcons name="people" size={50} color="#9CA3AF" />
+        <MaterialIcons name="people" size={35} color="#9CA3AF" />
       </View>
       <Text className="text-xl font-semibold text-gray-800 mb-2" style={{ fontFamily: 'HankenGrotesk_600SemiBold' }}>
         No Followers Yet
@@ -45,9 +44,9 @@ const UserFollows = () => {
 
   // Empty state component for following
   const EmptyFollowingComponent = () => (
-    <View className="flex-1 justify-center items-center py-20">
+    <View className="flex-1 items-center pt-20 w-[90%] mx-auto">
       <View className="bg-gray-100 rounded-full p-5 mb-4">
-        <MaterialIcons name="person-add" size={50} color="#9CA3AF" />
+        <MaterialIcons name="person-add" size={35} color="#9CA3AF" />
       </View>
       <Text className="text-xl font-semibold text-gray-800 mb-2" style={{ fontFamily: 'HankenGrotesk_600SemiBold' }}>
         You Are Not Following Anyone Yet
@@ -60,7 +59,7 @@ const UserFollows = () => {
 
   // Loading component
   const LoadingComponent = () => (
-    <View className="flex-1 justify-center items-center py-20">
+    <View className="flex-1 items-center pt-28">
       <ActivityIndicator size="large" color="#F75F15" />
       <Text className="text-sm text-gray-500 mt-3" style={{ fontFamily: 'HankenGrotesk_400Regular' }}>
         Loading...
@@ -73,14 +72,14 @@ const UserFollows = () => {
     <View key={`followed-store-${item.followed_store.id}`} className="flex-row items-center py-4 border-b border-gray-100">
       <View className="w-14 h-14 rounded-full mr-3 overflow-hidden bg-gray-200">
         <Image 
-          source={{ uri: item.followed_store.store_image }} 
+          source={{ uri: item?.followed_store?.store_image }} 
           className="w-full h-full"
           style={{ objectFit: 'cover' }}
         />
       </View>
       <View className="flex-1">
         <Text className="text-lg font-semibold text-gray-800 mb-0.5" style={{ fontFamily: 'HankenGrotesk_600SemiBold' }}>
-          {item.followed_store.name}
+          {item?.followed_store?.name}
         </Text>
         <Text className="text-xs text-gray-500" style={{ fontFamily: 'HankenGrotesk_400Regular' }}>
           Followed on {new Date(item.followed_at).toLocaleDateString('en-US', {
