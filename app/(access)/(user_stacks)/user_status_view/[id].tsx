@@ -55,7 +55,7 @@ const UserStatusView = () => {
   const { id } = useLocalSearchParams<{ id: string }>()
   const { singleStatusData, isLoading } = useGetSingleStatus(id)
 
-  const { storeData } = useGetStore()
+  const { storeData, isLoading: storeDataLoading } = useGetStore()
   const { openStore, isLoading: openStoreLoading } = useGetOpenStore(singleStatusData?.data[0]?.store)
   const openStoreData = openStore?.data
   const storeId = openStoreData?.id
@@ -389,6 +389,12 @@ const UserStatusView = () => {
             </View>
           )}
 
+        </TouchableOpacity>
+
+        {storeDataLoading? <>
+          <Text className="text-neutral-500 text-sm" style={{fontFamily: 'HankenGrotesk_500Medium'}}>Loading . . .</Text>
+        </> : <>
+        
           {storeData?.data?.id !== storeId && (
             <View className="flex-row justify-between mx-4 my-4 gap-3 pointer-events-auto">
               <View className="flex-1">
@@ -399,54 +405,54 @@ const UserStatusView = () => {
               </View>
             </View>
           )}
-        </TouchableOpacity>
 
-        {/* Message input */}
+          {storeData?.data?.id !== storeId && (
+            <View className="px-4 pb-4 w-full">
 
-        {storeData?.data?.id !== storeId && (
-          <View className="px-4 pb-4 w-full">
+              <View className="flex-row justify-between items-center w-full">
 
-            <View className="flex-row justify-between items-center w-full">
-
-              <View className="bg-neutral-900 rounded-full flex-row items-end p-2">
-                <TextInput
-                  placeholder="Send a message..."
-                  placeholderTextColor="#9CA3AF"
-                  value={messageText}
-                  onChangeText={setMessageText}
-                  multiline
-                  maxLength={200}
-                  className="flex-1 text-white px-4 py-3 text-base leading-5"
-                  style={{
-                    fontFamily: "HankenGrotesk_400Regular",
-                    textAlignVertical: "top",
-                    maxHeight: 100,
-                  }}
-                  returnKeyType="send"
-                  onSubmitEditing={handleSendMessage}
-                />
-                <TouchableOpacity
-                  onPress={handleSendMessage}
-                  className="bg-[#F75F15] rounded-full p-3 px-5 ml-2"
-                  style={{ opacity: messageText.trim() ? 1 : 0.5 }}
-                  disabled={!messageText.trim()}
-                  activeOpacity={0.8}
-                >
-                  <MaterialIcons name="send" size={20} color="white" />
-                </TouchableOpacity>
+                <View className="bg-neutral-900 rounded-full flex-row items-end p-2">
+                  <TextInput
+                    placeholder="Send a message..."
+                    placeholderTextColor="#9CA3AF"
+                    value={messageText}
+                    onChangeText={setMessageText}
+                    multiline
+                    maxLength={200}
+                    className="flex-1 text-white px-4 py-3 text-base leading-5"
+                    style={{
+                      fontFamily: "HankenGrotesk_400Regular",
+                      textAlignVertical: "top",
+                      maxHeight: 100,
+                    }}
+                    returnKeyType="send"
+                    onSubmitEditing={handleSendMessage}
+                  />
+                  <TouchableOpacity
+                    onPress={handleSendMessage}
+                    className="bg-[#F75F15] rounded-full p-3 px-5 ml-2"
+                    style={{ opacity: messageText.trim() ? 1 : 0.5 }}
+                    disabled={!messageText.trim()}
+                    activeOpacity={0.8}
+                  >
+                    <MaterialIcons name="send" size={20} color="white" />
+                  </TouchableOpacity>
+                </View>
               </View>
-            </View>
 
-            {messageText.length > 0 && (
-              <Text
-                className="text-white/70 text-xs mt-2 text-right"
-                style={{ fontFamily: "HankenGrotesk_400Regular" }}
-              >
-                {messageText.length}/200
-              </Text>
-            )}
-          </View>
-        )}
+              {messageText.length > 0 && (
+                <Text
+                  className="text-white/70 text-xs mt-2 text-right"
+                  style={{ fontFamily: "HankenGrotesk_400Regular" }}
+                >
+                  {messageText.length}/200
+                </Text>
+              )}
+            </View>
+          )}
+        </>}
+
+
       </KeyboardAvoidingView>
     </SafeAreaView>
   )

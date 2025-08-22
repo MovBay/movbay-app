@@ -19,6 +19,7 @@ import MaterialIcons from "@expo/vector-icons/MaterialIcons"
 import { router, useLocalSearchParams, useFocusEffect } from "expo-router"
 import { useContinueChat } from "@/hooks/mutations/chatAuth"
 import { KeyboardAvoidingView } from "react-native"
+import AsyncStorage from "@react-native-async-storage/async-storage"
 
 // Define the required interfaces
 interface UserProfile {
@@ -35,9 +36,11 @@ interface Sender {
 }
 
 interface Receiver {
+  id?: string
   name: string
   category: string
   store_image_url: string
+  store_image?: string
   description: string
   owner: string
   address1: string
@@ -65,6 +68,8 @@ interface Message {
   delivered: boolean
   product: Product | null
   created_at: string
+  sender_id?: string
+  receiver_id?: string
 }
 
 const ChatDetailScreen = () => {
@@ -77,6 +82,7 @@ const ChatDetailScreen = () => {
   const [showOptionsMenu, setShowOptionsMenu] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
   const [inputHeight, setInputHeight] = useState(40)
+  const [chatPartnerInfo, setChatPartnerInfo] = useState<any>(null)
 
   const ws = useRef<WebSocket | null>(null)
   const reconnectAttempts = useRef(0)
@@ -86,25 +92,67 @@ const ChatDetailScreen = () => {
   const textInputRef = useRef<TextInput>(null)
 
   // Get route parameters
-  const { roomId, token } = useLocalSearchParams<{
+  const { roomId, token, receiverName, receiverImage, receiverId } = useLocalSearchParams<{
     roomId: string
     token: string
+    receiverName: string
+    receiverImage: string
+    receiverId: string
   }>()
 
   // Continue chat mutation
   const continueChat = useContinueChat(roomId)
 
-  // NOTE: The previous keyboard listeners were removed.
-  // We'll rely solely on KeyboardAvoidingView and its behavior for a more reliable experience.
+  // Get user data from AsyncStorage
+  const getUserData = async () => {
+    try {
+      const userId = await AsyncStorage.getItem("user_id")
+      if (userId) {
+        setCurrentUserId(userId)
+        console.log("Current user ID set to:", userId)
+      }
+    } catch (error) {
+      console.error("Error getting user data from AsyncStorage:", error)
+    }
+  }
+
+  // Get the other person in the conversation (not the current user) - same logic as Message screen
+  const getOtherPerson = (chat: Message) => {
+    // If current user is the sender, show receiver data
+    if (chat.sender?.id === currentUserId || chat.sender_id === currentUserId) {
+      return {
+        id: chat.receiver?.id || chat.receiver_id,
+        name: chat.receiver?.name,
+        image: chat.receiver?.store_image_url || chat.receiver?.store_image,
+      }
+    }
+    // If current user is the receiver, show sender data
+    else {
+      return {
+        id: chat.sender?.id || chat.sender_id,
+        name: chat.sender?.user_profile?.fullname,
+        image: chat.sender?.user_profile?.profile_picture,
+      }
+    }
+  }
 
   // Clear messages when screen comes into focus
   useFocusEffect(
     useCallback(() => {
       console.log("Screen focused - clearing messages and reconnecting")
       setMessages([])
-      setCurrentUserId(null)
       setIsLoading(true)
       
+      // Get user data
+      getUserData()
+      
+      // Set chat partner info from route params
+      setChatPartnerInfo({
+        name: receiverName,
+        image: receiverImage,
+        id: receiverId
+      })
+
       // Reconnect WebSocket
       if (roomId && token) {
         setTimeout(() => {
@@ -115,7 +163,7 @@ const ChatDetailScreen = () => {
       return () => {
         disconnect()
       }
-    }, [roomId, token])
+    }, [roomId, token, receiverName, receiverImage, receiverId])
   )
 
   // Check if message already exists (more strict checking)
@@ -134,7 +182,7 @@ const ChatDetailScreen = () => {
     setIsConnecting(true)
 
     try {
-      const wsUrl = `ws://movbay.com/ws/chat/${roomId}/?token=${token}`
+      const wsUrl = `wss://movbay.com/ws/chat/${roomId}/?token=${token}`
       console.log("Connecting to WebSocket:", wsUrl)
 
       ws.current = new WebSocket(wsUrl)
@@ -229,13 +277,6 @@ const ChatDetailScreen = () => {
     console.log("Setting messages array:", newMessages.length, "messages")
     setIsLoading(false)
     
-    // Set current user ID if not set
-    if (newMessages.length > 0 && !currentUserId) {
-      // Find the current user ID from the messages
-      // This assumes the first message helps identify current user
-      setCurrentUserId(newMessages[0].sender.id)
-    }
-
     setMessages(newMessages)
     
     // Scroll to bottom after loading messages
@@ -368,26 +409,29 @@ const ChatDetailScreen = () => {
     })
   }
 
-  // Get chat partner info
-  const getChatPartnerInfo = () => {
-    if (messages.length > 0) {
-      const firstMessage = messages[0]
-      return {
-        name: firstMessage.receiver.name,
-        image: firstMessage.receiver.store_image_url,
-        category: firstMessage.receiver.category,
-        description: firstMessage.receiver.description
-      }
-    }
-    return null
-  }
-
-  const chatPartner = getChatPartnerInfo()
-
   // Render individual message
   const renderMessage = (message: Message, index: number) => {
-    const isCurrentUser = currentUserId ? message.sender.id === currentUserId : index === 0
+    // Check if current user is the sender of this message
+    const isCurrentUser = currentUserId && (message.sender?.id === currentUserId || message.sender_id === currentUserId)
     const shouldShowProduct = message.product && message.product.id > 0
+
+    // Get the appropriate profile image and name for the message
+    const messageProfile = isCurrentUser ? {
+      image: message.sender?.user_profile?.profile_picture || "",
+      name: message.sender?.user_profile?.fullname || "You"
+    } : {
+      image: message.sender?.user_profile?.profile_picture || chatPartnerInfo?.image || "",
+      name: message.sender?.user_profile?.fullname || chatPartnerInfo?.name || "Unknown"
+    }
+
+    console.log("Rendering message:", {
+      content: message.content,
+      isCurrentUser,
+      currentUserId,
+      senderId: message.sender?.id,
+      senderIdAlt: message.sender_id,
+      messageProfile
+    })
 
     return (
       <View key={`${message.sender.id}-${message.created_at}-${index}`} className="px-4 mb-4">
@@ -395,7 +439,7 @@ const ChatDetailScreen = () => {
           {!isCurrentUser && (
             <Image
               source={{
-                uri: message.sender.user_profile.profile_picture || chatPartner?.image || "",
+                uri: messageProfile.image || "",
               }}
               className="w-8 h-8 rounded-full mr-2 mt-0.5"
               style={{ marginTop: 2 }}
@@ -463,7 +507,7 @@ const ChatDetailScreen = () => {
           {isCurrentUser && (
             <Image
               source={{ 
-                uri: message.sender.user_profile.profile_picture || ''
+                uri: messageProfile.image || ''
               }}
               className="w-8 h-8 rounded-full ml-2 mt-0.5"
               style={{ marginTop: 2 }}
@@ -484,10 +528,10 @@ const ChatDetailScreen = () => {
           <Ionicons name="chevron-back" size={24} color="#374151" />
         </TouchableOpacity>
 
-        {chatPartner ? (
+        {chatPartnerInfo ? (
           <View className="flex-row items-center flex-1">
-            {chatPartner.image ? (
-              <Image source={{ uri: chatPartner.image }} className="w-10 h-10 rounded-full mr-3" />
+            {chatPartnerInfo.image ? (
+              <Image source={{ uri: chatPartnerInfo.image }} className="w-10 h-10 rounded-full mr-3" />
             ) : (
               <View className="w-10 h-10 rounded-full bg-orange-100 mr-3 items-center justify-center">
                 <Ionicons name="storefront" size={20} color="#F97316" />
@@ -496,18 +540,12 @@ const ChatDetailScreen = () => {
 
             <View className="flex-1">
               <Text style={{ fontFamily: "HankenGrotesk_600SemiBold" }} className="text-gray-900 text-base mb-1">
-                {chatPartner.name}
+                {chatPartnerInfo.name}
               </Text>
 
-              {chatPartner.description.length > 35 ? (
-                <Text style={{ fontFamily: "HankenGrotesk_500Medium" }} className="text-gray-500 text-xs mb-1 pt-0">
-                  {chatPartner.description.slice(0, 35)}...
-                </Text>
-              ) : (
-                <Text style={{ fontFamily: "HankenGrotesk_500Medium" }} className="text-gray-900 text-xs mb-1">
-                  {chatPartner.description}
-                </Text>
-              )}
+              <Text style={{ fontFamily: "HankenGrotesk_500Medium" }} className="text-gray-500 text-xs">
+                Online
+              </Text>
             </View>
           </View>
         ) : (
@@ -566,10 +604,6 @@ const ChatDetailScreen = () => {
       )}
 
       {/* Main Container with KeyboardAvoidingView */}
-      {/* This is the primary fix. By wrapping the content and input in KeyboardAvoidingView,
-        the input area will automatically move up with the keyboard.
-        The `keyboardVerticalOffset` can be adjusted if there's a header you need to account for.
-      */}
       <KeyboardAvoidingView
         className="flex-1"
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
@@ -627,7 +661,6 @@ const ChatDetailScreen = () => {
         {/* Input Section - Fixed to bottom */}
         {!isLoading && (
           <View className="px-4 py-4 bg-white border-t border-gray-100">
-            {/* The input container now has rounded corners and a shadow for a neater look */}
             <View className="bg-neutral-200 rounded-3xl flex-row items-end px-2 py-1 shadow-sm">
               <TextInput
                 ref={textInputRef}

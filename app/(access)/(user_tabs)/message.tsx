@@ -13,25 +13,32 @@ const Message = () => {
   const [searchQuery, setSearchQuery] = useState("")
   const [refreshing, setRefreshing] = useState(false)
   const [userToken, setUserToken] = useState("")
+  const [currentUserId, setCurrentUserId] = useState("")
 
   const { getChats, isLoading: isChatLoading, refetch } = useGetChats()
   const allChats = getChats?.data || []
+  console.log('all chats', allChats)
 
-  // Get user token from AsyncStorage
-  const getUserToken = async () => {
+  // Get user token and user ID from AsyncStorage
+  const getUserData = async () => {
     try {
       const token = await AsyncStorage.getItem("movebay_token")
+      const userId = await AsyncStorage.getItem("user_id") // Adjust key name as needed
+      
       if (token) {
         setUserToken(token)
       }
+      if (userId) {
+        setCurrentUserId(userId)
+      }
     } catch (error) {
-      console.error("Error getting token from AsyncStorage:", error)
+      console.error("Error getting data from AsyncStorage:", error)
     }
   }
 
   // Get token on component mount
   useEffect(() => {
-    getUserToken()
+    getUserData()
   }, [])
 
   // Refetch data when screen comes into focus
@@ -39,7 +46,7 @@ const Message = () => {
     useCallback(() => {
       const fetchData = async () => {
         try {
-          await getUserToken() // Refresh token in case it changed
+          await getUserData() // Refresh user data in case it changed
           await refetch() // Refetch chats data
         } catch (error) {
           console.error("Error refetching data:", error)
@@ -50,7 +57,7 @@ const Message = () => {
     }, [refetch])
   )
 
-  console.log("All Chats:", allChats, "User Token:", userToken)
+  console.log("All Chats:", allChats, "User Token:", userToken, "Current User ID:", currentUserId)
 
   // Format time to show like "2:27pm"
   const formatTime = (dateString: any) => {
@@ -83,22 +90,46 @@ const Message = () => {
     return message
   }
 
+  // Get the other person in the conversation (not the current user)
+  const getOtherPerson = (chat: any) => {
+    // If current user is the sender, show receiver data
+    if (chat.sender?.id === currentUserId || chat.sender_id === currentUserId) {
+      return {
+        id: chat.receiver?.id || chat.receiver_id,
+        name: chat.receiver?.name,
+        image: chat.receiver?.store_image_url || chat.receiver?.store_image,
+      }
+    }
+    // If current user is the receiver, show sender data
+    else {
+      return {
+        id: chat.sender?.id || chat.sender_id,
+        name: chat.sender?.user_profile?.fullname,
+        image: chat.sender?.user_profile?.profile_picture,
+      }
+    }
+  }
+
   // Filter chats based on search query
   const filteredChats = useMemo(() => {
     if (!searchQuery.trim()) return allChats
 
     return allChats.filter(
-      (chat: any) =>
-        chat.receiver?.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        getLastMessage(chat.messages).toLowerCase().includes(searchQuery.toLowerCase()),
+      (chat: any) => {
+        const otherPerson = getOtherPerson(chat)
+        return (
+          otherPerson.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          getLastMessage(chat.messages).toLowerCase().includes(searchQuery.toLowerCase())
+        )
+      },
     )
-  }, [allChats, searchQuery])
+  }, [allChats, searchQuery, currentUserId])
 
   // Handle pull to refresh
   const onRefresh = async () => {
     setRefreshing(true)
     try {
-      await getUserToken() // Refresh token
+      await getUserData() // Refresh user data
       await refetch()
     } catch (error) {
       console.error("Error refreshing chats:", error)
@@ -111,6 +142,7 @@ const Message = () => {
     const lastMessage = getLastMessage(item.messages)
     const truncatedMessage = truncateMessage(lastMessage)
     const formattedTime = formatTime(item.created_at)
+    const otherPerson = getOtherPerson(item)
 
     return (
       <TouchableOpacity
@@ -122,10 +154,11 @@ const Message = () => {
             pathname: "/(access)/(user_stacks)/chat",
             params: {
               conversationId: item.id,
-              roomId: item.room_name, // Now uses the specific chat's room_name
+              roomId: item.room_name,
               token: userToken,
-              receiverName: item.receiver?.name,
-              receiverImage: item.receiver?.store_image_url || item.receiver?.store_image,
+              receiverName: otherPerson.name,
+              receiverImage: otherPerson.image,
+              receiverId: otherPerson.id,
             },
           })
         }}
@@ -133,7 +166,7 @@ const Message = () => {
         {/* Avatar */}
         <View className="w-12 h-12 rounded-full bg-gray-200 items-center overflow-hidden justify-center mr-3">
           <Image
-            source={{ uri: item.receiver?.store_image_url || item.receiver?.store_image }}
+            source={{ uri: otherPerson.image }}
             className="object-cover w-full h-full"
           />
         </View>
@@ -141,7 +174,7 @@ const Message = () => {
         {/* Content */}
         <View className="flex-1">
           <View className="flex-row items-center justify-between mb-1">
-            <Text className="text-base font-semibold text-gray-900">{item.receiver?.name}</Text>
+            <Text className="text-base font-semibold text-gray-900">{otherPerson.name}</Text>
             <Text className="text-sm text-gray-500">{formattedTime}</Text>
           </View>
 

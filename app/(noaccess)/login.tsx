@@ -47,8 +47,9 @@ const Login = () => {
         onSuccess: (response: any) => {
           AsyncStorage.setItem('movebay_token', response?.data?.token?.access);
           AsyncStorage.setItem('movebay_usertype', response?.data?.user_type);
+          AsyncStorage.setItem('user_id', response?.data?.id);
           let userType = response?.data?.user_type
-          console.log('Login successful:', response?.data?.user_type, response?.data?.token?.access);
+          console.log('Login successful:', response?.data?.id);
           reset()
 
           if(userType === 'Rider') {
