@@ -8,6 +8,8 @@ import { OnboardArrowTextHeader } from "@/components/btns/OnboardHeader"
 import { SolidMainButton } from "@/components/btns/CustomButtoms"
 import { StyleSheet } from "react-native"
 import { useToast } from "react-native-toast-notifications"
+import { usePostShipRate } from "@/hooks/mutations/sellerAuth"
+import LoadingOverlay from "@/components/LoadingOverlay"
 
 // Types
 interface OrderData {
@@ -106,12 +108,15 @@ const DeliveryDetailsSummary = () => {
   const [saveForNextTime, setSaveForNextTime] = useState(false)
   const toast = useToast()
 
+
+  // console.log('This is summary data', parsedData)
+  const {mutate, isPending} = usePostShipRate()
+
   useEffect(() => {
     if (orderData) {
       try {
         const parsed = JSON.parse(orderData as string)
         setParsedData(parsed)
-        console.log("Parsed Order Data:", parsed)
       } catch (error) {
         console.error("Error parsing order data:", error)
         toast.show("Error loading order details", {
@@ -123,7 +128,7 @@ const DeliveryDetailsSummary = () => {
   }, [orderData])
 
   // Helper function to get delivery method display name
-  const getDeliveryMethodName = (method: string) => {
+  const getDeliveryMethodName = (method: string) => { 
     const methods: { [key: string]: string } = {
       'MovBay_Express': 'MovBay Express',
       'Speedy_Dispatch': 'Speedy Dispatch',
@@ -132,35 +137,122 @@ const DeliveryDetailsSummary = () => {
     return methods[method] || method
   }
 
+  // const handleProceed = () => {
+  //   if (!parsedData) return
+
+  //   // Add metadata for final processing
+  //   const finalOrderData = {
+  //     ...parsedData,
+  //     metadata: {
+  //       saveForNextTime,
+  //       processedAt: new Date().toISOString(),
+  //       screen: "delivery_summary"
+  //     }
+  //   }
+
+  //   if (saveForNextTime) {
+  //     console.log("Saving delivery details for next time:", finalOrderData)
+  //     toast.show("Delivery details saved for next time!", {
+  //       type: "success",
+  //       placement: "top",
+  //     })
+  //   }
+
+  //   // Navigate to checkout with complete order data
+  //   router.push({
+  //     pathname: "/(access)/(user_stacks)/user_checkout",
+  //     params: { finalOrderData: JSON.stringify(finalOrderData) }
+  //   })
+  // }
+
   const handleProceed = () => {
-    if (!parsedData) return
+  if (!parsedData) return
 
-    // Add metadata for final processing
-    const finalOrderData = {
-      ...parsedData,
-      metadata: {
-        saveForNextTime,
-        processedAt: new Date().toISOString(),
-        screen: "delivery_summary"
-      }
-    }
-
-    if (saveForNextTime) {
-      console.log("Saving delivery details for next time:", finalOrderData)
-      toast.show("Delivery details saved for next time!", {
-        type: "success",
-        placement: "top",
-      })
-    }
-
-    // Navigate to checkout with complete order data
-    router.push({
-      pathname: "/(access)/(user_stacks)/user_checkout",
-      params: { finalOrderData: JSON.stringify(finalOrderData) }
-    })
+  // Prepare the payload for the ship rate API
+  const shipRatePayload = {
+    delivery_details: {
+      fullname: parsedData.delivery.full_name,
+      phone_number: parsedData.delivery.phone_number,
+      email_address: parsedData.delivery.email || "",
+      country: "NG", // Assuming Nigeria based on your example
+      city: parsedData.delivery.city,
+      state: parsedData.delivery.state,
+      delivery_address: parsedData.delivery.delivery_address,
+      alternative_address: parsedData.delivery.alternative_address || ""
+    },
+    items: parsedData.items.map(item => ({
+      amount: item.amount,
+      product: item.product,
+      store: item.store,
+      quantity: item.quantity
+    }))
   }
 
-  console.log('Final data', parsedData)
+  // console.log('Ship rate payload:', shipRatePayload)
+        const finalOrderData = {
+        ...parsedData,
+        metadata: {
+          saveForNextTime,
+          processedAt: new Date().toISOString(),
+          screen: "delivery_summary"
+        }
+      }
+
+      if (saveForNextTime) {
+        console.log("Saving delivery details for next time:", finalOrderData)
+        toast.show("Delivery details saved for next time!", {
+          type: "success",
+          placement: "top",
+        })
+      }
+
+      // Navigate to checkout with complete order data
+      router.push({
+        pathname: "/(access)/(user_stacks)/user_checkout",
+        params: { finalOrderData: JSON.stringify(finalOrderData) }
+      })
+
+    // Make the API call
+    // mutate(shipRatePayload, {
+    //   onSuccess: (response) => {
+    //     console.log('Ship rate response:', response.data)
+        
+    //     // Add metadata for final processing
+    //     const finalOrderData = {
+    //       ...parsedData,
+    //       shipRateResponse: response, // Include the API response
+    //       metadata: {
+    //         saveForNextTime,
+    //         processedAt: new Date().toISOString(),
+    //         screen: "delivery_summary"
+    //       }
+    //     }
+
+    //     if (saveForNextTime) {
+    //       console.log("Saving delivery details for next time:", finalOrderData)
+    //       toast.show("Delivery details saved for next time!", {
+    //         type: "success",
+    //         placement: "top",
+    //       })
+    //     }
+
+    //     // Navigate to checkout with complete order data
+    //     router.push({
+    //       pathname: "/(access)/(user_stacks)/user_checkout",
+    //       params: { finalOrderData: JSON.stringify(finalOrderData) }
+    //     })
+    //   },
+    //   onError: (error) => {
+    //     console.error('Ship rate error:', error)
+    //     toast.show("Failed to get shipping rates. Please try again.", {
+    //       type: "error",
+    //       placement: "top",
+    //     })
+    //   }
+    // })
+}
+
+  // console.log('Final data', parsedData)
 
   if (!parsedData) {
     return (
@@ -176,6 +268,7 @@ const DeliveryDetailsSummary = () => {
   return (
     <SafeAreaView className="flex-1 bg-white">
       <StatusBar style="dark" />
+      <LoadingOverlay visible={isPending}/>
       
       <View className="flex-1">
         <ScrollView

@@ -18,7 +18,7 @@ import { SolidMainButton } from '@/components/btns/CustomButtoms';
 
 const RidersProfileView = () => {
 
-  const {isLoading, profile} = useRiderProfile()  
+  const {isLoading, profile} = useRiderProfile()
 
   return (
     <SafeAreaView className='flex-1 bg-white'>

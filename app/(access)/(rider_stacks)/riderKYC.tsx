@@ -52,7 +52,7 @@ const ImagePreviewModal = ({
 
 const RiderKYC = () => {
     const { riderKYC, isLoading } = useRiderKYC()
-    console.log('Rider KYC Data:', riderKYC?.data)
+    console.log('Riders KYC Data:', riderKYC?.data)
     
     // Image preview states
     const [previewModal, setPreviewModal] = useState({

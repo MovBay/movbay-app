@@ -1,6 +1,6 @@
 import { View, Text, Image } from "react-native"
 import { useState, useEffect } from "react"
-import { useLogout, useProfile, useUpdateUserProfile } from "@/hooks/mutations/auth"
+import { useLogout, useProfile, useUpdatePassword, useUpdateUserProfile } from "@/hooks/mutations/auth"
 import { router } from "expo-router"
 import { Pressable } from "react-native"
 import LoadingOverlay from "@/components/LoadingOverlay"
@@ -20,9 +20,7 @@ import Ionicons from "@expo/vector-icons/Ionicons"
 
 const ChangePassword = () => {
   const { mutate: logout, isPending: isLoggingOut } = useLogout()
-  const { mutate: updateProfile, isPending: isUpdating } = useUpdateUserProfile()
-  const { profile, isLoading, refetch } = useProfile()
-  const [image, setImage] = useState<string | null>(null)
+  const { mutate: updatePassword, isPending: isUpdating } = useUpdatePassword()
   const toast = useToast()
 
   // Password visibility states
@@ -37,9 +35,9 @@ const ChangePassword = () => {
     reset,
   } = useForm({
     defaultValues: {
-      old_password: "",
-      new_password: "",
-      confirm_new_password: "",
+      oldpassword: "",
+      newpassword: "",
+      confirm_newpassword: "",
     },
   })
 
@@ -48,16 +46,14 @@ const ChangePassword = () => {
       const formData = new FormData()
 
       // Add text fields to FormData
-      formData.append("old_password", data.old_password)
-      formData.append("New Password", data.new_password)
-      formData.append("confirm_new_password", data.confirm_new_password)
+      formData.append("oldpassword", data.oldpassword)
+      formData.append("New Password", data.newpassword)
+      formData.append("confirm_newpassword", data.confirm_newpassword)
 
-      updateProfile(formData, {
+      updatePassword(formData, {
         onSuccess: (response) => {
             console.log("This is my response", response?.data)
             toast.show("Profile Updated Successfully", { type: "success" })
-            refetch()
-        //   router.push("/profile")
         },
         onError: (error: any) => {
           console.error("Update error:", error)
@@ -72,7 +68,7 @@ const ChangePassword = () => {
   return (
     <SafeAreaView className="flex-1 bg-white">
       <StatusBar style="dark" />
-      <LoadingOverlay visible={isLoggingOut || isUpdating || isLoading} />
+      <LoadingOverlay visible={isLoggingOut || isUpdating} />
 
       <View className="flex-1">
         <KeyboardAwareScrollView
@@ -95,7 +91,7 @@ const ChangePassword = () => {
               <View className="mb-5">
                 <Text style={styles.titleStyle}>Old Password</Text>
                 <Controller
-                  name="old_password"
+                  name="oldpassword"
                   control={control}
                   rules={{
                     required: "Old Password is required",
@@ -129,7 +125,7 @@ const ChangePassword = () => {
                 />
                 <ErrorMessage
                   errors={errors}
-                  name="old_password"
+                  name="oldpassword"
                   render={({ message }) => <Text className="pl-2 pt-3 text-sm text-red-600">{message}</Text>}
                 />
               </View>
@@ -137,7 +133,7 @@ const ChangePassword = () => {
               <View className="mb-5">
                 <Text style={styles.titleStyle}>New Password</Text>
                 <Controller
-                  name="new_password"
+                  name="newpassword"
                   control={control}
                   rules={{
                     required: "New Password is required",
@@ -179,7 +175,7 @@ const ChangePassword = () => {
                 />
                 <ErrorMessage
                   errors={errors}
-                  name="new_password"
+                  name="newpassword"
                   render={({ message }) => <Text className="pl-2 pt-3 text-sm text-red-600">{message}</Text>}
                 />
               </View>
@@ -187,7 +183,7 @@ const ChangePassword = () => {
               <View className="mb-5">
                 <Text style={styles.titleStyle}>Confirm New Password</Text>
                 <Controller
-                  name="confirm_new_password"
+                  name="confirm_newpassword"
                   control={control}
                   rules={{
                     required: "Confirm New Password is required",
@@ -230,7 +226,7 @@ const ChangePassword = () => {
                 />
                 <ErrorMessage
                   errors={errors}
-                  name="confirm_new_password"
+                  name="confirm_newpassword"
                   render={({ message }) => <Text className="pl-2 pt-3 text-sm text-red-600">{message}</Text>}
                 />
               </View>

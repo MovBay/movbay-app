@@ -10,6 +10,7 @@ import {
   Alert,
   StyleSheet,
   Platform,
+  Linking,
 } from "react-native"
 import { useState, useEffect, useRef, useCallback } from "react"
 import { SafeAreaView } from "react-native-safe-area-context"
@@ -83,6 +84,7 @@ const ChatDetailScreen = () => {
   const [isLoading, setIsLoading] = useState(true)
   const [inputHeight, setInputHeight] = useState(40)
   const [chatPartnerInfo, setChatPartnerInfo] = useState<any>(null)
+  const [isPartnerOnline, setIsPartnerOnline] = useState(false) // New state for partner online status
 
   const ws = useRef<WebSocket | null>(null)
   const reconnectAttempts = useRef(0)
@@ -102,6 +104,56 @@ const ChatDetailScreen = () => {
 
   // Continue chat mutation
   const continueChat = useContinueChat(roomId)
+
+  // Function to detect and parse links and phone numbers
+  const parseMessageContent = (content: string, isCurrentUser: boolean) => {
+    // Regex patterns
+    const urlRegex = /(https?:\/\/[^\s]+|www\.[^\s]+|[^\s]+\.[a-z]{2,}(?:\/[^\s]*)?)/gi
+    const phoneRegex = /(\+?[\d\s\-\(\)]{7,})/g
+    
+    // Split content by both patterns
+    const parts = content.split(/(https?:\/\/[^\s]+|www\.[^\s]+|[^\s]+\.[a-z]{2,}(?:\/[^\s]*)?|\+?[\d\s\-\(\)]{7,})/gi)
+    
+    return parts.map((part, index) => {
+      const isUrl = urlRegex.test(part)
+      const isPhone = phoneRegex.test(part) && part.trim().length >= 7
+      
+      // Reset regex lastIndex to avoid issues with global flag
+      urlRegex.lastIndex = 0
+      phoneRegex.lastIndex = 0
+      
+      if (isUrl || isPhone) {
+        const handlePress = () => {
+          if (isUrl) {
+            let url = part
+            if (!url.startsWith('http')) {
+              url = `https://${url}`
+            }
+            Linking.openURL(url).catch(err => console.error("Couldn't load page", err))
+          } else if (isPhone) {
+            const cleanPhone = part.replace(/[^\d+]/g, '')
+            Linking.openURL(`tel:${cleanPhone}`).catch(err => console.error("Couldn't make call", err))
+          }
+        }
+
+        return (
+          <Text
+            key={index}
+            onPress={handlePress}
+            style={{
+              color: isCurrentUser ? 'white' : '#F97316',
+              textDecorationLine: 'underline',
+              fontWeight: '500',
+            }}
+          >
+            {part}
+          </Text>
+        )
+      }
+      
+      return <Text key={index}>{part}</Text>
+    })
+  }
 
   // Get user data from AsyncStorage
   const getUserData = async () => {
@@ -142,6 +194,7 @@ const ChatDetailScreen = () => {
       console.log("Screen focused - clearing messages and reconnecting")
       setMessages([])
       setIsLoading(true)
+      setIsPartnerOnline(false) // Reset partner online status
       
       // Get user data
       getUserData()
@@ -192,6 +245,14 @@ const ChatDetailScreen = () => {
         setIsConnected(true)
         setIsConnecting(false)
         reconnectAttempts.current = 0
+        
+        // Send presence notification to check partner's online status
+        if (ws.current) {
+          ws.current.send(JSON.stringify({
+            type: 'user_presence',
+            status: 'online'
+          }))
+        }
       }
 
       ws.current.onmessage = (event) => {
@@ -203,6 +264,16 @@ const ChatDetailScreen = () => {
           if (data.type === 'new_message' && data.message) {
             console.log("Processing new message:", data.message)
             handleNewMessage(data.message)
+          } else if (data.type === 'user_presence') {
+            // Handle user presence updates
+            if (data.user_id !== currentUserId) {
+              setIsPartnerOnline(data.status === 'online')
+              console.log(`Partner ${data.user_id} is now ${data.status}`)
+            }
+          } else if (data.type === 'partner_status') {
+            // Handle partner online status
+            setIsPartnerOnline(data.is_online)
+            console.log("Partner online status:", data.is_online)
           } else if (Array.isArray(data)) {
             console.log("Received messages array:", data.length, "messages")
             handleMessagesArray(data)
@@ -227,6 +298,7 @@ const ChatDetailScreen = () => {
         console.log("WebSocket closed:", event.code, event.reason)
         setIsConnected(false)
         setIsConnecting(false)
+        setIsPartnerOnline(false) // Partner goes offline when WebSocket disconnects
 
         if (event.code !== 1000 && reconnectAttempts.current < maxReconnectAttempts) {
           const delay = Math.min(1000 * Math.pow(2, reconnectAttempts.current), 30000)
@@ -242,6 +314,7 @@ const ChatDetailScreen = () => {
       ws.current.onerror = (error) => {
         console.error("WebSocket error:", error)
         setIsConnecting(false)
+        setIsPartnerOnline(false)
       }
     } catch (error) {
       console.error("Error creating WebSocket connection:", error)
@@ -292,12 +365,23 @@ const ChatDetailScreen = () => {
     }
 
     if (ws.current) {
+      // Send offline status before closing
+      try {
+        ws.current.send(JSON.stringify({
+          type: 'user_presence',
+          status: 'offline'
+        }))
+      } catch (error) {
+        console.log("Could not send offline status:", error)
+      }
+      
       ws.current.close(1000, "User disconnected")
       ws.current = null
     }
 
     setIsConnected(false)
     setIsConnecting(false)
+    setIsPartnerOnline(false)
     reconnectAttempts.current = 0
   }
 
@@ -336,6 +420,15 @@ const ChatDetailScreen = () => {
     const newHeight = Math.min(Math.max(40, event.nativeEvent.contentSize.height), 100)
     setInputHeight(newHeight)
   }
+
+  // Auto-scroll when input height changes
+  useEffect(() => {
+    if (inputHeight > 40) {
+      setTimeout(() => {
+        scrollViewRef.current?.scrollToEnd({ animated: true })
+      }, 100)
+    }
+  }, [inputHeight])
 
   // Options menu handlers
   const handleBlock = () => {
@@ -488,7 +581,7 @@ const ChatDetailScreen = () => {
                 className={`text-base leading-5 ${isCurrentUser ? "text-white" : "text-gray-900"}`}
                 style={{ fontFamily: "HankenGrotesk_400Regular" }}
               >
-                {message.content}
+                {parseMessageContent(message.content, !!isCurrentUser)}
               </Text>
             </View>
 
@@ -543,8 +636,8 @@ const ChatDetailScreen = () => {
                 {chatPartnerInfo.name}
               </Text>
 
-              <Text style={{ fontFamily: "HankenGrotesk_500Medium" }} className="text-gray-500 text-xs">
-                Online
+              <Text style={{ fontFamily: "HankenGrotesk_500Medium" }} className={`text-xs ${isPartnerOnline && isConnected ? 'text-green-600' : 'text-gray-500'}`}>
+                {isPartnerOnline && isConnected ? 'Online' : 'Offline'}
               </Text>
             </View>
           </View>
@@ -603,11 +696,11 @@ const ChatDetailScreen = () => {
         />
       )}
 
-      {/* Main Container with KeyboardAvoidingView */}
+      {/* Main Container with KeyboardAvoidingView - FIXED for Android */}
       <KeyboardAvoidingView
         className="flex-1"
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 25}
       >
         {/* Messages Container */}
         <View className="flex-1 bg-gray-50">
@@ -621,6 +714,10 @@ const ChatDetailScreen = () => {
               flexGrow: 1
             }}
             keyboardShouldPersistTaps="handled"
+            maintainVisibleContentPosition={{
+              minIndexForVisible: 0,
+              autoscrollToTopThreshold: 100
+            }}
           >
             {isLoading ? (
               <View className="flex-1 justify-center items-center px-4 min-h-[400px]">
@@ -658,9 +755,9 @@ const ChatDetailScreen = () => {
           </ScrollView>
         </View>
 
-        {/* Input Section - Fixed to bottom */}
+        {/* Input Section - Fixed to bottom with better Android keyboard handling */}
         {!isLoading && (
-          <View className="px-4 py-4 bg-white border-t border-gray-100">
+          <View className="px-4 py-3 bg-white border-t border-gray-100" style={{ paddingBottom: Platform.OS === 'android' ? 8 : 16 }}>
             <View className="bg-neutral-200 rounded-3xl flex-row items-end px-2 py-1 shadow-sm">
               <TextInput
                 ref={textInputRef}
@@ -677,6 +774,12 @@ const ChatDetailScreen = () => {
                 blurOnSubmit={false}
                 onContentSizeChange={handleContentSizeChange}
                 textAlignVertical="center"
+                onFocus={() => {
+                  // Auto scroll to bottom when input is focused
+                  setTimeout(() => {
+                    scrollViewRef.current?.scrollToEnd({ animated: true })
+                  }, 300)
+                }}
               />
               <TouchableOpacity
                 onPress={sendMessage}

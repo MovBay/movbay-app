@@ -8,6 +8,7 @@ import { router, useLocalSearchParams } from "expo-router"
 import { useToast } from "react-native-toast-notifications"
 import { StyleSheet } from "react-native"
 import { useCreateOrder } from "@/hooks/mutations/sellerAuth"
+import { useGetWalletDetails } from "@/hooks/mutations/sellerAuth"
 import { SolidMainButton } from "@/components/btns/CustomButtoms"
 import LoadingOverlay from "@/components/LoadingOverlay"
 import MaterialIcons from "@expo/vector-icons/MaterialIcons"
@@ -72,7 +73,7 @@ interface PaymentData {
 const UserCheckout = () => {
   const { finalOrderData } = useLocalSearchParams()
   const [parsedOrderData, setParsedOrderData] = useState<FinalOrderData | null>(null)
-  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState("movbay")
+  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState("card") // Changed default to card
   const [isProcessing, setIsProcessing] = useState(false)
   const [confirmationModalVisible, setConfirmationModalVisible] = useState(false)
   const toast = useToast()
@@ -83,9 +84,19 @@ const UserCheckout = () => {
   const backdropOpacity = useRef(new Animated.Value(0)).current
 
   const {mutate, isPending} = useCreateOrder()
+  
+  // Add wallet data hook
+  const {walletData, isLoading: isWalletLoading, refetch} = useGetWalletDetails()
 
   const deliveryFee = 1200
-  const discount = 0 
+  const discount = 0
+
+  // Calculate final total including delivery
+  const finalTotal = parsedOrderData ? parsedOrderData.total_amount + deliveryFee - discount : 0
+  
+  // Check if wallet has sufficient balance
+  const walletBalance = walletData?.data?.balance || 0
+  const isWalletBalanceSufficient = walletBalance >= finalTotal
 
   // Push notification functions
   const registerForPushNotificationsAsync = async () => {
@@ -167,6 +178,14 @@ const UserCheckout = () => {
         const parsed = JSON.parse(finalOrderData as string)
         setParsedOrderData(parsed)
         console.log("Final Order Data:", parsed)
+        
+        // Set default payment method based on wallet balance
+        const total = parsed.total_amount + deliveryFee - discount
+        if (walletBalance >= total) {
+          setSelectedPaymentMethod("movbay")
+        } else {
+          setSelectedPaymentMethod("card")
+        }
       } catch (error) {
         console.error("Error parsing final order data:", error)
         toast.show("Error loading order data", {
@@ -178,7 +197,7 @@ const UserCheckout = () => {
 
     // Register for push notifications on component mount
     registerForPushNotificationsAsync()
-  }, [finalOrderData])
+  }, [finalOrderData, walletBalance])
 
   // Animate bottom sheet modal
   useEffect(() => {
@@ -245,38 +264,82 @@ const UserCheckout = () => {
     return displays[methodId] || displays["card"]
   }
 
-  const PaymentOption = ({ id, title, subtitle, icon, recommended = false }: any) => (
-    <TouchableOpacity
-      onPress={() => setSelectedPaymentMethod(id)}
-      className={`flex-row items-center justify-between p-4 border rounded-lg mb-3 ${
-        selectedPaymentMethod === id ? "border-orange-500" : "border-gray-200"
-      }`}
-    >
-      <View className="flex-row items-center flex-1">
-        <View className="w-10 h-10 bg-gray-100 rounded-lg items-center justify-center mr-3">
-          <Text className="text-lg">{icon}</Text>
-        </View>
-        <View className="flex-1">
-          <View className="flex-row items-center">
-            <Text className="text-base font-medium text-gray-900">{title}</Text>
-            {recommended && (
-              <View className="ml-2 bg-green-100 px-2 py-1 rounded-full">
-                <Text className="text-xs text-green-600 font-medium">Recommended</Text>
+  // Updated PaymentOption component with wallet balance checking
+  const PaymentOption = ({ id, title, subtitle, icon, recommended = false }: any) => {
+    const isWalletOption = id === "movbay"
+    const isDisabled = isWalletOption && !isWalletBalanceSufficient
+    
+    return (
+      <View className="mb-3">
+        <TouchableOpacity
+          onPress={() => {
+            if (!isDisabled) {
+              setSelectedPaymentMethod(id)
+            } else {
+              toast.show("Insufficient wallet balance", {
+                type: "warning",
+                placement: "top",
+              })
+            }
+          }}
+          disabled={isDisabled}
+          className={`flex-row items-center justify-between p-4 border rounded-lg ${
+            selectedPaymentMethod === id && !isDisabled 
+              ? "border-orange-300" 
+              : isDisabled 
+                ? "border-gray-200" 
+                : "border-gray-200"
+          }`}
+          
+        >
+          <View className="flex-row items-center flex-1">
+            <View className={`w-10 h-10 rounded-lg items-center justify-center mr-3 ${
+              isDisabled ? "bg-gray-100" : "bg-gray-100"
+            }`}>
+              <Text className="text-lg">{icon}</Text>
+            </View>
+            <View className="flex-1">
+              <View className="flex-row items-center">
+                <Text className={`text-base font-medium ${
+                  isDisabled ? "text-gray-900" : "text-gray-900"
+                }`}>{title}</Text>
+                {recommended && !isDisabled && (
+                  <View className="ml-2 bg-green-100 px-2 py-1 rounded-full">
+                    <Text className="text-xs text-green-600 font-medium">Recommended</Text>
+                  </View>
+                )}
               </View>
+              <Text className={`text-sm mt-1 ${
+                isDisabled ? "text-gray-500" : "text-gray-500"
+              }`}>{subtitle}</Text>
+              {isWalletOption && (
+                <Text className={`text-xs mt-1 ${
+                  isDisabled ? "text-red-600" : "text-green-600"
+                }`}>
+                  
+                  {isWalletOption && !isWalletBalanceSufficient ? 
+                    (`Insufficient wallet balance Balance: ₦${walletBalance.toLocaleString()}.`):
+                    (`Balance: ₦${walletBalance.toLocaleString()}.`)
+                  }
+                </Text>
+              )}
+            </View>
+          </View>
+          <View
+            className={`w-5 h-5 rounded-full border-2 ${
+              selectedPaymentMethod === id && !isDisabled 
+                ? "border-orange-500 bg-orange-500" 
+                : "border-gray-300"
+            }`}
+          >
+            {selectedPaymentMethod === id && !isDisabled && (
+              <View className="w-2 h-2 bg-white rounded-full m-auto" />
             )}
           </View>
-          <Text className="text-sm text-gray-500 mt-1">{subtitle}</Text>
-        </View>
+        </TouchableOpacity>
       </View>
-      <View
-        className={`w-5 h-5 rounded-full border-2 ${
-          selectedPaymentMethod === id ? "border-orange-500 bg-orange-500" : "border-gray-300"
-        }`}
-      >
-        {selectedPaymentMethod === id && <View className="w-2 h-2 bg-white rounded-full m-auto" />}
-      </View>
-    </TouchableOpacity>
-  )
+    )
+  }
 
   // Enhanced error handling function
   const getErrorMessage = (error: any): string => {
@@ -328,6 +391,16 @@ const UserCheckout = () => {
       })
       return
     }
+
+    // Additional check for wallet payment
+    if (selectedPaymentMethod === "movbay" && !isWalletBalanceSufficient) {
+      toast.show("Please select a different payment method", {
+        type: "warning",
+        placement: "top",
+      })
+      return
+    }
+
     setConfirmationModalVisible(true)
   }
 
@@ -555,6 +628,11 @@ const UserCheckout = () => {
                     <Text className="text-sm font-semibold text-gray-900" style={{ fontFamily: "HankenGrotesk_600SemiBold" }}>
                       {paymentDisplay.title}
                     </Text>
+                    {selectedPaymentMethod === "movbay" && (
+                      <Text className="text-xs text-gray-600 mt-1" style={{ fontFamily: "HankenGrotesk_400Regular" }}>
+                        Balance after payment: ₦{(walletBalance - finalTotal).toLocaleString()}
+                      </Text>
+                    )}
                   </View>
                 </View>
               </View>
@@ -609,12 +687,10 @@ const UserCheckout = () => {
     )
   }
 
-  const finalTotal = parsedOrderData.total_amount + deliveryFee - discount
-
   return (
     <SafeAreaView className="flex-1 bg-white">
       <StatusBar style="dark" />
-      <LoadingOverlay visible={isPending || isProcessing}/>
+      <LoadingOverlay visible={isPending || isProcessing || isWalletLoading}/>
       
       {/* Payment Confirmation Bottom Sheet Modal */}
       <PaymentConfirmationModal />
@@ -647,7 +723,7 @@ const UserCheckout = () => {
               title="MovBay Wallet"
               subtitle="Make payment from in app wallet and earn"
               icon="💳"
-              recommended={true}
+              recommended={isWalletBalanceSufficient}
             />
             <PaymentOption id="card" title="Card Payment" subtitle="Make payment with bank debit cards" icon="💳" />
             <PaymentOption id="transfer" title="Bank Transfer" subtitle="Make payment with bank transfer" icon="🏦" />

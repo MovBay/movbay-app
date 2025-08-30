@@ -148,6 +148,18 @@ interface TrackingInfo {
   dropoffCoords: { latitude: number; longitude: number }
 }
 
+interface KYCData {
+  nin: string | null
+  nin_url: string | null
+  proof_of_address: string | null
+  poa_url: string | null
+  drivers_licence: string | null
+  drivers_licence_url: string | null
+  vehicle_type: string | null
+  plate_number: string | null
+  vehicle_color: string | null
+}
+
 const RiderHome = () => {
   const [location, setLocation] = useState<any>(null)
   const [showBanner, setShowBanner] = useState(true)
@@ -167,6 +179,7 @@ const RiderHome = () => {
   const [hasShownTrackingToast, setHasShownTrackingToast] = useState(false)
   const [isInitializing, setIsInitializing] = useState(true)
   const [myRideId, setMyRideId] = useState<number | null>(null)
+  const [showKYCModal, setShowKYCModal] = useState(false)
   
   // Add refs to prevent unnecessary re-renders
   const lastLocationUpdate = useRef<number>(0)
@@ -180,6 +193,164 @@ const RiderHome = () => {
   const toast = useToast()
   const { setOnNewRideNotification, shouldRefresh, clearRefreshFlag } = useNotification()
   const pulseAnim = useRef(new Animated.Value(1)).current
+
+  // KYC and Profile data
+  const {isLoading: isRiderLoading, profile} = useRiderProfile()  
+  const {riderKYC, isLoading: isKYCLoading} = useRiderKYC()
+  const ridersKyc = riderKYC?.data
+
+// Function to check if KYC is complete
+const isKYCComplete = useCallback((kycData: KYCData | null | undefined): boolean => {
+  if (!kycData) return false
+  
+  // Check paired fields with OR logic
+  const hasNIN = (kycData.nin && kycData.nin !== "") || (kycData.nin_url && kycData.nin_url !== "")
+  const hasProofOfAddress = (kycData.proof_of_address && kycData.proof_of_address !== "") || (kycData.poa_url && kycData.poa_url !== "")
+  const hasDriversLicense = (kycData.drivers_licence && kycData.drivers_licence !== "") || (kycData.drivers_licence_url && kycData.drivers_licence_url !== "")
+  
+  // Check individual required fields
+  const hasVehicleType = kycData.vehicle_type !== null && kycData.vehicle_type !== undefined && kycData.vehicle_type !== ""
+  const hasPlateNumber = kycData.plate_number !== null && kycData.plate_number !== undefined && kycData.plate_number !== ""
+  const hasVehicleColor = kycData.vehicle_color !== null && kycData.vehicle_color !== undefined && kycData.vehicle_color !== ""
+  
+  return !!hasNIN && !!hasProofOfAddress && !!hasDriversLicense && !!hasVehicleType && !!hasPlateNumber && !!hasVehicleColor
+}, [])
+
+// Function to get missing KYC fields
+const getMissingKYCFields = useCallback((kycData: KYCData | null | undefined): string[] => {
+  if (!kycData) {
+    return ['National ID Document', 'Proof of Address Document', 
+            'Driver\'s License Document', 'Vehicle Type', 'Plate Number', 'Vehicle Color']
+  }
+  
+  const missingFields: string[] = []
+  
+  // Check paired fields with OR logic
+  const hasNIN = (kycData.nin && kycData.nin !== "") || (kycData.nin_url && kycData.nin_url !== "")
+  const hasProofOfAddress = (kycData.proof_of_address && kycData.proof_of_address !== "") || (kycData.poa_url && kycData.poa_url !== "")
+  const hasDriversLicense = (kycData.drivers_licence && kycData.drivers_licence !== "") || (kycData.drivers_licence_url && kycData.drivers_licence_url !== "")
+  
+  if (!hasNIN) {
+    missingFields.push('National ID Number Document')
+  }
+  
+  if (!hasProofOfAddress) {
+    missingFields.push('Proof of Address Document')
+  }
+  
+  if (!hasDriversLicense) {
+    missingFields.push('Driver\'s License Document')
+  }
+  
+  // Check individual required fields
+  if (!kycData.vehicle_type || kycData.vehicle_type === "") {
+    missingFields.push('Vehicle Type')
+  }
+  
+  if (!kycData.plate_number || kycData.plate_number === "") {
+    missingFields.push('Plate Number')
+  }
+  
+  if (!kycData.vehicle_color || kycData.vehicle_color === "") {
+    missingFields.push('Vehicle Color')
+  }
+  
+  return missingFields
+}, [])
+  // Check KYC status when component mounts or KYC data changes
+  useEffect(() => {
+    if (!isKYCLoading && ridersKyc !== undefined) {
+      const kycComplete = isKYCComplete(ridersKyc)
+      if (!kycComplete) {
+        // Show KYC modal after a short delay to ensure other modals are not conflicting
+        setTimeout(() => {
+          setShowKYCModal(true)
+        }, 1000)
+      }
+    }
+  }, [ridersKyc, isKYCLoading, isKYCComplete])
+
+  // KYC Modal Component
+  const renderKYCModal = () => {
+    const missingFields = getMissingKYCFields(ridersKyc)
+    
+    return (
+      <Modal
+        animationType="slide"
+        transparent={true}
+        visible={showKYCModal}
+        onRequestClose={() => setShowKYCModal(false)}
+      >
+        <View className="flex-1 justify-center items-center bg-black/50">
+          <View className="bg-white rounded-3xl p-6 px-8 mx-4 max-w-md w-full max-h-[80%]">
+            <View className="items-center mb-4">
+              <View className="bg-[#FEEEE6] p-4 rounded-full mb-4">
+                <MaterialIcons name="notifications-none" size={40} color="#F75F15" />
+              </View>
+              <Text
+                style={{ fontFamily: "HankenGrotesk_500Medium" }}
+                className="text-xl font-bold text-neutral-900 text-center mb-2"
+              >
+                Complete Your KYC
+              </Text>
+              <Text
+                style={{ fontFamily: "HankenGrotesk_500Medium" }}
+                className="text-neutral-600 text-sm text-center mb-4"
+              >
+                You need to complete your Know Your Customer (KYC) verification to start receiving ride requests and go online.
+              </Text>
+            </View>
+
+            <View className="mb-6">
+              <Text
+                style={{ fontFamily: "HankenGrotesk_500Medium" }}
+                className="text-base font-semibold text-neutral-800 mb-3"
+              >
+                Missing Information:
+              </Text>
+              <ScrollView className="max-h-40" showsVerticalScrollIndicator={false}>
+                {missingFields.map((field, index) => (
+                  <View key={index} className="flex-row items-center mb-1">
+                    <View className="w-2 h-2 rounded-full bg-[#F75F15] mr-3" />
+                    <Text
+                      style={{ fontFamily: "HankenGrotesk_500Medium" }}
+                      className="text-sm text-neutral-700 flex-1"
+                    >
+                      {field}
+                    </Text>
+                  </View>
+                ))}
+              </ScrollView>
+            </View>
+
+            <View className="">
+              <TouchableOpacity
+                onPress={() => {
+                  setShowKYCModal(false)
+                  router.push("/(access)/(rider_stacks)/riderKYC")
+                }}
+                className="bg-[#F75F15] py-4 rounded-full items-center"
+              >
+                <Text
+                  style={{ fontFamily: "HankenGrotesk_500Medium" }}
+                  className="text-white font-semibold text-base"
+                >
+                  Complete KYC Now
+                </Text>
+              </TouchableOpacity>
+            </View>
+            
+            <Text
+              style={{ fontFamily: "HankenGrotesk_500Medium" }}
+              className="text-xs text-neutral-500 text-center mt-4"
+            >
+              Your information is secure and used only for verification purposes.
+            </Text>
+          </View>
+        </View>
+      </Modal>
+    )
+  }
 
   // Throttled location update mutation
   const locationUpdate = useMutation({
@@ -618,6 +789,13 @@ const RiderHome = () => {
   }
 
   const handleStatusTogglePress = (status: boolean) => {
+    // Check if KYC is complete before allowing user to go online
+    if (status && !isKYCComplete(ridersKyc)) {
+      // toast.show("Please complete your KYC verification to go online", { type: "warning" })
+      setShowKYCModal(true)
+      return
+    }
+    
     setPendingOnlineStatus(status)
     setShowConfirmationModal(true)
   }
@@ -695,13 +873,18 @@ const RiderHome = () => {
       return
     }
     console.log("Marking ride for pickup:", ride)
-    // Refetch my ride data to get updated status
     refetchMyRide()
   }
 
   const handleNewRidesPress = () => {
     if (!isOnline) {
       toast.show("You need to go online to view available rides.", { type: "warning" })
+      return
+    }
+    // Check KYC before showing rides
+    if (!isKYCComplete(ridersKyc)) {
+      toast.show("Please complete your KYC verification to view rides", { type: "warning" })
+      setShowKYCModal(true)
       return
     }
     setShowActiveRidesBottomSheet(true)
@@ -718,13 +901,9 @@ const RiderHome = () => {
     }
   }
 
-  // Safe data extraction with null checks
   const ridesData = getRides?.data
   const newRides = isOnline && Array.isArray(ridesData) ? ridesData.filter((ride: any) => ride?.accepted === false) : []
 
-    // const rideData = myRidersRide?.data
-    // console.log('This is ride data', rideData)
-  // Check my ride status for button configuration
   const getAcceptedRideButtonConfig = () => {
     if (!myRidersRide?.data) return null
     
@@ -762,16 +941,15 @@ const RiderHome = () => {
   }
 
   const buttonConfig = getAcceptedRideButtonConfig()
-
-  // Calculate overall loading state
-  const {isLoading: isRiderLoading, profile} = useRiderProfile()  
-  const {riderKYC, isLoading: isKYCLoading} = useRiderKYC()
   const isLoading = isInitializing || onlineCheckLoading || isKYCLoading || isRiderLoading || (!location && !isInitializing)
 
   return (
     <SafeAreaView className="flex-1 bg-white">
       <StatusBar style="dark" />
       <LoadingOverlay visible={isLoading} />
+      
+      {/* KYC Modal */}
+      {renderKYCModal()}
       
       <View style={{ height: height * 0.6 }} className="relative">
         <View className="px-5 py-3 absolute bg-white rounded-xl top-2 left-4 right-4 z-10" 
@@ -879,7 +1057,8 @@ const RiderHome = () => {
         )}
 
         {!isOnline && !isLoading && (
-          <View className="absolute top-2 left-4 right-4 z-10 bg-orange-50 rounded-lg p-3">
+          <View style={{borderColor: 'white', borderWidth: 4}} className="absolute justify-center flex-row gap-2 items-center top-16 mt-2 left-4 right-4 z-10 bg-orange-50 rounded-xl p-3">
+            <MaterialIcons name="notifications" size={15} color={'#F75F15'}/>
             <Text
               style={{ fontFamily: "HankenGrotesk_500Medium" }}
               className="text-orange-700 text-sm font-medium text-center"
@@ -888,6 +1067,7 @@ const RiderHome = () => {
             </Text>
           </View>
         )}
+
 
         {mapRegion && location && (
           <MapView
@@ -1086,24 +1266,26 @@ const RiderHome = () => {
             </View>
           </View>
 
-          <View className="mb-2 flex-row items-center justify-between rounded-2xl border border-neutral-100 p-3">
-            <View>
-              <Text style={{ fontFamily: "HankenGrotesk_500Medium" }} className="text-neutral-600 text-sm mb-1">
-                Total Earnings
-              </Text>
-              <Text style={{ fontFamily: "HankenGrotesk_500Medium" }} className="text-base font-bold text-neutral-900">
-                ₦ 00.00
-              </Text>
-            </View>
-            <TouchableOpacity onPress={() => router.push("/(access)/(rider_tabs)/riderWallet")}>
-              <MaterialIcons name="arrow-forward" size={20} color="#6B7280" />
-            </TouchableOpacity>
-          </View>
+         
 
-          <View className="flex-row justify-between mb-5">
-            <View className="flex-row items-center gap-2 border border-neutral-100 p-3 w-[49%] rounded-2xl justify-center">
-              <View className="bg-neutral-100 p-2 rounded-full mr-3">
-                <Ionicons name="car" size={20} color="#374151" />
+          <View className="flex-row justify-between items-center mb-5 pt-3">
+            <View className="mb-2 flex-row items-center bg-gray-100 h-20 justify-between rounded-2xl border w-[49%] border-neutral-100 p-3">
+              <View>
+                <Text style={{ fontFamily: "HankenGrotesk_500Medium" }} className="text-neutral-600 text-sm mb-1">
+                  Total Earnings
+                </Text>
+                <Text style={{ fontFamily: "HankenGrotesk_500Medium" }} className="text-xl font-bold text-neutral-900">
+                  ₦ 00.00
+                </Text>
+              </View>
+              <TouchableOpacity className="bg-white rounded-full p-1" onPress={() => router.push("/(access)/(rider_tabs)/riderWallet")}>
+                <MaterialIcons name="arrow-forward" size={20} color="#F75F15" />
+              </TouchableOpacity>
+            </View>
+
+            <View className="flex-row items-center h-20 gap-2 bg-gray-100 border border-neutral-100 p-3 w-[49%] rounded-2xl justify-center">
+              <View className="bg-white p-2 rounded-full mr-3">
+                <Ionicons name="car" size={20} color="#F75F15" />
               </View>
               <Text style={{ fontFamily: "HankenGrotesk_500Medium" }} className="text-2xl font-bold text-neutral-900">
                 20
@@ -1117,7 +1299,9 @@ const RiderHome = () => {
                 </Text>
               </View>
             </View>
-            <View className="flex-row items-center border border-neutral-100 p-3 w-[49%] rounded-2xl justify-center">
+
+           
+            {/* <View className="flex-row items-center border border-neutral-100 p-3 w-[49%] rounded-2xl justify-center">
               <View className="bg-neutral-100 p-2 rounded-full mr-3">
                 <Ionicons name="time" size={18} color="#374151" />
               </View>
@@ -1129,7 +1313,7 @@ const RiderHome = () => {
                   Login time
                 </Text>
               </View>
-            </View>
+            </View> */}
           </View>
         </View>
       </ScrollView>

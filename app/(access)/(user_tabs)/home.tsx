@@ -28,6 +28,9 @@ export default function HomeScreen() {
   const { storeStatusData, isLoading: storeStatusLoading, refetch: storeRefetch } = useGetStoreStatus()
   
   const allProducts = productData?.data?.results
+
+  // console.log('This are products', allProducts)
+
   const { cartLength, cartItems, isUpdating } = useCart()
   const { favoritesLength, isUpdating: favoritesUpdating } = useFavorites()
   const [activeCategoryId, setActiveCategoryId] = useState(shopCategory[0]?.id)
@@ -192,11 +195,11 @@ export default function HomeScreen() {
           )}
           <View className="flex-row gap-3 items-center">
             {/* Notifications */}
-            <Pressable className="bg-neutral-100 w-fit relative flex justify-center items-center rounded-full p-2.5">
+            <Pressable onPress={()=>router.push('/(access)/(user_stacks)/notification')} className="bg-neutral-100 w-fit relative flex justify-center items-center rounded-full p-2.5">
               <Ionicons name="notifications-outline" color={"#0F0F0F"} size={22} />
-              <View className="absolute top-[-4px] right-[-2px] bg-red-200 justify-center items-center rounded-full p-2 py-0.5">
+              <View className="absolute top-[-4px] right-[-2px]">
                 <Text style={{ fontFamily: "HankenGrotesk_500Medium" }} className="text-xs text-red-500">
-                  0
+                  <MaterialIcons name="circle" size={10} />
                 </Text>
               </View>
             </Pressable>

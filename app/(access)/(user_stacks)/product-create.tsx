@@ -25,19 +25,19 @@ const { height: SCREEN_HEIGHT } = Dimensions.get("window")
 // Utility function for price formatting
 const formatPrice = (text: string): string => {
   // Remove all non-digit characters
-  const numericValue = text.replace(/[^\d]/g, '')
-  
-  if (!numericValue) return ''
-  
+  const numericValue = text.replace(/[^\d]/g, "")
+
+  if (!numericValue) return ""
+
   // Convert to number and format with commas
-  const number = parseInt(numericValue, 10)
+  const number = Number.parseInt(numericValue, 10)
   return number.toLocaleString()
 }
 
 // Utility function to get numeric value from formatted price
 const getNumericValue = (formattedPrice: string): number => {
-  const numericString = formattedPrice.replace(/[^\d]/g, '')
-  return parseInt(numericString, 10) || 0
+  const numericString = formattedPrice.replace(/[^\d]/g, "")
+  return Number.parseInt(numericString, 10) || 0
 }
 
 // Compress image function
@@ -100,6 +100,42 @@ const ToggleSwitch = ({
       ios_backgroundColor="#E5E7EB"
     />
   </View>
+)
+
+// Checkbox Component for Delivery Options
+const DeliveryCheckbox = ({
+  value,
+  onValueChange,
+  label,
+  description,
+}: {
+  value: boolean
+  onValueChange: (value: boolean) => void
+  label: string
+  description?: string
+}) => (
+  <TouchableOpacity
+    onPress={() => onValueChange(!value)}
+    className="flex-row items-start py-3 px-4 bg-gray-50 rounded-lg mb-3"
+  >
+    <View className="mr-3 mt-0.5">
+      <View
+        className={`w-5 h-5 rounded border-2 items-center justify-center ${
+          value ? "bg-orange-500 border-orange-500" : "bg-white border-gray-300"
+        }`}
+      >
+        {value && <MaterialIcons name="check" size={14} color="white" />}
+      </View>
+    </View>
+    <View className="flex-1">
+      <Text style={[styles.titleStyle, { paddingBottom: 2, paddingTop: 0 }]}>{label}</Text>
+      {description && (
+        <Text className="text-xs text-gray-600" style={{ fontFamily: "HankenGrotesk_400Regular" }}>
+          {description}
+        </Text>
+      )}
+    </View>
+  </TouchableOpacity>
 )
 
 // Image Grid Component for Product Images
@@ -200,13 +236,7 @@ const ConfirmProductBottomSheet = ({
   return (
     <View style={StyleSheet.absoluteFillObject}>
       <Animated.View
-        style={[
-          StyleSheet.absoluteFillObject,
-          {
-            backgroundColor: "rgba(0, 0, 0, 0.5)",
-            opacity: backdropOpacity,
-          },
-        ]}
+        style={[StyleSheet.absoluteFillObject, { backgroundColor: "rgba(0, 0, 0, 0.5)", opacity: backdropOpacity }]}
       >
         <TouchableOpacity style={{ flex: 1 }} activeOpacity={1} onPress={onClose} />
       </Animated.View>
@@ -253,7 +283,14 @@ const ProductCreate = () => {
   const [productVideo, setProductVideo] = useState<string | null>(null)
   const [pickupAvailable, setPickupAvailable] = useState(false)
   const [deliveryAvailable, setDeliveryAvailable] = useState(false)
+  const [freeDelivery, setFreeDelivery] = useState(false)
   const [autoPostToStory, setAutoPostToStory] = useState(false)
+
+  // State for individual delivery types - each as separate boolean fields
+  const [movbayExpress, setMovbayExpress] = useState(false)
+  const [speedDispatch, setSpeedDispatch] = useState(false)
+  const [pickup, setPickup] = useState(false)
+
   const toast = useToast()
   const [showSuccessModal, setShowSuccessModal] = useState(false)
   const [showConfirmModal, setShowConfirmModal] = useState(false)
@@ -280,7 +317,6 @@ const ProductCreate = () => {
       condition: "",
       stock_available: "",
       size: "",
-      delivery_type: "",
     },
   })
 
@@ -289,106 +325,217 @@ const ProductCreate = () => {
   const watchedOriginalPrice = watch("original_price")
   const watchedDiscountedPrice = watch("discounted_price")
 
-  const categoryItems = useMemo(() => [
-    { label: "Fashion & Clothing", value: "fashion" },
-    { label: "Electronics & Gadgets", value: "electronics" },
-    { label: "Beauty & Personal Care", value: "beauty" },
-    { label: "Automotive & Cars", value: "car" },
-    { label: "Sports & Fitness", value: "sport" },
-    { label: "Shoes & Footwear", value: "shoes" },
-    { label: "Bags & Luggage", value: "bags" },
-    { label: "Home & Garden", value: "home_garden" },
-    { label: "Books & Education", value: "books_education" },
-    { label: "Health & Wellness", value: "health_wellness" },
-    { label: "Food & Beverages", value: "food_beverages" },
-    { label: "Baby & Kids", value: "baby_kids" },
-    { label: "Jewelry & Accessories", value: "jewelry_accessories" },
-    { label: "Art & Crafts", value: "art_crafts" },
-    { label: "Pet Supplies", value: "pet_supplies" },
-    { label: "Musical Instruments", value: "musical_instruments" },
-    { label: "Office & Business", value: "office_business" },
-    { label: "Travel & Outdoor", value: "travel_outdoor" },
-    { label: "Gaming & Entertainment", value: "gaming_entertainment" },
-    { label: "Tools & Hardware", value: "tools_hardware" },
-    { label: "Toys & Games", value: "toys_games" },
-    { label: "Photography & Video", value: "photography_video" },
-    { label: "Furniture & Decor", value: "furniture_decor" },
-    { label: "Other", value: "other" },
-  ],[])
+  const categoryItems = useMemo(
+    () => [
+      { label: "Fashion & Clothing", value: "fashion" },
+      { label: "Electronics & Gadgets", value: "electronics" },
+      { label: "Beauty & Personal Care", value: "beauty" },
+      { label: "Automotive & Cars", value: "car" },
+      { label: "Sports & Fitness", value: "sport" },
+      { label: "Shoes & Footwear", value: "shoes" },
+      { label: "Bags & Luggage", value: "bags" },
+      { label: "Home & Garden", value: "home_garden" },
+      { label: "Books & Education", value: "books_education" },
+      { label: "Health & Wellness", value: "health_wellness" },
+      { label: "Food & Beverages", value: "food_beverages" },
+      { label: "Baby & Kids", value: "baby_kids" },
+      { label: "Jewelry & Accessories", value: "jewelry_accessories" },
+      { label: "Art & Crafts", value: "art_crafts" },
+      { label: "Pet Supplies", value: "pet_supplies" },
+      { label: "Musical Instruments", value: "musical_instruments" },
+      { label: "Office & Business", value: "office_business" },
+      { label: "Travel & Outdoor", value: "travel_outdoor" },
+      { label: "Gaming & Entertainment", value: "gaming_entertainment" },
+      { label: "Tools & Hardware", value: "tools_hardware" },
+      { label: "Toys & Games", value: "toys_games" },
+      { label: "Photography & Video", value: "photography_video" },
+      { label: "Furniture & Decor", value: "furniture_decor" },
+      { label: "Other", value: "other" },
+    ],
+    [],
+  )
 
-  const brandItems = useMemo(() => [
-    { label: "Apple", value: "Apple" },
-    { label: "Samsung", value: "Samsung" },
-    { label: "Nike", value: "Nike" },
-    { label: "Adidas", value: "Adidas" },
-    { label: "Sony", value: "Sony" },
-    { label: "LG", value: "LG" },
-    { label: "HP", value: "HP" },
-    { label: "Dell", value: "Dell" },
-    { label: "Canon", value: "Canon" },
-    { label: "Nikon", value: "Nikon" },
-    { label: "Microsoft", value: "Microsoft" },
-    { label: "Google", value: "Google" },
-    { label: "Huawei", value: "Huawei" },
-    { label: "Xiaomi", value: "Xiaomi" },
-    { label: "OnePlus", value: "OnePlus" },
-    { label: "Puma", value: "Puma" },
-    { label: "Reebok", value: "Reebok" },
-    { label: "Under Armour", value: "Under Armour" },
-    { label: "New Balance", value: "New Balance" },
-    { label: "Converse", value: "Converse" },
-    { label: "Vans", value: "Vans" },
-    { label: "Jordan", value: "Jordan" },
-    { label: "Gucci", value: "Gucci" },
-    { label: "Louis Vuitton", value: "Louis Vuitton" },
-    { label: "Chanel", value: "Chanel" },
-    { label: "Prada", value: "Prada" },
-    { label: "Versace", value: "Versace" },
-    { label: "Balenciaga", value: "Balenciaga" },
-    { label: "Dior", value: "Dior" },
-    { label: "Hermès", value: "Hermès" },
-    { label: "Rolex", value: "Rolex" },
-    { label: "Casio", value: "Casio" },
-    { label: "Seiko", value: "Seiko" },
-    { label: "Fossil", value: "Fossil" },
-    { label: "Citizen", value: "Citizen" },
-    { label: "Timex", value: "Timex" },
-    { label: "Toyota", value: "Toyota" },
-    { label: "Honda", value: "Honda" },
-    { label: "Ford", value: "Ford" },
-    { label: "BMW", value: "BMW" },
-    { label: "Mercedes-Benz", value: "Mercedes-Benz" },
-    { label: "Audi", value: "Audi" },
-    { label: "Volkswagen", value: "Volkswagen" },
-    { label: "Hyundai", value: "Hyundai" },
-    { label: "Kia", value: "Kia" },
-    { label: "Nissan", value: "Nissan" },
-    { label: "Mazda", value: "Mazda" },
-    { label: "Other", value: "Other" },
-  ], [])
+  const brandItems = useMemo(
+    () => [
+      { label: "Apple", value: "Apple" },
+      { label: "Samsung", value: "Samsung" },
+      { label: "Nike", value: "Nike" },
+      { label: "Adidas", value: "Adidas" },
+      { label: "Sony", value: "Sony" },
+      { label: "LG", value: "LG" },
+      { label: "HP", value: "HP" },
+      { label: "Dell", value: "Dell" },
+      { label: "Canon", value: "Canon" },
+      { label: "Nikon", value: "Nikon" },
+      { label: "Microsoft", value: "Microsoft" },
+      { label: "Google", value: "Google" },
+      { label: "Huawei", value: "Huawei" },
+      { label: "Xiaomi", value: "Xiaomi" },
+      { label: "OnePlus", value: "OnePlus" },
+      { label: "Puma", value: "Puma" },
+      { label: "Reebok", value: "Reebok" },
+      { label: "Under Armour", value: "Under Armour" },
+      { label: "New Balance", value: "New Balance" },
+      { label: "Converse", value: "Converse" },
+      { label: "Vans", value: "Vans" },
+      { label: "Jordan", value: "Jordan" },
+      { label: "Gucci", value: "Gucci" },
+      { label: "Louis Vuitton", value: "Louis Vuitton" },
+      { label: "Chanel", value: "Chanel" },
+      { label: "Prada", value: "Prada" },
+      { label: "Versace", value: "Versace" },
+      { label: "Balenciaga", value: "Balenciaga" },
+      { label: "Dior", value: "Dior" },
+      { label: "Hermès", value: "Hermès" },
+      { label: "Rolex", value: "Rolex" },
+      { label: "Casio", value: "Casio" },
+      { label: "Seiko", value: "Seiko" },
+      { label: "Fossil", value: "Fossil" },
+      { label: "Citizen", value: "Citizen" },
+      { label: "Timex", value: "Timex" },
+      { label: "Toyota", value: "Toyota" },
+      { label: "Honda", value: "Honda" },
+      { label: "Ford", value: "Ford" },
+      { label: "BMW", value: "BMW" },
+      { label: "Mercedes-Benz", value: "Mercedes-Benz" },
+      { label: "Audi", value: "Audi" },
+      { label: "Volkswagen", value: "Volkswagen" },
+      { label: "Hyundai", value: "Hyundai" },
+      { label: "Kia", value: "Kia" },
+      { label: "Nissan", value: "Nissan" },
+      { label: "Mazda", value: "Mazda" },
+      { label: "Other", value: "Other" },
+    ],
+    [],
+  )
 
-  const conditionItems = useMemo(() => [
-    { label: "New", value: "New" },
-    { label: "Used", value: "Used" },
-    { label: "Refurbished", value: "Refurbished" },
-  ], [])
+  const conditionItems = useMemo(
+    () => [
+      { label: "New", value: "New" },
+      { label: "Used", value: "Used" },
+      { label: "Refurbished", value: "Refurbished" },
+    ],
+    [],
+  )
 
-  const deliveryTypeItems = useMemo(() => [
-    { label: "Movebay Express", value: "Movbay_Express" },
-    { label: "Speedy Dispatch", value: "Speedy_Dispatch" },
-    { label: "Pickup Hub", value: "Pickup_Hub" },
-  ], [])
+  // Size options dropdown items
+  const sizeItems = useMemo(
+    () => [
+      // Clothing Sizes - Letter
+      { label: "XS", value: "XS" },
+      { label: "S", value: "S" },
+      { label: "M", value: "M" },
+      { label: "L", value: "L" },
+      { label: "XL", value: "XL" },
+      { label: "XXL", value: "XXL" },
+      { label: "XXXL", value: "XXXL" },
+
+      // Clothing Sizes - Numeric
+      { label: "Size 0", value: "0" },
+      { label: "Size 2", value: "2" },
+      { label: "Size 4", value: "4" },
+      { label: "Size 6", value: "6" },
+      { label: "Size 8", value: "8" },
+      { label: "Size 10", value: "10" },
+      { label: "Size 12", value: "12" },
+      { label: "Size 14", value: "14" },
+      { label: "Size 16", value: "16" },
+      { label: "Size 18", value: "18" },
+      { label: "Size 20", value: "20" },
+
+      // Shoe Sizes - US
+      { label: "US 5", value: "US 5" },
+      { label: "US 5.5", value: "US 5.5" },
+      { label: "US 6", value: "US 6" },
+      { label: "US 6.5", value: "US 6.5" },
+      { label: "US 7", value: "US 7" },
+      { label: "US 7.5", value: "US 7.5" },
+      { label: "US 8", value: "US 8" },
+      { label: "US 8.5", value: "US 8.5" },
+      { label: "US 9", value: "US 9" },
+      { label: "US 9.5", value: "US 9.5" },
+      { label: "US 10", value: "US 10" },
+      { label: "US 10.5", value: "US 10.5" },
+      { label: "US 11", value: "US 11" },
+      { label: "US 11.5", value: "US 11.5" },
+      { label: "US 12", value: "US 12" },
+      { label: "US 13", value: "US 13" },
+      { label: "US 14", value: "US 14" },
+
+      // Bedding & Home Textiles
+      { label: "Twin", value: "Twin" },
+      { label: "Twin XL", value: "Twin XL" },
+      { label: "Full/Double", value: "Full" },
+      { label: "Queen", value: "Queen" },
+      { label: "King", value: "King" },
+      { label: "California King", value: "Cal King" },
+
+      // Electronics Screen Sizes
+      { label: "32 inch", value: '32"' },
+      { label: "40 inch", value: '40"' },
+      { label: "43 inch", value: '43"' },
+      { label: "50 inch", value: '50"' },
+      { label: "55 inch", value: '55"' },
+      { label: "65 inch", value: '65"' },
+      { label: "75 inch", value: '75"' },
+      { label: "85 inch", value: '85"' },
+
+      // Phone/Tablet Storage
+      { label: "64GB", value: "64GB" },
+      { label: "128GB", value: "128GB" },
+      { label: "256GB", value: "256GB" },
+      { label: "512GB", value: "512GB" },
+      { label: "1TB", value: "1TB" },
+
+      // Generic/Universal
+      { label: "One Size", value: "One Size" },
+      { label: "Free Size", value: "Free Size" },
+      { label: "Adjustable", value: "Adjustable" },
+      { label: "Mini", value: "Mini" },
+      { label: "Regular", value: "Regular" },
+      { label: "Large", value: "Large" },
+      { label: "Extra Large", value: "Extra Large" },
+      { label: "Jumbo", value: "Jumbo" },
+      { label: "Other", value: "Other" },
+    ],
+    [],
+  )
+
+  // Delivery types with descriptions - now mapped to individual state variables
+  const deliveryTypes = [
+    {
+      key: "movbay_express",
+      label: "Movbay Express",
+      description: "Fast delivery within 24 hours",
+      value: movbayExpress,
+      setValue: setMovbayExpress,
+    },
+    {
+      key: "speed_dispatch",
+      label: "Speedy Dispatch",
+      description: "Quick dispatch within 2-3 business days",
+      value: speedDispatch,
+      setValue: setSpeedDispatch,
+    },
+    {
+      key: "pickup",
+      label: "Pickup",
+      description: "Customer pickup from designated locations",
+      value: pickup,
+      setValue: setPickup,
+    },
+  ]
 
   // Validate discount price against original price
   useEffect(() => {
     if (watchedOriginalPrice && watchedDiscountedPrice) {
       const originalValue = getNumericValue(watchedOriginalPrice)
       const discountedValue = getNumericValue(watchedDiscountedPrice)
-      
+
       if (discountedValue > originalValue) {
         setError("discounted_price", {
           type: "manual",
-          message: "Discounted price cannot be higher than original price"
+          message: "Discounted price cannot be higher than original price",
         })
       } else {
         clearErrors("discounted_price")
@@ -461,24 +608,36 @@ const ProductCreate = () => {
     }
   }, [toast])
 
-  const handleFormSubmit = useCallback((data: any) => {
-    if (productImages.length === 0) {
-      toast.show("Please add at least one product image", { type: "danger" })
-      return
-    }
+  const handleFormSubmit = useCallback(
+    (data: any) => {
+      if (productImages.length === 0) {
+        toast.show("Please add at least one product image", { type: "danger" })
+        return
+      }
 
-    // Validate discount price one more time before submission
-    const originalValue = getNumericValue(data.original_price)
-    const discountedValue = getNumericValue(data.discounted_price)
-    
-    if (data.discounted_price && discountedValue > originalValue) {
-      toast.show("Discounted price cannot be higher than original price", { type: "danger" })
-      return
-    }
+      // Validate delivery options if delivery is enabled
+      if (deliveryAvailable) {
+        const hasSelectedDeliveryType = movbayExpress || speedDispatch || pickup
+        if (!hasSelectedDeliveryType) {
+          toast.show("Please select at least one delivery option", { type: "danger" })
+          return
+        }
+      }
 
-    setFormDataToSubmit(data)
-    setShowConfirmModal(true)
-  }, [productImages.length, toast])
+      // Validate discount price one more time before submission
+      const originalValue = getNumericValue(data.original_price)
+      const discountedValue = getNumericValue(data.discounted_price)
+
+      if (data.discounted_price && discountedValue > originalValue) {
+        toast.show("Discounted price cannot be higher than original price", { type: "danger" })
+        return
+      }
+
+      setFormDataToSubmit(data)
+      setShowConfirmModal(true)
+    },
+    [productImages.length, deliveryAvailable, movbayExpress, speedDispatch, pickup, toast],
+  )
 
   const handleConfirmProductCreation = useCallback(async () => {
     setShowConfirmModal(false)
@@ -491,7 +650,7 @@ const ProductCreate = () => {
     Object.keys(data).forEach((key) => {
       if (data[key] && data[key] !== "") {
         // Convert formatted prices back to numeric values
-        if (key === 'original_price' || key === 'discounted_price') {
+        if (key === "original_price" || key === "discounted_price") {
           const numericValue = getNumericValue(data[key])
           formData.append(key, numericValue.toString())
         } else {
@@ -503,7 +662,13 @@ const ProductCreate = () => {
     // Add boolean fields
     formData.append("pickup_available", pickupAvailable.toString())
     formData.append("delivery_available", deliveryAvailable.toString())
+    formData.append("free_delivery", freeDelivery.toString())
     formData.append("auto_post_to_story", autoPostToStory.toString())
+
+    // Add individual delivery type fields as separate boolean values
+    formData.append("movbay_express", movbayExpress.toString())
+    formData.append("speed_dispatch", speedDispatch.toString())
+    formData.append("pickup", pickup.toString())
 
     // Process images in parallel for better performance
     try {
@@ -511,7 +676,7 @@ const ProductCreate = () => {
         const filename = imageUri.split("/").pop()
         const match = /\.(\w+)$/.exec(filename || "")
         const type = match ? `image/${match[1]}` : "image/jpeg"
-        
+
         return {
           uri: imageUri,
           name: filename || `image_${index}.jpg`,
@@ -520,7 +685,7 @@ const ProductCreate = () => {
       })
 
       const imageFiles = await Promise.all(imagePromises)
-      
+
       imageFiles.forEach((imageFile) => {
         formData.append("images", imageFile)
         formData.append("product_images", imageFile)
@@ -531,7 +696,7 @@ const ProductCreate = () => {
         const filename = productVideo.split("/").pop()
         const match = /\.(\w+)$/.exec(filename || "")
         const type = match ? `video/${match[1]}` : "video/mp4"
-        
+
         formData.append("product_video", {
           uri: productVideo,
           name: filename || "video.mp4",
@@ -544,30 +709,50 @@ const ProductCreate = () => {
         onSuccess: (response) => {
           setShowSuccessModal(true)
           console.log("Product created successfully:", response)
-          
+
           // Reset form and state
           reset()
           setProductImages([])
           setProductVideo(null)
           setPickupAvailable(false)
           setDeliveryAvailable(false)
+          setFreeDelivery(false)
           setAutoPostToStory(false)
+          // Reset individual delivery type states
+          setMovbayExpress(false)
+          setSpeedDispatch(false)
+          setPickup(false)
           setFormDataToSubmit(null)
         },
         onError: (error: any) => {
           console.log("Error creating product:", error?.response?.data)
-          
-          const errorMessage = error?.response?.data?.message || 
-                              error?.response?.data?.title || 
-                              "Failed to create product. Please try again."
-          
+
+          const errorMessage =
+            error?.response?.data?.message ||
+            error?.response?.data?.title ||
+            "Failed to create product. Please try again."
+
           toast.show(errorMessage, { type: "danger" })
         },
       })
     } catch (error) {
       toast.show("Failed to process images. Please try again.", { type: "danger" })
     }
-  }, [formDataToSubmit, pickupAvailable, deliveryAvailable, autoPostToStory, productImages, productVideo, mutate, reset, toast])
+  }, [
+    formDataToSubmit,
+    pickupAvailable,
+    deliveryAvailable,
+    freeDelivery,
+    autoPostToStory,
+    movbayExpress,
+    speedDispatch,
+    pickup,
+    productImages,
+    productVideo,
+    mutate,
+    reset,
+    toast,
+  ])
 
   // Price input handler with formatting
   const handlePriceInput = useCallback((text: string, onChange: (value: string) => void) => {
@@ -606,7 +791,7 @@ const ProductCreate = () => {
               <Text className="text-xl pt-4 pb-3" style={{ fontFamily: "HankenGrotesk_600SemiBold" }}>
                 Basic Info
               </Text>
-              
+
               {/* Product Title */}
               <View className="mb-5">
                 <Text style={styles.titleStyle}>Product Title</Text>
@@ -617,8 +802,8 @@ const ProductCreate = () => {
                     required: "Product title is required",
                     minLength: {
                       value: 3,
-                      message: "Product title must be at least 3 characters long"
-                    }
+                      message: "Product title must be at least 3 characters long",
+                    },
                   }}
                   render={({ field: { onChange, onBlur, value } }) => (
                     <TextInput
@@ -749,8 +934,8 @@ const ProductCreate = () => {
                     required: "Description is required",
                     minLength: {
                       value: 10,
-                      message: "Description must be at least 10 characters long"
-                    }
+                      message: "Description must be at least 10 characters long",
+                    },
                   }}
                   render={({ field: { onChange, onBlur, value } }) => (
                     <TextInput
@@ -795,7 +980,7 @@ const ProductCreate = () => {
                       validate: (value) => {
                         const numericValue = getNumericValue(value)
                         return numericValue > 0 || "Price must be greater than 0"
-                      }
+                      },
                     }}
                     render={({ field: { onChange, onBlur, value } }) => (
                       <TextInput
@@ -830,7 +1015,7 @@ const ProductCreate = () => {
                           return "Discounted price cannot be higher than original price"
                         }
                         return true
-                      }
+                      },
                     }}
                     render={({ field: { onChange, onBlur, value } }) => (
                       <TextInput
@@ -862,9 +1047,9 @@ const ProductCreate = () => {
                     rules={{
                       required: "Stock quantity is required",
                       validate: (value) => {
-                        const numericValue = parseInt(value, 10)
+                        const numericValue = Number.parseInt(value, 10)
                         return numericValue > 0 || "Stock must be greater than 0"
-                      }
+                      },
                     }}
                     render={({ field: { onChange, onBlur, value } }) => (
                       <TextInput
@@ -890,15 +1075,22 @@ const ProductCreate = () => {
                     name="size"
                     control={control}
                     render={({ field: { onChange, onBlur, value } }) => (
-                      <TextInput
-                        placeholder="E.g - XL, S, L"
-                        placeholderTextColor={"#AFAFAF"}
-                        onChangeText={onChange}
-                        onBlur={onBlur}
-                        value={value}
-                        keyboardType="default"
-                        style={styles.inputStyle}
-                      />
+                      <View className="relative">
+                        <RNPickerSelect
+                          onValueChange={(itemValue) => onChange(itemValue)}
+                          value={value}
+                          items={sizeItems}
+                          placeholder={{
+                            label: "Select Size",
+                            value: "",
+                          }}
+                          style={pickerSelectStyles}
+                          useNativeAndroidPickerStyle={false}
+                        />
+                        <View className="absolute right-6 top-4">
+                          <MaterialIcons name="arrow-drop-down" size={25} color={"gray"} />
+                        </View>
+                      </View>
                     )}
                   />
                 </View>
@@ -942,57 +1134,50 @@ const ProductCreate = () => {
                   )}
                 </View>
               </View>
+
               {/* Toggle Switches */}
               <View className="mb-5 border-t border-gray-200 pt-4">
                 <Text className="text-lg mb-3" style={{ fontFamily: "HankenGrotesk_600SemiBold" }}>
-                  Availability Options
+                  Delivery Options
                 </Text>
-                <ToggleSwitch value={pickupAvailable} onValueChange={setPickupAvailable} label="Pickup Available" />
+                <ToggleSwitch value={pickupAvailable} onValueChange={setPickupAvailable} label="Pickup Available ?" />
+
+                <ToggleSwitch value={freeDelivery} onValueChange={setFreeDelivery} label="Free Delivery ?" />
+
                 <ToggleSwitch
                   value={deliveryAvailable}
                   onValueChange={setDeliveryAvailable}
-                  label="Delivery Available"
+                  label="Delivery Available ?"
                 />
-                {/* Delivery Type - Only show if delivery is available */}
+
+                {/* Delivery Type Options - Only show if delivery is available */}
                 {watchedDeliveryAvailable && (
                   <View className="mb-5 ml-4">
-                    <Text style={styles.titleStyle}>Delivery Type</Text>
-                    <Controller
-                      name="delivery_type"
-                      control={control}
-                      rules={{
-                        required: deliveryAvailable ? "Delivery type is required when delivery is available" : false,
-                      }}
-                      render={({ field: { onChange, onBlur, value } }) => (
-                        <View className="relative">
-                          <RNPickerSelect
-                            onValueChange={(itemValue) => onChange(itemValue)}
-                            value={value}
-                            items={[
-                              { label: "Movebay Express", value: "Movbay_Express" },
-                              { label: "Speedy Dispatch", value: "Speedy_Dispatch" },
-                              { label: "Pickup Hub", value: "Pickup_Hub" },
-                            ]}
-                            placeholder={{
-                              label: "Select Delivery Type",
-                              value: "",
-                            }}
-                            style={pickerSelectStyles}
-                            useNativeAndroidPickerStyle={false}
-                          />
-                          <View className="absolute right-6 top-4">
-                            <MaterialIcons name="arrow-drop-down" size={25} color={"gray"} />
-                          </View>
-                        </View>
-                      )}
-                    />
-                    <ErrorMessage
-                      errors={errors}
-                      name="delivery_type"
-                      render={({ message }) => <Text className="pl-2 pt-3 text-sm text-red-600">{message}</Text>}
-                    />
+                    <Text
+                      className="text-gray-400 text-sm"
+                      style={{ paddingBottom: 12, fontFamily: "HankenGrotesk_400Regular" }}
+                    >
+                      Select Delivery Options (Choose one or more)
+                    </Text>
+                    {deliveryTypes.map((deliveryType) => (
+                      <DeliveryCheckbox
+                        key={deliveryType.key}
+                        value={deliveryType.value}
+                        onValueChange={deliveryType.setValue}
+                        label={deliveryType.label}
+                        description={deliveryType.description}
+                      />
+                    ))}
+                    {/* Show validation error if no delivery type is selected */}
+                    {deliveryAvailable && !movbayExpress && !speedDispatch && !pickup && (
+                      <Text className="pl-2 pt-1 text-sm text-red-600">Please select at least one delivery option</Text>
+                    )}
                   </View>
                 )}
+
+                <Text className="text-lg mt-3 pt-3 border-t border-neutral-200" style={{ fontFamily: "HankenGrotesk_600SemiBold" }}>
+                  Visibility & Promotion
+                </Text>
                 <ToggleSwitch value={autoPostToStory} onValueChange={setAutoPostToStory} label="Auto Post to Story" />
               </View>
             </View>
@@ -1080,6 +1265,7 @@ const styles = StyleSheet.create({
     alignSelf: "center",
     marginTop: 24,
   },
+
   // Bottom Sheet Styles (for ConfirmProductBottomSheet)
   bottomSheetContainer: {
     position: "absolute",
@@ -1092,8 +1278,8 @@ const styles = StyleSheet.create({
     paddingTop: 20,
     paddingBottom: 40,
     paddingHorizontal: 20,
-    maxHeight: SCREEN_HEIGHT * 0.85, // Adjust as needed
-    zIndex: 999, // Ensure it's above other content but below the success modal
+    maxHeight: SCREEN_HEIGHT * 0.85,
+    zIndex: 999,
   },
 })
 

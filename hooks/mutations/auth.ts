@@ -156,3 +156,20 @@ export const useUpdateRiderKYC = () => {
 
   return updateRiderKYC
 }
+
+
+export const useUpdatePassword = () => {
+  const queryClient = useQueryClient()
+
+  const updatePassword = useMutation({
+    mutationFn: async (data: FormData) => {
+      const token = (await AsyncStorage.getItem("movebay_token")) || ""
+      return post_requests(`/users/change-password/`, data, token)
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["updatePassword"] })
+    },
+  })
+
+  return updatePassword
+}

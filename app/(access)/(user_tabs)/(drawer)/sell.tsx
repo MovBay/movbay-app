@@ -21,7 +21,7 @@ const Sell =()=> {
     navigation.dispatch(DrawerActions.openDrawer())
   }
   const {storeData, refetch, isLoading} = useGetStore()
-  console.log('Store Data:', storeData?.data)
+  // console.log('Store Data:', storeData?.data)
   
   // State for pull-to-refresh
   const [refreshing, setRefreshing] = useState(false);

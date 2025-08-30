@@ -22,6 +22,7 @@ import Animated, {
 import { useFocusEffect } from "@react-navigation/native"
 import Ionicons from "@expo/vector-icons/Ionicons"
 import { useCart } from "@/context/cart-context"
+import { usePostDeliveryTypesIds } from "@/hooks/mutations/sellerAuth"
 
 const Cart = () => {
   const {
@@ -47,6 +48,10 @@ const Cart = () => {
   const removeModalScale = useSharedValue(0.8)
   const clearModalOpacity = useSharedValue(0)
   const clearModalScale = useSharedValue(0.8)
+
+  const [deliveryTypes, setDeliveryTypes] = useState({})
+  const [isCheckingOut, setIsCheckingOut] = useState(false)
+  const {mutate, isPending} = usePostDeliveryTypesIds()
 
   // Reload cart when screen is focused
   useFocusEffect(
@@ -150,23 +155,70 @@ const Cart = () => {
   }
 
   const handleCheckout = () => {
-    const cartData = {
-      items: cartItems.map(item => ({
-        store: item?.store?.id,
-        product: item?.id,
-        product_name: item.title,
-        amount: item.discounted_price || item.price,
-        quantity: item.quantity
-      })),
-      total_amount: totalAmount,
-      cart_summary: {
-        total_items: cartLength,
-        subtotal: totalAmount,
-      }
+    setIsCheckingOut(true)
+    
+    // First, send product IDs to get delivery types
+    const productIds = cartItems.map(item => item.id)
+    const payload = {
+      product_ids: productIds
     }
-    router.push({
-      pathname: "/(access)/(user_stacks)/delivery_details",
-      params: { cartData: JSON.stringify(cartData) }
+    
+    mutate(payload, {
+      onSuccess: (response) => {
+        console.log('Product IDs sent successfully:', response?.data?.available_delivery_types)
+        setDeliveryTypes(response?.data?.available_delivery_types)
+        
+        // Prepare cart data with delivery types
+        const cartData = {
+          items: cartItems.map(item => ({
+            store: item?.store?.id,
+            product: item?.id,
+            product_name: item.title,
+            amount: item.discounted_price || item.price,
+            quantity: item.quantity
+          })),
+          total_amount: totalAmount,
+          cart_summary: {
+            total_items: cartLength,
+            subtotal: totalAmount,
+          },
+          delivery_types: response?.data?.available_delivery_types // Add delivery types to cart data
+        }
+        
+        setIsCheckingOut(false)
+        
+        // Navigate to delivery details with the enhanced cart data
+        router.push({
+          pathname: "/(access)/(user_stacks)/delivery_details",
+          params: { cartData: JSON.stringify(cartData) }
+        })
+      },
+      onError: (error) => {
+        console.log('Error sending product IDs:', error)
+        setIsCheckingOut(false)
+        
+        // Still navigate but without delivery types (fallback)
+        const cartData = {
+          items: cartItems.map(item => ({
+            store: item?.store?.id,
+            product: item?.id,
+            product_name: item.title,
+            amount: item.discounted_price || item.price,
+            quantity: item.quantity
+          })),
+          total_amount: totalAmount,
+          cart_summary: {
+            total_items: cartLength,
+            subtotal: totalAmount,
+          },
+          delivery_types: null // No delivery types available
+        }
+        
+        router.push({
+          pathname: "/(access)/(user_stacks)/delivery_details",
+          params: { cartData: JSON.stringify(cartData) }
+        })
+      }
     })
   }
 
@@ -347,11 +399,12 @@ const Cart = () => {
     </Animated.View>
   )
 
+  console.log('This is the cart', cartItems)
 
   return (
     <SafeAreaView className="flex-1 bg-gray-50">
       <StatusBar style="dark" />
-      <LoadingOverlay visible={isLoading} />
+      <LoadingOverlay visible={isLoading || isCheckingOut} />
       
       {/* Modals */}
       <RemoveItemModal />
@@ -422,7 +475,12 @@ const Cart = () => {
                   {formatPrice(totalAmount)}
                 </Text>
               </View>
-              <SolidMainButton text="Checkout" onPress={handleCheckout} />
+              
+              {/* Single Checkout Button */}
+              <SolidMainButton 
+                text={"Checkout"} 
+                onPress={handleCheckout} 
+              />
             </Animated.View>
           </View>
         )}

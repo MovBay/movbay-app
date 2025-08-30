@@ -1,7 +1,7 @@
 import { View, Text, Image } from "react-native"
 import { useState, useEffect, useCallback } from "react"
 import { router, useLocalSearchParams } from "expo-router"
-import { Pressable } from "react-native"
+import { Pressable, TouchableOpacity } from "react-native"
 import LoadingOverlay from "@/components/LoadingOverlay"
 import { SafeAreaView } from "react-native-safe-area-context"
 import { StatusBar } from "expo-status-bar"
@@ -16,16 +16,28 @@ import { StyleSheet } from "react-native"
 import RNPickerSelect from "react-native-picker-select"
 import { useToast } from "react-native-toast-notifications"
 import { nigeriaStates, State, City } from "../../../constants/state-city"
+import { useProfile } from "@/hooks/mutations/auth"
+
+// Use environment variable for Google Places API key
+const GOOGLE_PLACES_API_KEY = process.env.EXPO_PUBLIC_GOOGLE_PLACES_API_KEY
+
+interface PlacePrediction {
+  place_id: string
+  description: string
+  structured_formatting: {
+    main_text: string
+    secondary_text: string
+  }
+}
 
 // Types for better type safety
 interface AddressBookItem {
   id: string;
   label: string;
   streetAddress: string;
-  landmark: string;
+  landmark?: string;
   city: string;
   state: string;
-  postalCode: string;
 }
 
 interface FormData {
@@ -40,7 +52,6 @@ interface FormData {
   landmark: string;
   city: string;
   state: string;
-  postalCode: string;
 }
 
 interface CartData {
@@ -55,53 +66,34 @@ interface CartData {
     total_items: number;
     subtotal: number;
   };
+  delivery_types?: {
+    movbay_express: boolean;
+    speed_dispatch: boolean;
+    pickup: boolean;
+  };
 }
-
-// Mock address book data
-const addressBookData: AddressBookItem[] = [
-  {
-    id: "1",
-    label: "Home - 12 Adeola Odeku Street, Victoria Island, Lagos",
-    streetAddress: "12 Adeola Odeku Street",
-    landmark: "Opposite Zenith Bank",
-    city: "lagos-island",
-    state: "lagos",
-    postalCode: "100001"
-  },
-  {
-    id: "2", 
-    label: "Office - 45 Allen Avenue, Ikeja, Lagos",
-    streetAddress: "45 Allen Avenue",
-    landmark: "Near Computer Village",
-    city: "ikeja",
-    state: "lagos",
-    postalCode: "100271"
-  },
-  {
-    id: "3",
-    label: "Parents House - 23 Independence Layout, Enugu",
-    streetAddress: "23 Independence Layout",
-    landmark: "Close to New Haven Market",
-    city: "enugu-east",
-    state: "enugu",
-    postalCode: "400001"
-  }
-]
 
 // Toggle Switch Component
 const ToggleSwitch = ({
   value,
   onValueChange,
   label,
-}: { value: boolean; onValueChange: (value: boolean) => void; label: string }) => (
+  disabled = false,
+}: { 
+  value: boolean; 
+  onValueChange: (value: boolean) => void; 
+  label: string;
+  disabled?: boolean;
+}) => (
   <View className="flex-row items-center justify-between py-3">
-    <Text style={styles.titleStyle}>{label}</Text>
+    <Text style={[styles.titleStyle, disabled && { color: '#ccc' }]}>{label}</Text>
     <Switch
       value={value}
       onValueChange={onValueChange}
-      trackColor={{ false: "#E5E7EB", true: "#F75F15" }}
-      thumbColor={value ? "#FFFFFF" : "#FFFFFF"}
+      trackColor={{ false: "#E5E7EB", true: disabled ? "#E5E7EB" : "#F75F15" }}
+      thumbColor={value && !disabled ? "#FFFFFF" : "#FFFFFF"}
       ios_backgroundColor="#E5E7EB"
+      disabled={disabled}
     />
   </View>
 )
@@ -156,7 +148,7 @@ const CustomInput = ({
   </View>
 )
 
-// Custom Phone Input Component (similar to registration screen)
+// Custom Phone Input Component
 const CustomPhoneInput = ({
   label,
   name,
@@ -204,6 +196,121 @@ const CustomPhoneInput = ({
   </View>
 )
 
+// Google Places Address Input Component - FIXED
+const GooglePlacesAddressInput = ({
+  label,
+  name,
+  control,
+  rules,
+  errors,
+  placeholder,
+}: {
+  label: string;
+  name: keyof FormData;
+  control: any;
+  rules?: any;
+  errors: any;
+  placeholder: string;
+}) => {
+  const [addressPredictions, setAddressPredictions] = useState<PlacePrediction[]>([])
+  const [showAddressPredictions, setShowAddressPredictions] = useState(false)
+
+  // Function to fetch Google Places predictions
+  const fetchAddressPredictions = async (input: string) => {
+    if (input.length < 3) {
+      setAddressPredictions([])
+      setShowAddressPredictions(false)
+      return
+    }
+    if (!GOOGLE_PLACES_API_KEY) {
+      console.error("Google Places API Key is not set.")
+      return
+    }
+    try {
+      const response = await fetch(
+        `https://maps.googleapis.com/maps/api/place/autocomplete/json?input=${encodeURIComponent(
+          input,
+        )}&key=${GOOGLE_PLACES_API_KEY}&types=address&components=country:ng`,
+      )
+
+      const data = await response.json()
+
+      if (data.predictions) {
+        setAddressPredictions(data.predictions)
+        setShowAddressPredictions(true)
+      }
+    } catch (error) {
+      console.error("Error fetching address predictions:", error)
+    }
+  }
+
+  return (
+    <View className="mb-5">
+      <Text style={styles.titleStyle}>{label}</Text>
+      <View style={{ position: "relative" }}>
+        <Controller
+          name={name}
+          control={control}
+          rules={rules}
+          render={({ field: { onChange, onBlur, value } }) => (
+            <>
+              <TextInput
+                placeholder={placeholder}
+                placeholderTextColor={"#AFAFAF"}
+                onChangeText={(text) => {
+                  onChange(text)
+                  fetchAddressPredictions(text)
+                }}
+                onBlur={() => {
+                  onBlur()
+                  // Delay hiding predictions to allow for selection
+                  setTimeout(() => setShowAddressPredictions(false), 150)
+                }}
+                value={value || ""}
+                keyboardType="default"
+                style={styles.inputStyle}
+                autoCapitalize="words"
+                autoCorrect={false}
+              />
+              
+              {/* Address Predictions List */}
+              {showAddressPredictions && addressPredictions.length > 0 && (
+                <View style={styles.predictionsContainer}>
+                  {addressPredictions.map((item) => (
+                    <TouchableOpacity
+                      key={item.place_id}
+                      style={styles.predictionItem}
+                      onPress={() => {
+                        // Handle address selection properly
+                        onChange(item.description)
+                        setShowAddressPredictions(false)
+                        setAddressPredictions([])
+                      }}
+                    >
+                      <MaterialIcons name="location-on" size={20} color="#666" style={{ marginRight: 10 }} />
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.predictionMainText}>{item.structured_formatting.main_text}</Text>
+                        <Text style={styles.predictionSecondaryText}>
+                          {item.structured_formatting.secondary_text}
+                        </Text>
+                      </View>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              )}
+            </>
+          )}
+        />
+      </View>
+      <ErrorMessage
+        errors={errors}
+        name={name}
+        render={({ message }) => <Text className="pl-2 pt-3 text-sm text-red-600">{message}</Text>}
+      />
+    </View>
+  )
+}
+
 // Custom Picker Component
 const CustomPicker = ({
   label,
@@ -237,12 +344,12 @@ const CustomPicker = ({
             value={value}
             items={items}
             placeholder={{ label: placeholder, value: "" }}
-            style={pickerSelectStyles}
+            style={disabled ? disabledPickerSelectStyles : pickerSelectStyles}
             useNativeAndroidPickerStyle={false}
             disabled={disabled}
           />
           <View className="absolute right-6 top-4">
-            <MaterialIcons name="arrow-drop-down" size={25} color={"gray"} />
+            <MaterialIcons name="arrow-drop-down" size={25} color={disabled ? "#ccc" : "gray"} />
           </View>
         </View>
       )}
@@ -261,35 +368,139 @@ const DeliveryDetails = () => {
   const [useAddressBook, setUseAddressBook] = useState(false)
   const [selectedAddressId, setSelectedAddressId] = useState("")
   const [availableCities, setAvailableCities] = useState<City[]>([])
-  
+  const [deliveryMethodOptions, setDeliveryMethodOptions] = useState<Array<{ label: string; value: string }>>([])
+  const [addressBookData, setAddressBookData] = useState<AddressBookItem[]>([])
+  const [hasProfileAddress, setHasProfileAddress] = useState(false)
+  const [isAddressLoading, setIsAddressLoading] = useState(true)
   const toast = useToast()
 
-  // Function to format phone number for backend
-  const formatPhoneNumber = (phoneNumber: string) => {
-    // Remove all non-digit characters
-    let cleanNumber = phoneNumber.replace(/\D/g, '');
+  const { profile, isLoading } = useProfile()
+  
+  // Helper function to truncate address for label
+  const truncateAddress = (address: string, maxLength: number = 50) => {
+    if (address.length <= maxLength) return address
+    return address.substring(0, maxLength) + '...'
+  }
+
+  // Process profile address and set up address book - FIXED
+  useEffect(() => {
+    setIsAddressLoading(true)
     
-    // Remove leading zero if present
+    if (profile?.data?.address) {
+      try {
+        // Handle different address formats
+        let processedAddresses: AddressBookItem[] = []
+        
+        if (typeof profile.data.address === 'string') {
+          // If address is a string, create a single address book item using the actual address as label
+          processedAddresses = [{
+            id: 'profile-address-1',
+            label: truncateAddress(profile.data.address), // Use actual address as label
+            streetAddress: profile.data.address,
+            landmark: '',
+            city: '',
+            state: ''
+          }]
+        } else if (Array.isArray(profile.data.address)) {
+          // If address is an array, process each address
+          processedAddresses = profile.data.address.map((addr: any, index: number) => {
+            const streetAddress = addr.streetAddress || addr.address || addr.street_address || ''
+            return {
+              id: addr.id || `address-${index}`,
+              label: addr.label || truncateAddress(streetAddress) || `Address ${index + 1}`, // Use actual address if no label
+              streetAddress: streetAddress,
+              landmark: addr.landmark || '',
+              city: addr.city || '',
+              state: addr.state || ''
+            }
+          })
+        } else if (typeof profile.data.address === 'object') {
+          // If address is an object, create a single address book item
+          const addr = profile.data.address
+          const streetAddress = addr.streetAddress || addr.address || addr.street_address || ''
+          processedAddresses = [{
+            id: addr.id || 'profile-address-1',
+            label: addr.label || truncateAddress(streetAddress) || 'Address', // Use actual address if no label
+            streetAddress: streetAddress,
+            landmark: addr.landmark || '',
+            city: addr.city || '',
+            state: addr.state || ''
+          }]
+        }
+
+        // Filter out addresses that don't have at least a street address
+        processedAddresses = processedAddresses.filter(addr => 
+          addr.streetAddress && addr.streetAddress.trim() !== ''
+        )
+
+        setAddressBookData(processedAddresses)
+        setHasProfileAddress(processedAddresses.length > 0)
+      } catch (error) {
+        console.error('Error processing profile address:', error)
+        setAddressBookData([])
+        setHasProfileAddress(false)
+      }
+    } else {
+      setAddressBookData([])
+      setHasProfileAddress(false)
+    }
+    
+    setIsAddressLoading(false)
+  }, [profile])
+
+  const formatPhoneNumber = (phoneNumber: string) => {
+    let cleanNumber = phoneNumber.replace(/\D/g, '');
     if (cleanNumber.startsWith('0')) {
       cleanNumber = cleanNumber.substring(1);
     }
-    
-    // Return formatted number with +234 prefix
     return `+234${cleanNumber}`;
   };
 
-  // Parse cart data on component mount
+  // Parse cart data and set up delivery options on component mount
   useEffect(() => {
     if (cartData) {
       try {
         const parsed = JSON.parse(cartData as string)
         setParsedCartData(parsed)
+        
+        // Set up delivery method options based on available delivery types
+        if (parsed.delivery_types) {
+          const availableOptions = []
+          
+          // Check each delivery type and add to options if true
+          if (parsed.delivery_types.movbay_express) {
+            availableOptions.push({ label: "MovBay Express", value: "MovBay_Dispatch" })
+          }
+          if (parsed.delivery_types.speed_dispatch) {
+            availableOptions.push({ label: "Speedy Dispatch", value: "Speedy_Dispatch" })
+          }
+          if (parsed.delivery_types.pickup) {
+            availableOptions.push({ label: "Pickup Hub", value: "Pickup_Hub" })
+          }
+          
+          setDeliveryMethodOptions(availableOptions)
+        } else {
+          // Fallback: show all options if no delivery types data
+          setDeliveryMethodOptions([
+            { label: "MovBay Express", value: "MovBay_Dispatch" },
+            { label: "Speedy Dispatch", value: "Speedy_Dispatch" },
+            { label: "Pickup Hub", value: "Pickup_Hub" },
+          ])
+        }
+        
       } catch (error) {
         console.error("Error parsing cart data:", error)
         toast.show("Error loading cart data", {
           type: "error",
           placement: "top",
         })
+        
+        // Set default delivery options on error
+        setDeliveryMethodOptions([
+          { label: "MovBay Express", value: "MovBay_Dispatch" },
+          { label: "Speedy Dispatch", value: "Speedy_Dispatch" },
+          { label: "Pickup Hub", value: "Pickup_Hub" },
+        ])
       }
     }
   }, [cartData])
@@ -315,19 +526,11 @@ const DeliveryDetails = () => {
       landmark: "",
       city: "",
       state: "",
-      postalCode: "",
     },
     mode: "onChange",
   })
 
   const selectedState = watch("state")
-
-  // Delivery method options
-  const deliveryMethodOptions = [
-    { label: "MovBay Express", value: "MovBay_Dispatch" },
-    { label: "Speedy Dispatch", value: "Speedy_Dispatch" },
-    { label: "Pickup Hub", value: "Pickup_Hub" },
-  ]
 
   // Load cities when state changes
   useEffect(() => {
@@ -350,26 +553,30 @@ const DeliveryDetails = () => {
       const selectedAddress = addressBookData.find(addr => addr.id === addressId)
       if (selectedAddress) {
         setValue("streetAddress", selectedAddress.streetAddress)
-        setValue("landmark", selectedAddress.landmark)
-        setValue("city", selectedAddress.city)
-        setValue("state", selectedAddress.state)
-        setValue("postalCode", selectedAddress.postalCode)
+        setValue("landmark", selectedAddress.landmark || "")
+        
+        // Try to match state and city from the address string or use empty values
+        // This allows users to still fill in state and city manually
+        setValue("city", selectedAddress.city || "")
+        setValue("state", selectedAddress.state || "")
       }
     } else {
-      const addressFields: (keyof FormData)[] = ["streetAddress", "landmark", "city", "state", "postalCode"]
+      const addressFields: (keyof FormData)[] = ["streetAddress", "landmark", "city", "state"]
       addressFields.forEach(field => setValue(field, ""))
     }
-  }, [setValue])
+  }, [setValue, addressBookData])
 
   // Handle address book toggle
   const handleAddressBookToggle = useCallback((value: boolean) => {
+    if (!hasProfileAddress) return // Prevent toggling if no address
+    
     setUseAddressBook(value)
     if (!value) {
       setSelectedAddressId("")
-      const addressFields: (keyof FormData)[] = ["streetAddress", "landmark", "city", "state", "postalCode"]
+      const addressFields: (keyof FormData)[] = ["streetAddress", "landmark", "city", "state"]
       addressFields.forEach(field => setValue(field, ""))
     }
-  }, [setValue])
+  }, [setValue, hasProfileAddress])
 
   // Phone number validation - updated to expect exactly 10 digits (without leading zero)
   const phoneValidation = {
@@ -430,7 +637,7 @@ const DeliveryDetails = () => {
       const deliveryData = {
         delivery_method: data.deliveryMethod,
         full_name: data.recipientFullName,
-        phone_number: formatPhoneNumber(data.recipientPhone), // Format phone number here
+        phone_number: formatPhoneNumber(data.recipientPhone),
         email: data.recipientEmail,
         landmark: data.landmark,
         delivery_address: data.streetAddress,
@@ -438,9 +645,8 @@ const DeliveryDetails = () => {
         state: getStateName(data.state),
         alternative_address: data.streetAddress,
         alternative_name: data.alternativeFullName,
-        alternative_phone: formatPhoneNumber(data.alternativePhone), // Format phone number here
+        alternative_phone: formatPhoneNumber(data.alternativePhone),
         alternative_email: data.alternativeEmail,
-        postal_code: parseInt(data.postalCode) || 0,
       }
 
       // Combine cart data and delivery data
@@ -469,7 +675,7 @@ const DeliveryDetails = () => {
   return (
     <SafeAreaView className="flex-1 bg-white">
       <StatusBar style="dark" />
-      <LoadingOverlay visible={false} />
+      <LoadingOverlay visible={isLoading || isAddressLoading} />
       
       <View className="flex-1">
         <KeyboardAwareScrollView
@@ -491,16 +697,30 @@ const DeliveryDetails = () => {
             </View>
 
             <View className="mt-6 flex-col">
-              {/* Delivery Method */}
+              {/* Delivery Method - Now shows only available options */}
               <CustomPicker
                 label="Delivery Method"
                 name="deliveryMethod"
                 control={control}
                 rules={{ required: "Delivery method is required" }}
                 items={deliveryMethodOptions}
-                placeholder="Select a delivery method"
+                placeholder={
+                  deliveryMethodOptions.length > 0 
+                    ? "Select a delivery method" 
+                    : "No delivery methods available"
+                }
+                disabled={deliveryMethodOptions.length === 0}
                 errors={errors}
               />
+
+              {/* Show message if no delivery methods are available */}
+              {deliveryMethodOptions.length === 0 && (
+                <View className="mb-4 p-3 bg-orange-50 rounded-lg border border-orange-200">
+                  <Text className="text-orange-800 text-sm" style={{ fontFamily: "HankenGrotesk_400Regular" }}>
+                    No delivery methods are available for the selected items. Please contact support for assistance.
+                  </Text>
+                </View>
+              )}
 
               {/* Recipient Information */}
               <Text className="text-lg pb-3" style={{ fontFamily: "HankenGrotesk_600SemiBold" }}>
@@ -581,9 +801,28 @@ const DeliveryDetails = () => {
                 value={useAddressBook}
                 onValueChange={handleAddressBookToggle}
                 label="Use from address book"
+                disabled={!hasProfileAddress}
               />
 
-              {useAddressBook ? (
+              {/* Show message when no profile address */}
+              {!hasProfileAddress && !isAddressLoading && (
+                <View className="mb-4 p-3 bg-orange-50 rounded-lg border border-orange-200">
+                  <Text className="text-orange-600 text-sm" style={{ fontFamily: "HankenGrotesk_400Regular" }}>
+                    No address found in your profile. Please add an address to your profile or enter delivery address manually below.
+                  </Text>
+                </View>
+              )}
+
+              {/* Loading state for addresses */}
+              {isAddressLoading && (
+                <View className="mb-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
+                  <Text className="text-blue-600 text-sm" style={{ fontFamily: "HankenGrotesk_400Regular" }}>
+                    Loading addresses...
+                  </Text>
+                </View>
+              )}
+
+              {useAddressBook && hasProfileAddress ? (
                 <View className="mb-5">
                   <Text style={styles.titleStyle}>Select Address</Text>
                   <View className="relative">
@@ -603,67 +842,58 @@ const DeliveryDetails = () => {
                     </View>
                   </View>
                 </View>
-              ) : (
-                <>
-                  <CustomInput
-                    label="Street Address"
-                    placeholder='e.g. "12 Adeola Odeku Street"'
-                    name="streetAddress"
-                    control={control}
-                    rules={{ required: "Street Address is required" }}
-                    keyboardType="default"
-                    autoCapitalize="words"
-                    errors={errors}
-                  />
-                  <CustomInput
-                    label="Landmark"
-                    placeholder='e.g. "Opposite Zenith Bank"'
-                    name="landmark"
-                    control={control}
-                    rules={{ required: "Landmark is required" }}
-                    keyboardType="default"
-                    autoCapitalize="words"
-                    errors={errors}
-                  />
-                  <CustomPicker
-                    label="State"
-                    name="state"
-                    control={control}
-                    rules={{ required: "State is required" }}
-                    items={nigeriaStates.map((state) => ({
-                      label: state.name,
-                      value: state.id,
-                    }))}
-                    placeholder="Select a state"
-                    errors={errors}
-                  />
-                  <CustomPicker
-                    label="City"
-                    name="city"
-                    control={control}
-                    rules={{ required: "City is required" }}
-                    items={availableCities.map((city) => ({
-                      label: city.name,
-                      value: city.id,
-                    }))}
-                    placeholder={selectedState ? "Select a city" : "Select state first"}
-                    disabled={!selectedState}
-                    errors={errors}
-                  />
-                  <CustomInput
-                    label="Postal Code"
-                    placeholder='e.g. "100001"'
-                    name="postalCode"
-                    control={control}
-                    rules={{ required: "Postal Code is required" }}
-                    keyboardType="number-pad"
-                    errors={errors}
-                  />
-                </>
-              )}
+              ) : null}
+
+              {/* Address Fields - Always show but pre-populate if address book is used */}
+              <GooglePlacesAddressInput
+                label="Street Address"
+                name="streetAddress"
+                control={control}
+                rules={{ required: "Street Address is required" }}
+                placeholder='e.g. "12 Adeola Odeku Street"'
+                errors={errors}
+              />
+              
+              <CustomInput
+                label="Landmark (Optional)"
+                placeholder='e.g. "Opposite Zenith Bank"'
+                name="landmark"
+                control={control}
+                keyboardType="default"
+                autoCapitalize="words"
+                errors={errors}
+              />
+              
+              <CustomPicker
+                label="State"
+                name="state"
+                control={control}
+                rules={{ required: "State is required" }}
+                items={nigeriaStates.map((state) => ({
+                  label: state.name,
+                  value: state.id,
+                }))}
+                placeholder="Select a state"
+                errors={errors}
+              />
+              
+              <CustomPicker
+                label="City"
+                name="city"
+                control={control}
+                rules={{ required: "City is required" }}
+                items={availableCities.map((city) => ({
+                  label: city.name,
+                  value: city.id,
+                }))}
+                placeholder={selectedState ? "Select a city" : "Select state first"}
+                disabled={!selectedState}
+                errors={errors}
+              />
             </View>
           </View>
         </KeyboardAwareScrollView>
+        
         
         {/* Fixed Create Button at Bottom */}
         <View className="px-7 pb-4 pt-2 bg-white border-t border-gray-100">
@@ -694,6 +924,43 @@ const styles = StyleSheet.create({
     paddingBottom: 8,
     paddingTop: 6,
   },
+  predictionsContainer: {
+    position: "absolute",
+    top: "100%",
+    left: 0,
+    right: 0,
+    zIndex: 1000,
+    backgroundColor: "white",
+    borderRadius: 7,
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
+    maxHeight: 200,
+  },
+  predictionItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: "#f0f0f0",
+  },
+  predictionMainText: {
+    fontFamily: "HankenGrotesk_500Medium",
+    fontSize: 14,
+    color: "#3A3541",
+  },
+  predictionSecondaryText: {
+    fontFamily: "HankenGrotesk_400Regular",
+    fontSize: 12,
+    color: "#666",
+    marginTop: 2,
+  },
 })
 
 const pickerSelectStyles = {
@@ -717,5 +984,29 @@ const pickerSelectStyles = {
   },
   placeholder: {
     color: "#AFAFAF",
+  },
+}
+
+const disabledPickerSelectStyles = {
+  inputIOS: {
+    fontFamily: "HankenGrotesk_400Regular",
+    color: "#ccc",
+    paddingVertical: 16,
+    paddingHorizontal: 16,
+    borderRadius: 7,
+    backgroundColor: "#F0F0F0",
+    height: 56,
+  },
+  inputAndroid: {
+    fontFamily: "HankenGrotesk_400Regular",
+    color: "#ccc",
+    paddingVertical: 16,
+    paddingHorizontal: 16,
+    borderRadius: 7,
+    backgroundColor: "#F0F0F0",
+    height: 56,
+  },
+  placeholder: {
+    color: "#ccc",
   },
 }

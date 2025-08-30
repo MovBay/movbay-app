@@ -24,11 +24,19 @@ export const SolidInactiveButton = ({text, ...props}: ButtonProps)=>{
 export const SolidLightButton = ({text, onPress, ...props}: ButtonProps)=>{
     return (
         <TouchableOpacity {...props} onPress={onPress} className="flex items-center gap-4 bg-[#FEEEE6] border border-[#f3d0be] p-4 py-3.5 w-full rounded-full">
-            <Text className="text-[#A53F0E] text-[13px]" style={{fontFamily: 'HankenGrotesk_700Bold'}}>{text}</Text>
+            <Text className="text-[#F75F15] text-[13px]" style={{fontFamily: 'HankenGrotesk_700Bold'}}>{text}</Text>
         </TouchableOpacity>
     )
 }
 
+
+export const SolidLightGreenButton = ({text, onPress, ...props}: ButtonProps)=>{
+    return (
+        <TouchableOpacity {...props} onPress={onPress} className="flex items-center gap-4 bg-green-50 border border-green-200 p-4 py-3.5 w-full rounded-full">
+            <Text className="text-green-600 text-[13px]" style={{fontFamily: 'HankenGrotesk_700Bold'}}>{text}</Text>
+        </TouchableOpacity>
+    )
+}
 
 export const GoogleButton = ({text, onPress, ...props}: ButtonProps)=>{
     return (

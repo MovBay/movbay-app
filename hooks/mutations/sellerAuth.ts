@@ -338,6 +338,28 @@ export const useFundWallet = () => {
 };
 
 
+export const useGetTransaction = () => {
+  const { data, isLoading, isError, isFetched, refetch } = useQuery({
+    queryKey: ["transaction"],
+    queryFn: async () => {
+      const token = (await AsyncStorage.getItem("movebay_token")) || "";
+      return get_requests("/wallet/transactions/", token);
+    },
+  });
+
+  return {
+    transactionData: data,
+    isLoading,
+    isError,
+    isFetched,
+    refetch,
+  };
+};
+
+
+
+
+
 // ==================== CEATING STORY ==================
 export const useCreateStory = () => {
   const queryClient = useQueryClient()
@@ -796,6 +818,27 @@ export const useGetFollowers = () => {
 };
 
 
+
+// get-shipment-rate/<str:product_id>/
+
+export const usePostShipRate = () => {
+  const queryClient = useQueryClient()
+
+  const postShipRate = useMutation({
+    mutationFn: async (data: any) => {
+      const token = (await AsyncStorage.getItem("movebay_token")) || ""
+      return post_requests(`/get-shipment-rate/`, data, token)
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["shipRate"] })
+    },
+  })
+
+  return postShipRate
+}
+
+
+
 // users/delete-account
 export const useDeleteAccount = () => {
   const queryClient = useQueryClient()
@@ -812,4 +855,22 @@ export const useDeleteAccount = () => {
   })
 
   return deleteAccount
+}
+
+
+
+export const usePostDeliveryTypesIds = () => {
+  const queryClient = useQueryClient()
+
+  const postDeliveryTypesIds = useMutation({
+    mutationFn: async (data: any) => {
+      const token = (await AsyncStorage.getItem("movebay_token")) || ""
+      return post_requests(`/products/delivery-types/`, data, token)
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["deliveryID"] })
+    },
+  })
+
+  return postDeliveryTypesIds
 }

@@ -25,6 +25,9 @@ const Products = () => {
     const {userProductData, isLoading, refetch} = useGetUserProducts()
     const userData = userProductData?.data?.results
 
+    // console.log('This are products', userData)
+
+
     // Filter products based on search query
     const filteredProducts = useMemo(() => {
         if (!userData || !searchQuery.trim()) {
@@ -193,8 +196,8 @@ const Products = () => {
                                   </View>
                                 )}
                                 <View className='flex-row gap-3 items-center pt-2'>
-                                  <Text className='text-base' style={{fontFamily: 'HankenGrotesk_600SemiBold'}}>₦{eachData?.original_price?.toLocaleString()}</Text>
-                                  <Text className='text-base line-through text-gray-500 italic' style={{fontFamily: 'HankenGrotesk_400Regular'}}>₦{eachData?.discounted_price?.toLocaleString()}</Text>
+                                  <Text className='text-base' style={{fontFamily: 'HankenGrotesk_600SemiBold'}}>₦{eachData?.discounted_price?.toLocaleString()}</Text>
+                                  <Text className='text-base line-through text-gray-500 italic' style={{fontFamily: 'HankenGrotesk_400Regular'}}>₦{eachData?.original_price?.toLocaleString()}</Text>
                                 </View>
                               </View>
 

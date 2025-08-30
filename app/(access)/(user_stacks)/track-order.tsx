@@ -269,7 +269,7 @@ const TrackOrder = () => {
                   {newOrderTrackData?.driver?.user?.fullname || 'Driver Name'}
                 </Text>
               </View>
-              <View className="flex-row justify-between">
+              {/* <View className="flex-row justify-between">
                 <Text className="text-gray-600 text-sm" style={{ fontFamily: "HankenGrotesk_400Regular" }}>
                   Vehicle Type:
                 </Text>
@@ -284,7 +284,7 @@ const TrackOrder = () => {
                 <Text className="text-gray-900 text-sm" style={{ fontFamily: "HankenGrotesk_500Medium" }}>
                   {newOrderTrackData?.driver?.kyc_verification?.[0]?.vehicle_color.toUpperCase() || 'N/A'}
                 </Text>
-              </View>
+              </View> */}
               <View className="flex-row justify-between">
                 <Text className="text-gray-600 text-sm" style={{ fontFamily: "HankenGrotesk_400Regular" }}>
                   Vehicle Plate Number:

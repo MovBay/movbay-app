@@ -1,5 +1,5 @@
-import { View, Text, TextInput, TouchableOpacity, ScrollView, Image, RefreshControl } from "react-native"
-import { useState, useMemo, useEffect } from "react"
+import { View, Text, TextInput, TouchableOpacity, ScrollView, Image, RefreshControl, AppState, AppStateStatus } from "react-native"
+import { useState, useMemo, useEffect, useRef } from "react"
 import { SafeAreaView } from "react-native-safe-area-context"
 import { StatusBar } from "expo-status-bar"
 import { Ionicons } from "@expo/vector-icons"
@@ -14,10 +14,15 @@ const Message = () => {
   const [refreshing, setRefreshing] = useState(false)
   const [userToken, setUserToken] = useState("")
   const [currentUserId, setCurrentUserId] = useState("")
+  const [isScreenFocused, setIsScreenFocused] = useState(false)
+
+  // Refs for managing intervals and timeouts
+  const refreshIntervalRef = useRef<NodeJS.Timeout | null>(null)
+  const appStateRef = useRef(AppState.currentState)
 
   const { getChats, isLoading: isChatLoading, refetch } = useGetChats()
   const allChats = getChats?.data || []
-  console.log('all chats', allChats)
+  // console.log('all chats', allChats)
 
   // Get user token and user ID from AsyncStorage
   const getUserData = async () => {
@@ -36,14 +41,77 @@ const Message = () => {
     }
   }
 
+  // Silent background refresh function
+  const silentRefresh = useCallback(async () => {
+    try {
+      console.log("Performing silent refresh for new messages...")
+      await refetch()
+    } catch (error) {
+      console.error("Error during silent refresh:", error)
+    }
+  }, [refetch])
+
+  // Start auto-refresh when screen is focused
+  const startAutoRefresh = useCallback(() => {
+    // Clear any existing interval
+    if (refreshIntervalRef.current) {
+      clearInterval(refreshIntervalRef.current)
+    }
+
+    // Set up interval to check for new messages every 10 seconds
+    refreshIntervalRef.current = setInterval(() => {
+      if (isScreenFocused && appStateRef.current === 'active') {
+        silentRefresh()
+      }
+    }, 10000) // 10 seconds interval - adjust as needed
+
+    console.log("Auto-refresh started - checking every 10 seconds")
+  }, [isScreenFocused, silentRefresh])
+
+  // Stop auto-refresh when screen loses focus
+  const stopAutoRefresh = useCallback(() => {
+    if (refreshIntervalRef.current) {
+      clearInterval(refreshIntervalRef.current)
+      refreshIntervalRef.current = null
+      console.log("Auto-refresh stopped")
+    }
+  }, [])
+
+  // Handle app state changes (foreground/background)
+  useEffect(() => {
+    const handleAppStateChange = (nextAppState: AppStateStatus) => {
+      console.log("App state changed:", nextAppState)
+      appStateRef.current = nextAppState
+
+      if (nextAppState === 'active' && isScreenFocused) {
+        // App came to foreground and screen is focused - start refresh
+        startAutoRefresh()
+        // Also do an immediate refresh
+        silentRefresh()
+      } else {
+        // App went to background - stop refresh
+        stopAutoRefresh()
+      }
+    }
+
+    const subscription = AppState.addEventListener('change', handleAppStateChange)
+
+    return () => {
+      subscription?.remove()
+      stopAutoRefresh()
+    }
+  }, [isScreenFocused, startAutoRefresh, stopAutoRefresh, silentRefresh])
+
   // Get token on component mount
   useEffect(() => {
     getUserData()
   }, [])
 
-  // Refetch data when screen comes into focus
+  // Refetch data when screen comes into focus and manage auto-refresh
   useFocusEffect(
     useCallback(() => {
+      setIsScreenFocused(true)
+      
       const fetchData = async () => {
         try {
           await getUserData() // Refresh user data in case it changed
@@ -54,32 +122,81 @@ const Message = () => {
       }
 
       fetchData()
-    }, [refetch])
+      
+      // Start auto-refresh if app is in foreground
+      if (appStateRef.current === 'active') {
+        startAutoRefresh()
+      }
+
+      // Cleanup when screen loses focus
+      return () => {
+        setIsScreenFocused(false)
+        stopAutoRefresh()
+      }
+    }, [refetch, startAutoRefresh, stopAutoRefresh])
   )
 
-  console.log("All Chats:", allChats, "User Token:", userToken, "Current User ID:", currentUserId)
 
-  // Format time to show like "2:27pm"
+  // Format time to show like "2:27pm" or relative time for today/yesterday
   const formatTime = (dateString: any) => {
     try {
       const date = new Date(dateString)
-      return date
-        .toLocaleTimeString("en-US", {
-          hour: "numeric",
-          minute: "2-digit",
-          hour12: true,
-        })
-        .toLowerCase()
+      const now = new Date()
+      const diffInHours = Math.abs(now.getTime() - date.getTime()) / (1000 * 60 * 60)
+      const diffInDays = Math.floor(diffInHours / 24)
+
+      // If it's today (less than 24 hours ago)
+      if (diffInHours < 24 && date.getDate() === now.getDate()) {
+        return date
+          .toLocaleTimeString("en-US", {
+            hour: "numeric",
+            minute: "2-digit",
+            hour12: true,
+          })
+          .toLowerCase()
+      }
+      
+      // If it's yesterday
+      if (diffInDays === 1 || (diffInHours < 48 && date.getDate() === now.getDate() - 1)) {
+        return "Yesterday"
+      }
+      
+      // If it's within this week (less than 7 days)
+      if (diffInDays < 7) {
+        return date.toLocaleDateString("en-US", { weekday: "short" })
+      }
+      
+      // If it's older than a week
+      return date.toLocaleDateString("en-US", { 
+        month: "short", 
+        day: "numeric" 
+      })
     } catch (error) {
       return dateString
     }
   }
 
-  // Get last message content from messages array
+  // Get last message from messages array with proper sorting
   const getLastMessage = (messages: any) => {
-    if (!messages || messages.length === 0) return "No messages"
-    const lastMessage = messages[messages.length - 1]
-    return lastMessage?.content || "No content"
+    if (!messages || messages.length === 0) return { content: "No messages", timestamp: null }
+    
+    // Sort messages by created_at timestamp to get the most recent
+    const sortedMessages = [...messages].sort((a, b) => 
+      new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+    )
+    
+    const lastMessage = sortedMessages[0]
+    return {
+      content: lastMessage?.content || "No content",
+      timestamp: lastMessage?.created_at || null
+    }
+  }
+
+  // Get the timestamp for sorting conversations
+  const getConversationTimestamp = (chat: any) => {
+    const lastMessage = getLastMessage(chat.messages)
+    // Use last message timestamp if available, otherwise use chat creation time
+    return lastMessage.timestamp || chat.created_at || chat.updated_at
   }
 
   // Truncate message if longer than 40 characters
@@ -110,25 +227,38 @@ const Message = () => {
     }
   }
 
+  // Sort chats by last message timestamp (most recent first)
+  const sortedChats = useMemo(() => {
+    return [...allChats].sort((a, b) => {
+      const timestampA = getConversationTimestamp(a)
+      const timestampB = getConversationTimestamp(b)
+      
+      // Sort in descending order (newest first)
+      return new Date(timestampB).getTime() - new Date(timestampA).getTime()
+    })
+  }, [allChats])
+
   // Filter chats based on search query
   const filteredChats = useMemo(() => {
-    if (!searchQuery.trim()) return allChats
+    if (!searchQuery.trim()) return sortedChats
 
-    return allChats.filter(
+    return sortedChats.filter(
       (chat: any) => {
         const otherPerson = getOtherPerson(chat)
+        const lastMessage = getLastMessage(chat.messages)
         return (
           otherPerson.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          getLastMessage(chat.messages).toLowerCase().includes(searchQuery.toLowerCase())
+          lastMessage.content.toLowerCase().includes(searchQuery.toLowerCase())
         )
       },
     )
-  }, [allChats, searchQuery, currentUserId])
+  }, [sortedChats, searchQuery, currentUserId])
 
-  // Handle pull to refresh
+  // Handle pull to refresh (manual refresh)
   const onRefresh = async () => {
     setRefreshing(true)
     try {
+      console.log("Manual refresh triggered")
       await getUserData() // Refresh user data
       await refetch()
     } catch (error) {
@@ -139,9 +269,9 @@ const Message = () => {
   }
 
   const renderConversationItem = (item: any) => {
-    const lastMessage = getLastMessage(item.messages)
-    const truncatedMessage = truncateMessage(lastMessage)
-    const formattedTime = formatTime(item.created_at)
+    const lastMessageData = getLastMessage(item.messages)
+    const truncatedMessage = truncateMessage(lastMessageData.content)
+    const formattedTime = formatTime(lastMessageData.timestamp || item.created_at)
     const otherPerson = getOtherPerson(item)
 
     return (
@@ -150,6 +280,8 @@ const Message = () => {
         className="flex-row items-center px-4 py-3 pb-5 my-2 border-b border-gray-100"
         activeOpacity={0.7}
         onPress={() => {
+          // Stop auto-refresh when navigating to chat detail
+          stopAutoRefresh()
           router.push({
             pathname: "/(access)/(user_stacks)/chat",
             params: {
@@ -165,16 +297,22 @@ const Message = () => {
       >
         {/* Avatar */}
         <View className="w-12 h-12 rounded-full bg-gray-200 items-center overflow-hidden justify-center mr-3">
-          <Image
-            source={{ uri: otherPerson.image }}
-            className="object-cover w-full h-full"
-          />
+          {otherPerson.image ? (
+            <Image
+              source={{ uri: otherPerson.image }}
+              className="object-cover w-full h-full"
+            />
+          ) : (
+            <Ionicons name="person" size={24} color="#9CA3AF" />
+          )}
         </View>
 
         {/* Content */}
         <View className="flex-1">
           <View className="flex-row items-center justify-between mb-1">
-            <Text className="text-base font-semibold text-gray-900">{otherPerson.name}</Text>
+            <Text className="text-base font-semibold text-gray-900" numberOfLines={1}>
+              {otherPerson.name || "Unknown"}
+            </Text>
             <Text className="text-sm text-gray-500">{formattedTime}</Text>
           </View>
 
@@ -182,6 +320,8 @@ const Message = () => {
             <Text className="text-sm flex-1 mr-2 text-gray-600" numberOfLines={1}>
               {truncatedMessage}
             </Text>
+            {/* Optional: Add unread indicator */}
+            {/* <View className="w-2 h-2 bg-blue-500 rounded-full" /> */}
           </View>
         </View>
       </TouchableOpacity>
@@ -222,6 +362,14 @@ const Message = () => {
                 </TouchableOpacity>
               ) : null}
             </View>
+
+            {/* Auto-refresh indicator (optional - you can remove this if you don't want to show it) */}
+            {isScreenFocused && refreshIntervalRef.current && (
+              <View className="flex-row items-center justify-center mt-2">
+                <View className="w-2 h-2 bg-green-500 rounded-full mr-2" />
+                <Text className="text-xs text-gray-500">Auto-updating chats</Text>
+              </View>
+            )}
           </View>
 
           <ScrollView

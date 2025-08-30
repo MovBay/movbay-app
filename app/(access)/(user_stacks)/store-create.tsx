@@ -1,5 +1,5 @@
 import { View, Text, Image, FlatList, TouchableOpacity, ScrollView } from 'react-native'
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { router } from 'expo-router';
 import { Pressable } from 'react-native';
 import LoadingOverlay from '@/components/LoadingOverlay';
@@ -19,6 +19,8 @@ import RNPickerSelect from "react-native-picker-select";
 import { useCreateStore } from '@/hooks/mutations/sellerAuth';
 import { Alert } from 'react-native';
 import { useToast } from 'react-native-toast-notifications';
+import { nigeriaStates, State, City } from "../../../constants/state-city"
+
 
 const GOOGLE_PLACES_API_KEY = process.env.EXPO_PUBLIC_GOOGLE_PLACES_API_KEY;
 
@@ -101,6 +103,57 @@ const AddressPredictionItem = ({ item, onPress }: { item: any; onPress: () => vo
     </TouchableOpacity>
 );
 
+// Custom Picker Component
+const CustomPicker = ({
+    label,
+    name,
+    control,
+    rules,
+    items,
+    placeholder,
+    disabled = false,
+    errors,
+}: {
+    label: string;
+    name: string;
+    control: any;
+    rules?: any;
+    items: Array<{ label: string; value: string }>;
+    placeholder: string;
+    disabled?: boolean;
+    errors: any;
+}) => (
+    <View className="mb-5">
+        <Text style={styles.titleStyle}>{label}</Text>
+        <Controller
+            name={name}
+            control={control}
+            rules={rules}
+            render={({ field: { onChange, value } }) => (
+                <View className="relative">
+                    <RNPickerSelect
+                        onValueChange={onChange}
+                        value={value}
+                        items={items}
+                        placeholder={{ label: placeholder, value: "" }}
+                        style={pickerSelectStyles}
+                        useNativeAndroidPickerStyle={false}
+                        disabled={disabled}
+                    />
+                    <View className="absolute right-6 top-4">
+                        <MaterialIcons name="arrow-drop-down" size={25} color={"gray"} />
+                    </View>
+                </View>
+            )}
+        />
+        <ErrorMessage
+            errors={errors}
+            name={name}
+            render={({ message }) => <Text className="pl-2 pt-3 text-sm text-red-600">{message}</Text>}
+        />
+    </View>
+);
+
 const StoreCreate = () => {
     const [image, setImage] = useState<string | null>(null);
     const [CACDocument, setCACDocument] = useState<DocumentPicker.DocumentPickerAsset | null>(null);
@@ -111,6 +164,9 @@ const StoreCreate = () => {
     const [showAddressPredictions, setShowAddressPredictions] = useState(false);
     const [address1Input, setAddress1Input] = useState('');
     const [address2Input, setAddress2Input] = useState('');
+
+    // State and City states
+    const [availableCities, setAvailableCities] = useState<City[]>([]);
 
     const toast = useToast()
 
@@ -210,6 +266,7 @@ const StoreCreate = () => {
         formState: { errors },
         reset,
         setValue,
+        watch,
     } = useForm({
         defaultValues: {
             name: "",
@@ -219,8 +276,41 @@ const StoreCreate = () => {
             email: "",
             address1: "",
             address2: "",
+            state: "",
+            city: "",
         },
     });
+
+    const selectedState = watch("state");
+
+    // Load cities when state changes
+    useEffect(() => {
+        if (selectedState) {
+            const selectedStateData = nigeriaStates.find(state => state.id === selectedState)
+            if (selectedStateData) {
+                setAvailableCities(selectedStateData.cities)
+            }
+        } else {
+            setAvailableCities([])
+            setValue("city", "")
+        }
+    }, [selectedState, setValue])
+
+    // Helper function to get state name from ID
+    const getStateName = (stateId: string) => {
+        const state = nigeriaStates.find(s => s.id === stateId)
+        return state ? state.name : stateId
+    }
+
+    // Helper function to get city name from ID
+    const getCityName = (cityId: string, stateId: string) => {
+        const state = nigeriaStates.find(s => s.id === stateId)
+        if (state) {
+            const city = state.cities.find(c => c.id === cityId)
+            return city ? city.name : cityId
+        }
+        return cityId
+    }
 
     const onSubmit = (data: any) => {
         // Create FormData object
@@ -229,7 +319,14 @@ const StoreCreate = () => {
         // Add text fields
         Object.keys(data).forEach(key => {
             if (data[key]) {
-                formData.append(key, data[key]);
+                // Convert state and city IDs to names for backend
+                if (key === 'state') {
+                    formData.append(key, getStateName(data[key]));
+                } else if (key === 'city') {
+                    formData.append(key, getCityName(data[key], data.state));
+                } else {
+                    formData.append(key, data[key]);
+                }
             }
         });
 
@@ -288,6 +385,14 @@ const StoreCreate = () => {
 
                 if(error?.response?.data?.address2){
                     toast.show('Address2 is needed', {type: 'danger'})
+                }
+
+                if(error?.response?.data?.state){
+                    toast.show('State is needed', {type: 'danger'})
+                }
+
+                if(error?.response?.data?.city){
+                    toast.show('City is needed', {type: 'danger'})
                 }
 
                 else if(error?.response?.data?.nin){
@@ -552,39 +657,34 @@ const StoreCreate = () => {
                                 />
                             </View>
 
-                            {/* Address 2 with Google Places Autocomplete */}
-                            {/* <View className='mb-5'>
-                                <Text style={styles.titleStyle}>Address 2 (Optional)</Text>
-                                <View style={styles.addressContainer}>
-                                    <Controller
-                                        name="address2"
-                                        control={control}
-                                        render={({ field: { onChange, onBlur, value } }) => (
-                                            <TextInput 
-                                                placeholder='Enter Address 2'
-                                                placeholderTextColor={"#AFAFAF"}
-                                                onChangeText={(text) => {
-                                                    onChange(text);
-                                                    setAddress2Input(text);
-                                                    fetchAddressPredictions(text);
-                                                }}
-                                                onBlur={onBlur}
-                                                value={value}
-                                                keyboardType="default"
-                                                style={styles.inputStyle}
-                                                autoCapitalize="words"
-                                                autoCorrect={false}
-                                                onFocus={() => {
-                                                    if (address2Input.length >= 3) {
-                                                        setShowAddressPredictions(true);
-                                                    }
-                                                }}
-                                            />
-                                        )}
-                                    />
+                            {/* State Picker */}
+                            <CustomPicker
+                                label="State"
+                                name="state"
+                                control={control}
+                                rules={{ required: "State is required" }}
+                                items={nigeriaStates.map((state) => ({
+                                    label: state.name,
+                                    value: state.id,
+                                }))}
+                                placeholder="Select a state"
+                                errors={errors}
+                            />
 
-                                </View>
-                            </View> */}
+                            {/* City Picker */}
+                            <CustomPicker
+                                label="City"
+                                name="city"
+                                control={control}
+                                rules={{ required: "City is required" }}
+                                items={availableCities.map((city) => ({
+                                    label: city.name,
+                                    value: city.id,
+                                }))}
+                                placeholder={selectedState ? "Select a city" : "Select state first"}
+                                disabled={!selectedState}
+                                errors={errors}
+                            />
 
                             <View className='mb-5 pt-2'>
                                 <Text style={styles.titleStyle}>Upload CAC PDF (Optional for Verification)</Text>
@@ -791,3 +891,28 @@ const styles = StyleSheet.create({
         marginTop: 24,
     },
 });
+
+
+const pickerSelectStyles = {
+  inputIOS: {
+    fontFamily: "HankenGrotesk_400Regular",
+    color: "#000",
+    paddingVertical: 16,
+    paddingHorizontal: 16,
+    borderRadius: 7,
+    backgroundColor: "#F6F6F6",
+    height: 56,
+  },
+  inputAndroid: {
+    fontFamily: "HankenGrotesk_400Regular",
+    color: "#000",
+    paddingVertical: 16,
+    paddingHorizontal: 16,
+    borderRadius: 7,
+    backgroundColor: "#F6F6F6",
+    height: 56,
+  },
+  placeholder: {
+    color: "#AFAFAF",
+  },
+}
