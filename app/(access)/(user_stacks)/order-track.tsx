@@ -104,18 +104,13 @@ const OrderTrack = () => {
             <Text className="text-base line-through text-gray-500" style={{ fontFamily: "HankenGrotesk_500Medium" }}>
               ₦ {originalPrice.toLocaleString()}
             </Text>
-            <View className="bg-orange-100 px-2 py-1 rounded">
-              <Text className="text-orange-600 text-sm font-medium" style={{ fontFamily: "HankenGrotesk_500Medium" }}>
-                -{discountPercentage}%
-              </Text>
-            </View>
             <Text className="text-sm font-medium ml-auto" style={{ fontFamily: "HankenGrotesk_500Medium" }}>
               QTY: {order.order_items.reduce((sum: number, item: any) => sum + item.count, 0)}
             </Text>
           </View>
 
           {/* Rating and Date */}
-          <View className="flex-row items-center gap-2 mb-6">
+          {/* <View className="flex-row items-center gap-2 mb-6">
             <View className="flex-row">
               {[1, 2, 3, 4].map((star) => (
                 <MaterialIcons key={star} name="star" size={16} color="#FBBC05" />
@@ -128,7 +123,7 @@ const OrderTrack = () => {
             <Text className="text-sm text-gray-600" style={{ fontFamily: "HankenGrotesk_400Regular" }}>
               May 19, 2025 | 7:14 am
             </Text>
-          </View>
+          </View> */}
         </View>
 
         {/* Order Information */}
@@ -160,7 +155,7 @@ const OrderTrack = () => {
                 Buyer Phone Number:
               </Text>
               <Text className="text-base font-medium text-black" style={{ fontFamily: "HankenGrotesk_500Medium" }}>
-                {order.delivery.phone_number}
+                {order.buyer.phone_number}
               </Text>
             </View>
 
@@ -194,12 +189,12 @@ const OrderTrack = () => {
                 <View className="flex-row gap-2 items-center">
                     <Ionicons name="location" size={15} />
                     <Text className="text-base" style={{ fontFamily: "HankenGrotesk_400Regular" }}>
-                    {order.delivery.delivery_address}, {order.delivery.city}, {order.delivery.state},{" "}
-                    {order.delivery.postal_code}
+                    {order.delivery[0].delivery_address}, {order.delivery[0].city}, {order.delivery[0].state},{" "}
+                    {order.delivery[0].postal_code}
                     </Text>
                 </View>
                 <Text className="text-base text-black" style={{ fontFamily: "HankenGrotesk_400Regular" }}>
-                    Landmark: {order.delivery.landmark}
+                    Landmark: {!order.delivery.landmark ? "N/A" : order.delivery.landmark}
                 </Text>
                 </View>
             </View>

@@ -21,7 +21,7 @@ import MapView, { PROVIDER_GOOGLE, Marker, Polyline } from "react-native-maps"
 import { Ionicons, MaterialIcons } from "@expo/vector-icons"
 import * as Location from "expo-location"
 import { router } from "expo-router"
-import { useGetRidersRide, useGetRides, useRiderGoOnline, useRiderGoOnlineCheck } from "@/hooks/mutations/ridersAuth"
+import { useGetRidersCompletedRides, useGetRidersEarnings, useGetRidersRide, useGetRides, useGetVerifiedStatus, useRiderGoOnline, useRiderGoOnlineCheck } from "@/hooks/mutations/ridersAuth"
 import { useToast } from "react-native-toast-notifications"
 import { useMutation } from "@tanstack/react-query"
 import AsyncStorage from "@react-native-async-storage/async-storage"
@@ -36,110 +36,6 @@ import { Pressable } from "react-native"
 import { Image } from "react-native"
 
 const { width, height } = Dimensions.get("window")
-
-// Dark Google Maps style
-const darkMapStyle = [
-  {
-    "elementType": "geometry",
-    "stylers": [{"color": "#212121"}]
-  },
-  {
-    "elementType": "labels.icon",
-    "stylers": [{"visibility": "on"}]
-  },
-  {
-    "elementType": "labels.text.fill",
-    "stylers": [{"color": "#757575"}]
-  },
-  {
-    "elementType": "labels.text.stroke",
-    "stylers": [{"color": "#212121"}]
-  },
-  {
-    "featureType": "administrative",
-    "elementType": "geometry",
-    "stylers": [{"color": "#757575"}]
-  },
-  {
-    "featureType": "administrative.country",
-    "elementType": "labels.text.fill",
-    "stylers": [{"color": "#9e9e9e"}]
-  },
-  {
-    "featureType": "administrative.land_parcel",
-    "stylers": [{"visibility": "on"}]
-  },
-  {
-    "featureType": "administrative.locality",
-    "elementType": "labels.text.fill",
-    "stylers": [{"color": "#bdbdbd"}]
-  },
-  {
-    "featureType": "poi",
-    "elementType": "labels.text.fill",
-    "stylers": [{"color": "#757575"}]
-  },
-  {
-    "featureType": "poi.park",
-    "elementType": "geometry",
-    "stylers": [{"color": "#181818"}]
-  },
-  {
-    "featureType": "poi.park",
-    "elementType": "labels.text.fill",
-    "stylers": [{"color": "#616161"}]
-  },
-  {
-    "featureType": "poi.park",
-    "elementType": "labels.text.stroke",
-    "stylers": [{"color": "#1b1b1b"}]
-  },
-  {
-    "featureType": "road",
-    "elementType": "geometry.fill",
-    "stylers": [{"color": "#2c2c2c"}]
-  },
-  {
-    "featureType": "road",
-    "elementType": "labels.text.fill",
-    "stylers": [{"color": "#8a8a8a"}]
-  },
-  {
-    "featureType": "road.arterial",
-    "elementType": "geometry",
-    "stylers": [{"color": "#373737"}]
-  },
-  {
-    "featureType": "road.highway",
-    "elementType": "geometry",
-    "stylers": [{"color": "#3c3c3c"}]
-  },
-  {
-    "featureType": "road.highway.controlled_access",
-    "elementType": "geometry",
-    "stylers": [{"color": "#4e4e4e"}]
-  },
-  {
-    "featureType": "road.local",
-    "elementType": "labels.text.fill",
-    "stylers": [{"color": "#616161"}]
-  },
-  {
-    "featureType": "transit",
-    "elementType": "labels.text.fill",
-    "stylers": [{"color": "#757575"}]
-  },
-  {
-    "featureType": "water",
-    "elementType": "geometry",
-    "stylers": [{"color": "#000000"}]
-  },
-  {
-    "featureType": "water",
-    "elementType": "labels.text.fill",
-    "stylers": [{"color": "#3d3d3d"}]
-  }
-]
 
 interface TrackingInfo {
   pickupAddress: string
@@ -180,6 +76,7 @@ const RiderHome = () => {
   const [isInitializing, setIsInitializing] = useState(true)
   const [myRideId, setMyRideId] = useState<number | null>(null)
   const [showKYCModal, setShowKYCModal] = useState(false)
+  const [showVerificationModal, setShowVerificationModal] = useState(false)
   
   // Add refs to prevent unnecessary re-renders
   const lastLocationUpdate = useRef<number>(0)
@@ -189,6 +86,14 @@ const RiderHome = () => {
   const { isRiderOnline, isLoading: onlineCheckLoading } = useRiderGoOnlineCheck()
   const { getRides, isLoading: rideLoading, refetch: refetchRides } = useGetRides()
   const { myRidersRide, refetch: refetchMyRide } = useGetRidersRide(myRideId)
+  const {getRidersEarnings, isLoading: ridersLoading} = useGetRidersEarnings()
+  const {getRidersCompletedCount, isLoading: ridersCompletedLoading} = useGetRidersCompletedRides()
+  const ridersEarnings = getRidersEarnings?.data
+  const ridersCompletedCounts = getRidersCompletedCount?.data
+  const {isRiderVerified, isLoading: isRiderVerifiedLoading} = useGetVerifiedStatus()
+  const isMyAccountVerified = isRiderVerified?.data?.verified
+  console.log("Rider's Earningss:", ridersCompletedCounts)
+  console.log("Rider's Verifications:", isMyAccountVerified)
   const isOnline = isRiderOnline?.data?.online
   const toast = useToast()
   const { setOnNewRideNotification, shouldRefresh, clearRefreshFlag } = useNotification()
@@ -213,6 +118,7 @@ const isKYCComplete = useCallback((kycData: KYCData | null | undefined): boolean
   const hasPlateNumber = kycData.plate_number !== null && kycData.plate_number !== undefined && kycData.plate_number !== ""
   const hasVehicleColor = kycData.vehicle_color !== null && kycData.vehicle_color !== undefined && kycData.vehicle_color !== ""
   
+  // return !!hasNIN && !!hasProofOfAddress  && !!hasVehicleType && !!hasPlateNumber && !!hasVehicleColor
   return !!hasNIN && !!hasProofOfAddress && !!hasDriversLicense && !!hasVehicleType && !!hasPlateNumber && !!hasVehicleColor
 }, [])
 
@@ -257,18 +163,121 @@ const getMissingKYCFields = useCallback((kycData: KYCData | null | undefined): s
   
   return missingFields
 }, [])
+
+  // Function to check if user can perform ride actions
+  const canPerformRideActions = useCallback(() => {
+    return isMyAccountVerified === true && isKYCComplete(ridersKyc)
+  }, [isMyAccountVerified, isKYCComplete, ridersKyc])
+
+  // Function to show verification modal
+  const showVerificationRequiredModal = useCallback(() => {
+    setShowVerificationModal(true)
+  }, [])
+
   // Check KYC status when component mounts or KYC data changes
   useEffect(() => {
     if (!isKYCLoading && ridersKyc !== undefined) {
       const kycComplete = isKYCComplete(ridersKyc)
-      if (!kycComplete) {
+      if (!kycComplete && isMyAccountVerified) {
         // Show KYC modal after a short delay to ensure other modals are not conflicting
         setTimeout(() => {
           setShowKYCModal(true)
         }, 1000)
       }
     }
-  }, [ridersKyc, isKYCLoading, isKYCComplete])
+  }, [ridersKyc, isKYCLoading, isKYCComplete, isMyAccountVerified])
+
+  // Verification Modal Component
+  const renderVerificationModal = () => {
+    return (
+      <Modal
+        animationType="slide"
+        transparent={true}
+        visible={showVerificationModal}
+        onRequestClose={() => setShowVerificationModal(false)}
+      >
+        <View className="flex-1 justify-center items-center bg-black/50">
+          <View className="bg-white rounded-3xl p-6 px-8 mx-4 max-w-md w-full">
+            <View className="items-center mb-4">
+              <View className="bg-[#FEE2E2] p-4 rounded-full mb-4">
+                <MaterialIcons name="warning" size={40} color="#DC2626" />
+              </View>
+              <Text
+                style={{ fontFamily: "HankenGrotesk_500Medium" }}
+                className="text-xl font-bold text-neutral-900 text-center mb-2"
+              >
+                Account Verification Required
+              </Text>
+              <Text
+                style={{ fontFamily: "HankenGrotesk_500Medium" }}
+                className="text-neutral-600 text-sm text-center mb-4"
+              >
+                {!isMyAccountVerified 
+                  ? "Your account needs to be verified by our team before you can view or accept ride requests. This is to ensure the safety of all users."
+                  : "You need to complete your KYC verification to access ride features."
+                }
+              </Text>
+            </View>
+
+            <View className="flex-col gap-3">
+              {!isMyAccountVerified && (
+                <TouchableOpacity
+                  onPress={() => {
+                    setShowVerificationModal(false)
+                    // Navigate to verification status or contact support
+                  }}
+                  className="bg-blue-600 py-4 rounded-full items-center"
+                >
+                  <Text
+                    style={{ fontFamily: "HankenGrotesk_500Medium" }}
+                    className="text-white font-semibold text-base"
+                  >
+                    Check Verification Status
+                  </Text>
+                </TouchableOpacity>
+              )}
+              
+              {isMyAccountVerified && !isKYCComplete(ridersKyc) && (
+                <TouchableOpacity
+                  onPress={() => {
+                    setShowVerificationModal(false)
+                    setShowKYCModal(true)
+                  }}
+                  className="bg-[#F75F15] py-4 rounded-full items-center"
+                >
+                  <Text
+                    style={{ fontFamily: "HankenGrotesk_500Medium" }}
+                    className="text-white font-semibold text-base"
+                  >
+                    Complete KYC
+                  </Text>
+                </TouchableOpacity>
+              )}
+
+              <TouchableOpacity
+                onPress={() => setShowVerificationModal(false)}
+                className="bg-gray-100 py-4 rounded-full items-center"
+              >
+                <Text
+                  style={{ fontFamily: "HankenGrotesk_500Medium" }}
+                  className="text-gray-700 font-semibold text-base"
+                >
+                  Close
+                </Text>
+              </TouchableOpacity>
+            </View>
+            
+            <Text
+              style={{ fontFamily: "HankenGrotesk_500Medium" }}
+              className="text-xs text-neutral-500 text-center mt-4"
+            >
+              Contact support if you need assistance with verification.
+            </Text>
+          </View>
+        </View>
+      </Modal>
+    )
+  }
 
   // KYC Modal Component
   const renderKYCModal = () => {
@@ -475,9 +484,9 @@ const getMissingKYCFields = useCallback((kycData: KYCData | null | undefined): s
       console.log("🚀 Starting tracking for ride:", rideData)
       
       const storeAddress = rideData?.order?.order_items?.[0]?.product?.store?.address1
-      const deliveryAddress = rideData?.order?.delivery?.delivery_address
-      const city = rideData?.order?.delivery?.city
-      const state = rideData?.order?.delivery?.state
+      const deliveryAddress = rideData?.order?.delivery[0]?.delivery_address
+      const city = rideData?.order?.delivery[0]?.city
+      const state = rideData?.order?.delivery[0]?.state
       
       if (!storeAddress || !deliveryAddress || !city || !state) {
         toast.show("Incomplete address information", { type: "warning" })
@@ -523,7 +532,7 @@ const getMissingKYCFields = useCallback((kycData: KYCData | null | undefined): s
 
     Alert.alert("Open Navigation", "Choose your destination:", [
       {
-        text: "Navigate to Pickup",
+        text: "Open Pickup Loaction",
         onPress: () => {
           const coords = trackingInfo.pickupCoords
           const url = `https://www.google.com/maps/dir/?api=1&destination=${coords.latitude},${coords.longitude}&travelmode=driving`
@@ -533,7 +542,7 @@ const getMissingKYCFields = useCallback((kycData: KYCData | null | undefined): s
         },
       },
       {
-        text: "Navigate to Drop-off",
+        text: "Open Drop-off Location",
         onPress: () => {
           const coords = trackingInfo.dropoffCoords
           const url = `https://www.google.com/maps/dir/?api=1&destination=${coords.latitude},${coords.longitude}&travelmode=driving`
@@ -544,20 +553,6 @@ const getMissingKYCFields = useCallback((kycData: KYCData | null | undefined): s
       },
       { text: "Cancel", style: "cancel" },
     ])
-  }
-
-  const stopTracking = async () => {
-    try {
-      setIsTracking(false)
-      setTrackingInfo(null)
-      setRouteCoordinates([])
-      setTrackingDistance("")
-      setTrackingDuration("")
-      setHasShownTrackingToast(false)
-      toast.show("Tracking stopped", { type: "info" })
-    } catch (error) {
-      console.error("Error stopping tracking:", error)
-    }
   }
 
   // Check for accepted rides with saved ride ID
@@ -575,14 +570,14 @@ const getMissingKYCFields = useCallback((kycData: KYCData | null | undefined): s
       }
     }
     
-    if (isOnline) {
+    if (isOnline && canPerformRideActions()) {
       checkForAcceptedRides()
     }
-  }, [isOnline])
+  }, [isOnline, canPerformRideActions])
 
   // Monitor my ride status and start tracking when out_for_delivery becomes true
   useEffect(() => {
-    if (myRidersRide?.data && !isTracking) {
+    if (myRidersRide?.data && !isTracking && canPerformRideActions()) {
       const rideData = myRidersRide.data
       console.log("🔄 My ride data updated:", rideData)
       
@@ -591,15 +586,15 @@ const getMissingKYCFields = useCallback((kycData: KYCData | null | undefined): s
         startTracking(rideData)
       }
     }
-  }, [myRidersRide?.data, isTracking])
+  }, [myRidersRide?.data, isTracking, canPerformRideActions])
 
   const handleNewRideNotification = useCallback(() => {
-    if (isOnline) {
+    if (isOnline && canPerformRideActions()) {
       console.log("🔄 Refreshing rides due to new ride notification...")
       refetchRides()
       toast.show("New ride available! Check your active rides.", { type: "info" })
     }
-  }, [refetchRides, toast, isOnline])
+  }, [refetchRides, toast, isOnline, canPerformRideActions])
 
   useEffect(() => {
     if (setOnNewRideNotification) {
@@ -608,12 +603,12 @@ const getMissingKYCFields = useCallback((kycData: KYCData | null | undefined): s
   }, [setOnNewRideNotification, handleNewRideNotification])
 
   useEffect(() => {
-    if (shouldRefresh && isOnline && clearRefreshFlag) {
+    if (shouldRefresh && isOnline && canPerformRideActions() && clearRefreshFlag) {
       console.log("🔄 Refreshing rides due to notification...")
       refetchRides()
       clearRefreshFlag()
     }
-  }, [shouldRefresh, refetchRides, clearRefreshFlag, isOnline])
+  }, [shouldRefresh, refetchRides, clearRefreshFlag, isOnline, canPerformRideActions])
 
   // Initialize location once
   useEffect(() => {
@@ -678,7 +673,7 @@ const getMissingKYCFields = useCallback((kycData: KYCData | null | undefined): s
         locationSubscriptionRef.current = null
       }
 
-      if (!isOnline) return
+      if (!isOnline || !canPerformRideActions()) return
 
       try {
         locationSubscriptionRef.current = await Location.watchPositionAsync(
@@ -743,7 +738,7 @@ const getMissingKYCFields = useCallback((kycData: KYCData | null | undefined): s
       }
     }
 
-    if (isOnline) {
+    if (isOnline && canPerformRideActions()) {
       startLocationTracking()
     } else {
       if (locationSubscriptionRef.current) {
@@ -758,10 +753,10 @@ const getMissingKYCFields = useCallback((kycData: KYCData | null | undefined): s
         locationSubscriptionRef.current = null
       }
     }
-  }, [isOnline, isTracking, trackingInfo])
+  }, [isOnline, isTracking, trackingInfo, canPerformRideActions])
 
   useEffect(() => {
-    if (isOnline && getRides?.data && Array.isArray(getRides.data) && getRides.data.length > 0) {
+    if (isOnline && getRides?.data && Array.isArray(getRides.data) && getRides.data.length > 0 && canPerformRideActions()) {
       Animated.loop(
         Animated.sequence([
           Animated.timing(pulseAnim, {
@@ -782,18 +777,23 @@ const getMissingKYCFields = useCallback((kycData: KYCData | null | undefined): s
       pulseAnim.stopAnimation()
       pulseAnim.setValue(1)
     }
-  }, [isOnline, getRides?.data, pulseAnim])
+  }, [isOnline, getRides?.data, pulseAnim, canPerformRideActions])
 
   const dismissBanner = () => {
     setShowBanner(false)
   }
 
   const handleStatusTogglePress = (status: boolean) => {
-    // Check if KYC is complete before allowing user to go online
-    if (status && !isKYCComplete(ridersKyc)) {
-      // toast.show("Please complete your KYC verification to go online", { type: "warning" })
-      setShowKYCModal(true)
-      return
+    // Check verification and KYC status before allowing user to go online
+    if (status) {
+      if (!isMyAccountVerified) {
+        showVerificationRequiredModal()
+        return
+      }
+      if (!isKYCComplete(ridersKyc)) {
+        setShowKYCModal(true)
+        return
+      }
     }
     
     setPendingOnlineStatus(status)
@@ -815,7 +815,6 @@ const getMissingKYCFields = useCallback((kycData: KYCData | null | undefined): s
               setSelectedRide(null)
               await AsyncStorage.removeItem("accepted_ride_id")
               setMyRideId(null)
-              stopTracking()
             }
           },
           onError: (error: any) => {
@@ -837,26 +836,26 @@ const getMissingKYCFields = useCallback((kycData: KYCData | null | undefined): s
       toast.show("You need to be online to view ride details.", { type: "warning" })
       return
     }
+    if (!canPerformRideActions()) {
+      showVerificationRequiredModal()
+      return
+    }
     setSelectedRide(ride)
     setShowActiveRidesBottomSheet(false)
     setShowRideDetailsModal(true)
   }
 
-  const handleAcceptedRideSelect = (ride: any) => {
-    if (!isOnline) {
-      toast.show("You need to be online to manage rides.", { type: "warning" })
-      return
-    }
-    setSelectedRide(ride)
-    setShowAcceptedRideBottomSheet(false)
-  }
-
+  
   const handleDeclineRide = () => {
     setSelectedRide(null)
     setShowRideDetailsModal(false)
   }
 
   const handleRideAccepted = async (rideId: number) => {
+    if (!canPerformRideActions()) {
+      showVerificationRequiredModal()
+      return
+    }
     try {
       await AsyncStorage.setItem("accepted_ride_id", rideId.toString())
       setMyRideId(rideId)
@@ -872,6 +871,10 @@ const getMissingKYCFields = useCallback((kycData: KYCData | null | undefined): s
       toast.show("You need to be online to manage rides.", { type: "warning" })
       return
     }
+    if (!canPerformRideActions()) {
+      showVerificationRequiredModal()
+      return
+    }
     console.log("Marking ride for pickup:", ride)
     refetchMyRide()
   }
@@ -881,10 +884,8 @@ const getMissingKYCFields = useCallback((kycData: KYCData | null | undefined): s
       toast.show("You need to go online to view available rides.", { type: "warning" })
       return
     }
-    // Check KYC before showing rides
-    if (!isKYCComplete(ridersKyc)) {
-      toast.show("Please complete your KYC verification to view rides", { type: "warning" })
-      setShowKYCModal(true)
+    if (!canPerformRideActions()) {
+      showVerificationRequiredModal()
       return
     }
     setShowActiveRidesBottomSheet(true)
@@ -895,6 +896,10 @@ const getMissingKYCFields = useCallback((kycData: KYCData | null | undefined): s
       toast.show("You need to be online to manage your rides.", { type: "warning" })
       return
     }
+    if (!canPerformRideActions()) {
+      showVerificationRequiredModal()
+      return
+    }
     if (myRidersRide?.data) {
       setSelectedRide(myRidersRide.data)
       setShowAcceptedRideBottomSheet(true)
@@ -902,10 +907,11 @@ const getMissingKYCFields = useCallback((kycData: KYCData | null | undefined): s
   }
 
   const ridesData = getRides?.data
-  const newRides = isOnline && Array.isArray(ridesData) ? ridesData.filter((ride: any) => ride?.accepted === false) : []
+  const newRides = isOnline && Array.isArray(ridesData) && canPerformRideActions() ? ridesData.filter((ride: any) => ride?.accepted === false) : []
+  
 
   const getAcceptedRideButtonConfig = () => {
-    if (!myRidersRide?.data) return null
+    if (!myRidersRide?.data || !canPerformRideActions()) return null
     
     const rideData = myRidersRide.data
     console.log('This is ride data', rideData)
@@ -941,12 +947,15 @@ const getMissingKYCFields = useCallback((kycData: KYCData | null | undefined): s
   }
 
   const buttonConfig = getAcceptedRideButtonConfig()
-  const isLoading = isInitializing || onlineCheckLoading || isKYCLoading || isRiderLoading || (!location && !isInitializing)
+  const isLoading = isInitializing || onlineCheckLoading || isKYCLoading || isRiderLoading || isRiderVerifiedLoading || (!location && !isInitializing)
 
   return (
     <SafeAreaView className="flex-1 bg-white">
       <StatusBar style="dark" />
       <LoadingOverlay visible={isLoading} />
+      
+      {/* Verification Modal */}
+      {renderVerificationModal()}
       
       {/* KYC Modal */}
       {renderKYCModal()}
@@ -963,7 +972,7 @@ const getMissingKYCFields = useCallback((kycData: KYCData | null | undefined): s
             <View className="flex-row items-center">
               <Pressable
                 onPress={() => router.push("/(access)/(rider_tabs)/riderProfile")}
-                className="flex w-9 h-9 mr-2 rounded-full bg-neutral-200 justify-center items-center overflow-hidden"
+                className="flex w-9 h-9 mr-2 rounded-full bg-neutral-200 justify-center items-center overflow-hidden relative"
               >
                 {profile?.data?.profile_picture === null ? (
                   <MaterialIcons name="person-4" size={25} color={"gray"} style={{padding: 3}}/>
@@ -977,12 +986,23 @@ const getMissingKYCFields = useCallback((kycData: KYCData | null | undefined): s
               <View className="flex-1">
                 <View className="flex-row items-center">
                   <View>
-                    <Text
-                      style={{ fontFamily: "HankenGrotesk_500Medium" }}
-                      className="text-black font-semibold text-sm mr-2"
-                    >
-                      {profile?.data?.fullname}
-                    </Text>
+                    <View className="flex-row items-center">
+                      <Text
+                        style={{ fontFamily: "HankenGrotesk_500Medium" }}
+                        className="text-black font-semibold text-sm"
+                      >
+                        {profile?.data?.fullname}
+                      </Text>
+                      {!isMyAccountVerified && !isRiderVerifiedLoading ? (
+                        <View className="">
+                          <MaterialIcons name="error-outline" size={14} color="red" style={{ marginLeft: 2 }} />
+                        </View>
+                      ): 
+                        <View className="">
+                          <MaterialIcons name="verified" size={14} color="green" style={{ marginLeft: 2 }} />
+                        </View>
+                      }
+                    </View>
                     <Text
                       style={{ fontFamily: "HankenGrotesk_500Medium", fontSize: 10 }}
                       className="text-black font-semibold mr-2"
@@ -1042,15 +1062,6 @@ const getMissingKYCFields = useCallback((kycData: KYCData | null | undefined): s
                     Navigate
                   </Text>
                 </TouchableOpacity>
-                <TouchableOpacity 
-                  onPress={stopTracking} 
-                  className="bg-red-600 px-3 py-2 rounded-full flex-row items-center"
-                >
-                  <Ionicons name="stop-circle" size={16} color="white" />
-                  <Text style={{ fontFamily: "HankenGrotesk_500Medium" }} className="text-white text-xs ml-1">
-                    Stop
-                  </Text>
-                </TouchableOpacity>
               </View>
             </View>
           </View>
@@ -1068,6 +1079,17 @@ const getMissingKYCFields = useCallback((kycData: KYCData | null | undefined): s
           </View>
         )}
 
+        {!canPerformRideActions() && !isLoading && (
+          <View style={{borderColor: 'white', borderWidth: 4, marginTop: 65}} className="absolute justify-center flex-row gap-2 items-center  left-4 right-4 z-10 bg-orange-50 rounded-xl p-3">
+            <MaterialIcons name="warning" size={15} color={'#DC2626'}/>
+            <Text
+              style={{ fontFamily: "HankenGrotesk_500Medium" }}
+              className="text-orange-700 text-sm font-medium text-center"
+            >
+              {!isMyAccountVerified ? "Account verification required to access ride features." : "Complete KYC to access ride features."}
+            </Text>
+          </View>
+        )}
 
         {mapRegion && location && (
           <MapView
@@ -1109,7 +1131,7 @@ const getMissingKYCFields = useCallback((kycData: KYCData | null | undefined): s
               </Marker>
             )}
 
-            {isTracking && trackingInfo && (
+            {isTracking && trackingInfo && canPerformRideActions() && (
               <>
                 <Marker
                   coordinate={trackingInfo.pickupCoords}
@@ -1134,7 +1156,7 @@ const getMissingKYCFields = useCallback((kycData: KYCData | null | undefined): s
               </>
             )}
 
-            {isTracking && routeCoordinates && routeCoordinates.length > 0 && (
+            {isTracking && routeCoordinates && routeCoordinates.length > 0 && canPerformRideActions() && (
               <Polyline 
                 coordinates={routeCoordinates} 
                 strokeColor="#3B82F6" 
@@ -1164,7 +1186,7 @@ const getMissingKYCFields = useCallback((kycData: KYCData | null | undefined): s
           </Text>
 
           <View className="flex-row justify-between items-center pb-2 gap-2">
-            {isOnline && buttonConfig && (
+            {isOnline && buttonConfig && canPerformRideActions() && (
               <View className="flex-1">
                 <TouchableOpacity
                   onPress={() => {
@@ -1188,20 +1210,20 @@ const getMissingKYCFields = useCallback((kycData: KYCData | null | undefined): s
               </View>
             )}
 
-            {(!isOnline || !buttonConfig) && (
+            {(!isOnline || !buttonConfig || !canPerformRideActions()) && (
               <View className="w-[48%]">
                 <Animated.View
                   style={{
-                    transform: [{ scale: isOnline ? pulseAnim : 1 }],
+                    transform: [{ scale: isOnline && canPerformRideActions() ? pulseAnim : 1 }],
                   }}
                 >
                   <TouchableOpacity
                     onPress={handleNewRidesPress}
                     className={`py-3 rounded-full gap-2 flex-row items-center justify-center ${
-                      isOnline ? "bg-green-100 border border-green-300" : "bg-gray-100 border border-gray-300"
+                      isOnline && canPerformRideActions() ? "bg-green-100 border border-green-300" : "bg-gray-100 border border-gray-300"
                     }`}
                     style={
-                      isOnline
+                      isOnline && canPerformRideActions()
                         ? {
                             shadowColor: "green",
                             shadowOffset: { width: 0, height: 0 },
@@ -1214,17 +1236,17 @@ const getMissingKYCFields = useCallback((kycData: KYCData | null | undefined): s
                   >
                     <Text
                       style={{ fontFamily: "HankenGrotesk_500Medium" }}
-                      className={`font-semibold text-sm ${isOnline ? "text-green-800" : "text-gray-500"}`}
+                      className={`font-semibold text-sm ${isOnline && canPerformRideActions() ? "text-green-800" : "text-gray-500"}`}
                     >
                       New Rides ({newRides.length})
                     </Text>
-                    <Ionicons name="bicycle" size={15} color={isOnline ? "green" : "gray"} />
+                    <Ionicons name="bicycle" size={15} color={isOnline && canPerformRideActions() ? "green" : "gray"} />
                   </TouchableOpacity>
                 </Animated.View>
               </View>
             )}
 
-            <View className={isOnline && buttonConfig ? "flex-1" : "w-[48%]"}>
+            <View className={isOnline && buttonConfig && canPerformRideActions() ? "flex-1" : "w-[48%]"}>
               {isOnline === false ? (
                 <TouchableOpacity
                   onPress={() => handleStatusTogglePress(true)}
@@ -1266,8 +1288,6 @@ const getMissingKYCFields = useCallback((kycData: KYCData | null | undefined): s
             </View>
           </View>
 
-         
-
           <View className="flex-row justify-between items-center mb-5 pt-3">
             <View className="mb-2 flex-row items-center bg-gray-100 h-20 justify-between rounded-2xl border w-[49%] border-neutral-100 p-3">
               <View>
@@ -1275,45 +1295,41 @@ const getMissingKYCFields = useCallback((kycData: KYCData | null | undefined): s
                   Total Earnings
                 </Text>
                 <Text style={{ fontFamily: "HankenGrotesk_500Medium" }} className="text-xl font-bold text-neutral-900">
-                  ₦ 00.00
+                  {ridersLoading ? '00.00' : `₦ ${ridersEarnings?.total_fare}`}
                 </Text>
               </View>
-              <TouchableOpacity className="bg-white rounded-full p-1" onPress={() => router.push("/(access)/(rider_tabs)/riderWallet")}>
+              <TouchableOpacity 
+                className="bg-white rounded-full p-1" 
+                onPress={() => {
+                  if (canPerformRideActions()) {
+                    router.push("/(access)/(rider_tabs)/riderWallet")
+                  } else {
+                    showVerificationRequiredModal()
+                  }
+                }}
+              >
                 <MaterialIcons name="arrow-forward" size={20} color="#F75F15" />
               </TouchableOpacity>
             </View>
 
             <View className="flex-row items-center h-20 gap-2 bg-gray-100 border border-neutral-100 p-3 w-[49%] rounded-2xl justify-center">
-              <View className="bg-white p-2 rounded-full mr-3">
+              <View className="bg-white p-2 rounded-full mr-1">
                 <Ionicons name="car" size={20} color="#F75F15" />
               </View>
-              <Text style={{ fontFamily: "HankenGrotesk_500Medium" }} className="text-2xl font-bold text-neutral-900">
-                20
-              </Text>
-              <View>
-                <Text style={{ fontFamily: "HankenGrotesk_500Medium" }} className="text-green-600 text-xs">
-                  completed
+              <View className="flex-row items-center gap-2">
+                <Text style={{ fontFamily: "HankenGrotesk_500Medium" }} className="text-2xl font-bold text-neutral-900">
+                  {ridersCompletedLoading  ? '0' : `${ridersCompletedCounts?.message}`}
                 </Text>
-                <Text style={{ fontFamily: "HankenGrotesk_500Medium" }} className="text-neutral-500 text-xs">
-                  Deliveries
-                </Text>
+                <View>
+                  <Text style={{ fontFamily: "HankenGrotesk_500Medium" }} className="text-green-600 text-xs">
+                    completed
+                  </Text>
+                  <Text style={{ fontFamily: "HankenGrotesk_500Medium" }} className="text-neutral-500 text-xs">
+                    Deliveries
+                  </Text>
+                </View>
               </View>
             </View>
-
-           
-            {/* <View className="flex-row items-center border border-neutral-100 p-3 w-[49%] rounded-2xl justify-center">
-              <View className="bg-neutral-100 p-2 rounded-full mr-3">
-                <Ionicons name="time" size={18} color="#374151" />
-              </View>
-              <View>
-                <Text style={{ fontFamily: "HankenGrotesk_500Medium" }} className="text-xl font-bold text-neutral-900">
-                  0 hrs
-                </Text>
-                <Text style={{ fontFamily: "HankenGrotesk_500Medium" }} className="text-neutral-500 text-xs">
-                  Login time
-                </Text>
-              </View>
-            </View> */}
           </View>
         </View>
       </ScrollView>
@@ -1366,7 +1382,7 @@ const getMissingKYCFields = useCallback((kycData: KYCData | null | undefined): s
         </View>
       </Modal>
 
-      {isOnline && !rideLoading && (
+      {isOnline && !rideLoading && canPerformRideActions() && (
         <>
           {newRides && Array.isArray(newRides) && (
             <ActiveRidesBottomSheet

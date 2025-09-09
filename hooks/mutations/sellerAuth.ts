@@ -338,6 +338,23 @@ export const useFundWallet = () => {
 };
 
 
+
+export const useWalletWithdrawal = () => {
+  const queryClient = useQueryClient()
+  const WalletWithdrawalMutation = useMutation({
+    mutationFn: async (data: any) => {
+      const token = (await AsyncStorage.getItem("movebay_token")) || ""
+      return post_requests("/wallet/withdrawal/", data, token)
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["wallet"] })
+    },
+  });
+
+  return WalletWithdrawalMutation;
+};
+
+
 export const useGetTransaction = () => {
   const { data, isLoading, isError, isFetched, refetch } = useQuery({
     queryKey: ["transaction"],
@@ -658,12 +675,33 @@ export const useSendToken = () => {
 }
 
 // =========== USERS ORDER ============
-export const useGetUserOrders = () => {
+export const useGetUserCompleteOrders = () => {
   const { data, isLoading, isError, isFetched, refetch } = useQuery({
-    queryKey: ["userOrders"], // Changed from ["order"] to ["userOrders"]
+    queryKey: ["userOrdersComplete"], // Changed from ["order"] to ["userOrders"]
     queryFn: async () => {
       const token = (await AsyncStorage.getItem("movebay_token")) || "";
-      return get_requests("/order/user/", token);
+      return get_requests("/order/user/?complete=true", token);
+    },
+  });
+
+  return {
+    completedUserOrdersData: data,
+    isLoading,
+    isError,
+    isFetched,
+    refetch,
+  };
+};
+
+
+
+// =========== USERS ORDER ============
+export const useGetUserOngoingOrders = () => {
+  const { data, isLoading, isError, isFetched, refetch } = useQuery({
+    queryKey: ["userOrdersOngoin"], // Changed from ["order"] to ["userOrders"]
+    queryFn: async () => {
+      const token = (await AsyncStorage.getItem("movebay_token")) || "";
+      return get_requests("/order/user/?complete=false", token);
     },
   });
 

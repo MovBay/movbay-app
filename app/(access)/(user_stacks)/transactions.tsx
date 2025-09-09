@@ -48,17 +48,43 @@ const Transactions = () => {
       return []
     }
 
-    return myTransactionData.map((item: any) => ({
-      id: item.id.toString(),
-      title: item.content || "Transaction",
-      amount: item.type === "Account-Funded" ? 0 : 0, // You may need to adjust this based on actual amount field
-      date: item.created_at,
-      status: "successful" as const, // You may need to map this based on your API response
-      type: item.type === "Account-Funded" ? "credit" : "debit" as const,
-      description: item.content || "",
-      recipient: item.type === "Account-Funded" ? "Account Funding" : "Item Purchase",
-      reference: `TXN${item.id.toString().padStart(9, '0')}`,
-    }))
+    return myTransactionData.map((item: any) => {
+      // Determine transaction type based on API type
+      let transactionType: "credit" | "debit" = "debit"
+      let recipient = ""
+      
+      switch (item.type) {
+        case "Account-Funded":
+          transactionType = "credit"
+          recipient = "Account Funding"
+          break
+        case "Withdrawal":
+          transactionType = "debit"
+          recipient = "Withdrawal"
+          break
+        case "Item-Purchased":
+          transactionType = "debit"
+          recipient = "Item Purchase"
+          break
+        default:
+          recipient = item.type || "Transaction"
+      }
+
+      // Use actual status from API, default to successful if not provided
+      const status = item.status === "pending" ? "pending" : "successful"
+
+      return {
+        id: item.id.toString(),
+        title: item.content || "Transaction",
+        amount: item.amount || 0,
+        date: item.created_at,
+        status: status as "successful" | "pending" | "failed",
+        type: transactionType,
+        description: item.content || "",
+        recipient: recipient,
+        reference: item.reference_code || `TXN${item.id.toString().padStart(9, '0')}`,
+      }
+    })
   }, [myTransactionData])
 
   // Filter options
@@ -115,7 +141,7 @@ const Transactions = () => {
   const getStatusColor = (status: Transaction["status"]): string => {
     switch (status) {
       case "successful":
-        return "#22C55E"
+        return "green"
       case "pending":
         return "#F59E0B"
       case "failed":
@@ -228,13 +254,13 @@ const Transactions = () => {
       <View className="flex-row items-start">
         <View
           className={`w-10 h-10 rounded-full items-center justify-center mr-3 ${
-            item.type === "credit" ? "bg-green-100" : "bg-red-100"
+            item.type === "credit" ? "bg-white" : "bg-white"
           }`}
         >
           <Ionicons
             name={item.type === "credit" ? "arrow-down" : "arrow-up"}
             size={15}
-            color={item.type === "credit" ? "#22C55E" : "#EF4444"}
+            color={item.type === "credit" ? "green" : "#EF4444"}
           />
         </View>
 
@@ -255,8 +281,8 @@ const Transactions = () => {
             </View>
 
             <View className="items-end">
-              <Text style={{fontFamily: 'HankenGrotesk_500Medium'}}  className={`text-lg font-semibold mb-1 ${item.amount > 0 ? "text-green-600" : "text-gray-900"}`}>
-                {item.amount > 0 ? "+" : ""}₦
+              <Text style={{fontFamily: 'HankenGrotesk_500Medium'}}  className={`text-lg font-semibold mb-1 ${item.amount > 0 && item.type === "credit" ? "text-green-800" : "text-[#F75F15]"}`}>
+                {item.amount > 0 && item.type === 'credit' ? " + " : " - "}₦
                 {Math.abs(item.amount).toLocaleString("en-US", {
                   minimumFractionDigits: 2,
                   maximumFractionDigits: 2,
@@ -312,7 +338,7 @@ const Transactions = () => {
                 onPress={() => handleSort("date")}
                 className="flex-row items-center gap-1 px-3 py-2 rounded-full bg-gray-100"
               >
-                <Text  className={`text-sm font-medium ${sortBy === "date" ? "text-green-700" : "text-gray-600"}`}>
+                <Text  className={`text-sm font-medium ${sortBy === "date" ? "text-green-800" : "text-gray-600"}`}>
                   Date
                 </Text>
                 <Ionicons
@@ -370,7 +396,7 @@ const Transactions = () => {
             </View>
             <Text style={{fontFamily: 'HankenGrotesk_400Regular'}} className="text-lg font-semibold text-gray-900 mb-2">No transactions found</Text>
             <Text style={{fontFamily: 'HankenGrotesk_400Regular'}} className="text-sm text-gray-500 text-center px-8">
-              {isLoading ? "Loading transactions..." : "Try adjusting your search terms or filters to find what you're looking for"}
+              {isLoading ? "Loading transactions..." : "No transactions available for now"}
             </Text>
           </View>
         )}

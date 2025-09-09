@@ -24,6 +24,9 @@ const RideDetailsModal: React.FC<RideDetailsModalProps> = ({
   const { mutate: acceptRide, isPending: isAccepting } = useAcceptRide(ride?.order?.order_id)
   const toast = useToast()
 
+    console.log("Accepted Rides:", ride)
+
+
   if (!ride) return null
 
   const handleAcceptRide = () => {
@@ -94,7 +97,7 @@ const RideDetailsModal: React.FC<RideDetailsModalProps> = ({
                   Drop off Address
                 </Text>
                 <Text style={{ fontFamily: "HankenGrotesk_500Medium" }} className="text-xs text-neutral-600 leading-4">
-                  {ride.order?.delivery?.delivery_address}, {ride.order?.delivery?.city}, {ride.order?.delivery?.state}
+                  {ride.order?.delivery[0]?.delivery_address}, {ride.order?.delivery[0]?.city}, {ride.order?.delivery[0]?.state}
                 </Text>
               </View>
             </View>

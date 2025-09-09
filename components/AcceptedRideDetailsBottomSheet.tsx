@@ -34,8 +34,6 @@ const AcceptedRideDetailsBottomSheet: React.FC<AcceptedRideDetailsBottomSheetPro
   const { mutate: markForPickup, isPending: isPickupPending } = usePickedUp(ride?.order?.order_id)
   const { mutate: markAsDelivered, isPending: isDeliveryPending } = useDelivered(ride?.order?.order_id)
 
-  // console.log('order id', ride?.order?.order_id)
-
   // Memoize computed values
   const orderStatus = useMemo(() => ride?.out_for_delivery, [ride?.out_for_delivery])
   const isCompleted = useMemo(() => ride?.completed === true, [ride?.completed])
@@ -108,9 +106,9 @@ const AcceptedRideDetailsBottomSheet: React.FC<AcceptedRideDetailsBottomSheetPro
       }
 
       // Get the full drop-off address
-      const deliveryAddress = ride?.order?.delivery?.delivery_address
-      const city = ride?.order?.delivery?.city
-      const state = ride?.order?.delivery?.state
+      const deliveryAddress = ride?.order?.delivery[0]?.delivery_address
+      const city = ride?.order?.delivery[0]?.city
+      const state = ride?.order?.delivery[0]?.state
       
       if (!deliveryAddress || !city || !state) {
         toast.show("Incomplete delivery address information", { type: "warning" })
@@ -119,6 +117,8 @@ const AcceptedRideDetailsBottomSheet: React.FC<AcceptedRideDetailsBottomSheetPro
 
       const fullAddress = `${deliveryAddress}, ${city}, ${state}`
       const coordinates = await getCoordinatesFromAddress(fullAddress)
+
+      console.log('THis is full address', fullAddress)
       
       markForPickup(
         {
@@ -170,9 +170,9 @@ const handleMarkAsDelivered = useCallback(async () => {
     console.log("🚚 Order ID:", orderId)
 
     // Get the full drop-off address for delivered status
-    const deliveryAddress = ride?.order?.delivery?.delivery_address
-    const city = ride?.order?.delivery?.city
-    const state = ride?.order?.delivery?.state
+    const deliveryAddress = ride?.order?.delivery[0]?.delivery_address
+    const city = ride?.order?.delivery[0]?.city
+    const state = ride?.order?.delivery[0]?.state
     
     if (!deliveryAddress || !city || !state) {
       console.error("🚚 Incomplete delivery address:", { deliveryAddress, city, state })
@@ -288,10 +288,10 @@ const handleMarkAsDelivered = useCallback(async () => {
   }), [ride?.order?.order_items])
 
   const deliveryData = useMemo(() => ({
-    address: ride?.order?.delivery?.delivery_address,
-    city: ride?.order?.delivery?.city,
-    state: ride?.order?.delivery?.state
-  }), [ride?.order?.delivery])
+    address: ride?.order?.delivery[0]?.delivery_address,
+    city: ride?.order?.delivery[0]?.city,
+    state: ride?.order?.delivery[0]?.state
+  }), [ride?.order?.delivery[0]])
 
   return (
     <Modal animationType="slide" transparent={true} visible={isVisible} onRequestClose={onClose}>

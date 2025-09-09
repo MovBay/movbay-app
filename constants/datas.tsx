@@ -33,37 +33,37 @@ export const statusShopData = [
 ]
 
 
-export const shopCategory = [
-    {
-        id: 1,
-        name: 'All'
-    },
+// export const shopCategory = [
+//     {
+//         id: 1,
+//         name: 'All'
+//     },
     
-    {
-        id: 2,
-        name: 'Electronics'
-    },
+//     {
+//         id: 2,
+//         name: 'Electronics'
+//     },
 
-    {
-        id: 3,
-        name: 'Fashion'
-    },
+//     {
+//         id: 3,
+//         name: 'Fashion'
+//     },
 
-    {
-        id: 4,
-        name: 'Home Essentials'
-    },
+//     {
+//         id: 4,
+//         name: 'Home Essentials'
+//     },
 
-    {
-        id: 5,
-        name: 'Sports'
-    },
+//     {
+//         id: 5,
+//         name: 'Sports'
+//     },
 
-    {
-        id: 6,
-        name: 'Car'
-    },
-]
+//     {
+//         id: 6,
+//         name: 'Car'
+//     },
+// ]
 
 
 export const products = [
@@ -179,3 +179,33 @@ export const products = [
     },
 ]
 
+
+
+
+export const shopCategory = [
+  { id: 1, name: "All" },
+  { id: 2, name: "Fashion" },
+  { id: 3, name: "Electronics" },
+  { id: 4, name: "Beauty" },
+  { id: 5, name: "Car" },
+  { id: 6, name: "Sport" },
+  { id: 7, name: "Shoes" },
+  { id: 8, name: "Bags" },
+  { id: 9, name: "Home_Garden" },
+  { id: 10, name: "Books_Education" },
+  { id: 11, name: "Health_Wellness" },
+  { id: 12, name: "Food_Beverages" },
+  { id: 13, name: "Baby_Kids" },
+  { id: 14, name: "Jewelry_Accessories" },
+  { id: 15, name: "Art_Crafts" },
+  { id: 16, name: "Pet_Supplies" },
+  { id: 17, name: "Musical_Instruments" },
+  { id: 18, name: "Office_Business" },
+  { id: 19, name: "Travel_Outdoor" },
+  { id: 20, name: "Gaming_Entertainment" },
+  { id: 21, name: "Tools_Hardware" },
+  { id: 22, name: "Toys_Games" },
+  { id: 23, name: "Photography_Video" },
+  { id: 24, name: "Furniture_Decor" },
+  { id: 25, name: "Other" }
+]

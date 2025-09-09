@@ -71,11 +71,11 @@ const DeliveryPreference = () => {
           showsVerticalScrollIndicator={false}
         >
           <View className="">
-            <View className="flex-row items-center gap-2">
-              <OnboardArrowTextHeader onPressBtn={() => router.back()} />
-            </View>
-            <View className="pt-3">
-              <Text className="text-2xl" style={{ fontFamily: "HankenGrotesk_600SemiBold" }}>
+            <View className="pt-3 flex-row items-center ">
+              <View className="flex-row items-center gap-2">
+                <OnboardArrowTextHeader onPressBtn={() => router.back()} />
+              </View>
+              <Text className="text-xl m-auto justify-center" style={{ fontFamily: "HankenGrotesk_600SemiBold" }}>
                 Delivery Preference
               </Text>
             </View>

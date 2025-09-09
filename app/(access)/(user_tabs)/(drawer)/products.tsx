@@ -23,9 +23,9 @@ const Products = () => {
     }
 
     const {userProductData, isLoading, refetch} = useGetUserProducts()
-    const userData = userProductData?.data?.results
+    const userData = userProductData?.data
 
-    // console.log('This are products', userData)
+    console.log('This are products', userData)
 
 
     // Filter products based on search query

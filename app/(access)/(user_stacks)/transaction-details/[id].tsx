@@ -40,16 +40,40 @@ const TransactionDetails = () => {
       return null
     }
 
+    // Determine transaction type based on API type
+    let transactionType: "credit" | "debit" = "debit"
+    let recipient = ""
+    
+    switch (apiTransaction.type) {
+      case "Account-Funded":
+        transactionType = "credit"
+        recipient = "Account Funding"
+        break
+      case "Withdrawal":
+        transactionType = "debit"
+        recipient = "Withdrawal"
+        break
+      case "Item-Purchased":
+        transactionType = "debit"
+        recipient = "Item Purchase"
+        break
+      default:
+        recipient = apiTransaction.type || "Transaction"
+    }
+
+    // Use actual status from API, default to successful if not provided
+    const status = apiTransaction.status === "pending" ? "pending" : "successful"
+
     return {
       id: apiTransaction.id.toString(),
       title: apiTransaction.content || "Transaction",
-      amount: apiTransaction.type === "Account-Funded" ? 0 : 0, // You may need to adjust this based on actual amount field
+      amount: apiTransaction.amount || 0,
       date: apiTransaction.created_at,
-      status: "successful" as const, // You may need to map this based on your API response
-      type: apiTransaction.type === "Account-Funded" ? "credit" : "debit" as const,
+      status: status as "successful" | "pending" | "failed",
+      type: transactionType,
       description: apiTransaction.content || "",
-      recipient: apiTransaction.type === "Account-Funded" ? "Account Funding" : "Item Purchase",
-      reference: `TXN${apiTransaction.id.toString().padStart(9, '0')}`,
+      recipient: recipient,
+      reference: apiTransaction.reference_code || `TXN${apiTransaction.id.toString().padStart(9, '0')}`,
     }
   }, [myTransactionData, id])
 
@@ -180,13 +204,13 @@ const TransactionDetails = () => {
           <View className="items-center">
             <View
               className={`w-16 h-16 rounded-full items-center justify-center mb-4 ${
-                transaction.type === "credit" ? "bg-green-100" : "bg-red-100"
+                transaction.type === "credit" ? "bg-white " : "bg-white"
               }`}
             >
               <Ionicons
-                name={transaction.type === "credit" ? "arrow-up" : "arrow-down"}
+                name={transaction.type === "credit" ? "arrow-down" : "arrow-up"}
                 size={28}
-                color={transaction.type === "credit" ? "#22C55E" : "#EF4444"}
+                color={transaction.type === "credit" ? "green" : "#EF4444"}
               />
             </View>
 
@@ -194,8 +218,8 @@ const TransactionDetails = () => {
               {transaction.type === "credit" ? "Incoming" : "Outgoing"}
             </Text>
 
-            <Text className={`text-3xl font-bold mb-2 ${transaction.amount > 0 ? "text-green-600" : "text-gray-900"}`}>
-              {transaction.amount > 0 ? "+" : ""}₦
+            <Text className={`text-3xl font-bold mb-2 ${transaction.amount  > 0 && transaction.type === "credit" ? "text-green-800" : "text-[#F75F15]"}`}>
+              {transaction.amount > 0 && transaction.type === "credit"? " + " : " - "}₦
               {Math.abs(transaction.amount).toLocaleString("en-US", {
                 minimumFractionDigits: 2,
                 maximumFractionDigits: 2,

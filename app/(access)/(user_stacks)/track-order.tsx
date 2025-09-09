@@ -38,15 +38,6 @@ const TrackOrder = () => {
     }
   }, [newOrderTrackData])
 
-  // Show toast notification when order is completed (removed redirect logic)
-  useEffect(() => {
-    if (newOrderTrackData?.completed) {
-      toast.show("Order completed! You can now rate the product.", { 
-        type: "success",
-        duration: 3000
-      })
-    }
-  }, [newOrderTrackData?.completed, toast])
 
   // Function to determine order status based on API response
   const determineOrderStatus = (trackData: any) => {
@@ -342,7 +333,7 @@ const TrackOrder = () => {
               Your order has been successfully delivered. How was your experience?
             </Text>
             <SolidMainButton
-              text='Rate Product'
+              text='Rate Experience'
               onPress={handleRateProduct}
             />
           </View>

@@ -8,13 +8,13 @@ import { OnboardArrowTextHeader } from "@/components/btns/OnboardHeader"
 import { SolidMainButton } from "@/components/btns/CustomButtoms"
 import { StyleSheet } from "react-native"
 import { useToast } from "react-native-toast-notifications"
-import { usePostShipRate } from "@/hooks/mutations/sellerAuth"
 import LoadingOverlay from "@/components/LoadingOverlay"
+import { Ionicons, MaterialIcons } from "@expo/vector-icons"
 
 // Types
 interface OrderData {
   delivery: {
-    delivery_method: string;
+    delivery_method?: string;
     full_name: string;
     phone_number: string;
     email: string;
@@ -26,11 +26,12 @@ interface OrderData {
     alternative_name: string;
     alternative_email: string;
     alternative_phone: string;
-    postal_code: number;
+    postal_code?: number;
   };
   items: Array<{
     store: number;
-    product: number;
+    product: number | string;
+    product_name: string;
     amount: number;
     quantity: number;
   }>;
@@ -38,6 +39,37 @@ interface OrderData {
   cart_summary: {
     total_items: number;
     subtotal: number;
+  };
+  shipRateResponse?: {
+    movbay_delivery?: Array<{
+      store_id: number;
+      fare: number;
+      delivery_type: string;
+    }>;
+    shiip_delivery?: Array<{
+      store_id: number;
+      delivery_type: string;
+      details: {
+        status: string;
+        message: string;
+        data: {
+          rates: {
+            carrier_name: string;
+            amount: number;
+            id: string;
+            carrier_logo: string;
+          };
+          pickup_address_id: string;
+          delivery_address_id: string;
+          parcel_id: string;
+        };
+      };
+    }>;
+  };
+  metadata?: {
+    saveForNextTime: boolean;
+    processedAt: string;
+    screen: string;
   };
 }
 
@@ -65,7 +97,7 @@ const SummarySection = ({
   title: string; 
   children: React.ReactNode; 
 }) => (
-  <View className="mb-6 ">
+  <View className="mb-6">
     <Text style={styles.sectionTitle}>{title}</Text>
     <View className="mt-2">
       {children}
@@ -73,44 +105,63 @@ const SummarySection = ({
   </View>
 )
 
-// Checkbox Component
-const CheckboxOption = ({ 
-  label, 
-  isChecked, 
-  onPress 
+// Product Delivery Item Component
+const ProductDeliveryItem = ({ 
+  productName,
+  deliveryMethod, 
+  fare, 
+  carrierName,
+  isLast = false 
 }: { 
-  label: string; 
-  isChecked: boolean; 
-  onPress: () => void; 
-}) => (
-  <Pressable 
-    onPress={onPress}
-    className="flex-row items-center py-4"
-  >
-    <View 
-      className={`w-5 h-5 rounded border-2 mr-3 ${
-        isChecked ? 'bg-orange-500 border-orange-500' : 'border-gray-300'
-      }`}
-    >
-      {isChecked && (
-        <View className="flex-1 items-center justify-center">
-          <Text className="text-white text-xs">✓</Text>
+  productName: string;
+  deliveryMethod: string; 
+  fare: number; 
+  carrierName: string;
+  isLast?: boolean; 
+}) => {
+  // Function to get initials from carrier name
+  const getInitials = (name: string) => {
+    return name
+      .split(' ')
+      .map(word => word.charAt(0).toUpperCase())
+      .join('')
+      .substring(0, 2);
+  };
+
+
+  return (
+    <View className={`py-4 mb-4 ${!isLast ? 'border-b border-gray-100' : ''}`}>
+      {/* Product Name */}
+      <View className="flex-row items-center gap-2 mb-2">
+        <Ionicons name="bag-handle" size={18}/>
+        <Text style={styles.productNameStyle}>{productName}</Text>
+      </View>
+      
+      {/* Delivery Method Info */}
+      <View className="flex-row justify-between items-center pt-2  border-t border-gray-100">
+        <View className="flex-row items-center flex-1">
+          {/* Initials Logo */}
+          <View style={styles.initialsLogo}>
+            <Text style={styles.initialsText}>{getInitials(carrierName)}</Text>
+          </View>
+          
+          <View className="ml-3">
+            <Text style={styles.carrierNameStyle}>{carrierName}</Text>
+            <Text style={styles.deliveryTypeStyle}>{deliveryMethod}</Text>
+          </View>
         </View>
-      )}
+        <Text style={styles.fareStyle}>₦{fare.toLocaleString()}</Text>
+      </View>
     </View>
-    <Text style={styles.checkboxLabel}>{label}</Text>
-  </Pressable>
-)
+  );
+};
 
 const DeliveryDetailsSummary = () => {
   const { orderData } = useLocalSearchParams()
   const [parsedData, setParsedData] = useState<OrderData | null>(null)
-  const [saveForNextTime, setSaveForNextTime] = useState(false)
+
+  console.log("Received parsedData param:", parsedData)
   const toast = useToast()
-
-
-  // console.log('This is summary data', parsedData)
-  const {mutate, isPending} = usePostShipRate()
 
   useEffect(() => {
     if (orderData) {
@@ -127,132 +178,82 @@ const DeliveryDetailsSummary = () => {
     }
   }, [orderData])
 
-  // Helper function to get delivery method display name
-  const getDeliveryMethodName = (method: string) => { 
-    const methods: { [key: string]: string } = {
-      'MovBay_Express': 'MovBay Express',
-      'Speedy_Dispatch': 'Speedy Dispatch',
-      'Pickup_Hub': 'Pickup Hub'
-    }
-    return methods[method] || method
-  }
 
-  // const handleProceed = () => {
-  //   if (!parsedData) return
-
-  //   // Add metadata for final processing
-  //   const finalOrderData = {
-  //     ...parsedData,
-  //     metadata: {
-  //       saveForNextTime,
-  //       processedAt: new Date().toISOString(),
-  //       screen: "delivery_summary"
-  //     }
-  //   }
-
-  //   if (saveForNextTime) {
-  //     console.log("Saving delivery details for next time:", finalOrderData)
-  //     toast.show("Delivery details saved for next time!", {
-  //       type: "success",
-  //       placement: "top",
-  //     })
-  //   }
-
-  //   // Navigate to checkout with complete order data
-  //   router.push({
-  //     pathname: "/(access)/(user_stacks)/user_checkout",
-  //     params: { finalOrderData: JSON.stringify(finalOrderData) }
-  //   })
-  // }
-
-  const handleProceed = () => {
-  if (!parsedData) return
-
-  // Prepare the payload for the ship rate API
-  const shipRatePayload = {
-    delivery_details: {
-      fullname: parsedData.delivery.full_name,
-      phone_number: parsedData.delivery.phone_number,
-      email_address: parsedData.delivery.email || "",
-      country: "NG", // Assuming Nigeria based on your example
-      city: parsedData.delivery.city,
-      state: parsedData.delivery.state,
-      delivery_address: parsedData.delivery.delivery_address,
-      alternative_address: parsedData.delivery.alternative_address || ""
-    },
-    items: parsedData.items.map(item => ({
-      amount: item.amount,
-      product: item.product,
-      store: item.store,
-      quantity: item.quantity
-    }))
-  }
-
-  // console.log('Ship rate payload:', shipRatePayload)
-        const finalOrderData = {
-        ...parsedData,
-        metadata: {
-          saveForNextTime,
-          processedAt: new Date().toISOString(),
-          screen: "delivery_summary"
-        }
-      }
-
-      if (saveForNextTime) {
-        console.log("Saving delivery details for next time:", finalOrderData)
-        toast.show("Delivery details saved for next time!", {
-          type: "success",
-          placement: "top",
-        })
-      }
-
-      // Navigate to checkout with complete order data
-      router.push({
-        pathname: "/(access)/(user_stacks)/user_checkout",
-        params: { finalOrderData: JSON.stringify(finalOrderData) }
+  const handleProceedToPayment = () => {
+    if (!parsedData) return
+    if (parsedData.metadata?.saveForNextTime) {
+      toast.show("Delivery details have been saved for future orders!", {
+        type: "success",
+        placement: "top",
       })
+    }
 
-    // Make the API call
-    // mutate(shipRatePayload, {
-    //   onSuccess: (response) => {
-    //     console.log('Ship rate response:', response.data)
-        
-    //     // Add metadata for final processing
-    //     const finalOrderData = {
-    //       ...parsedData,
-    //       shipRateResponse: response, // Include the API response
-    //       metadata: {
-    //         saveForNextTime,
-    //         processedAt: new Date().toISOString(),
-    //         screen: "delivery_summary"
-    //       }
-    //     }
+    router.push({
+      pathname: "/(access)/(user_stacks)/user_checkout",
+      params: { finalOrderData: JSON.stringify(parsedData) }
+    })
+  }
 
-    //     if (saveForNextTime) {
-    //       console.log("Saving delivery details for next time:", finalOrderData)
-    //       toast.show("Delivery details saved for next time!", {
-    //         type: "success",
-    //         placement: "top",
-    //       })
-    //     }
+  // Function to render delivery methods for products
+  const renderProductDeliveryMethods = () => {
+    if (!parsedData?.shipRateResponse || !parsedData?.items) return null
 
-    //     // Navigate to checkout with complete order data
-    //     router.push({
-    //       pathname: "/(access)/(user_stacks)/user_checkout",
-    //       params: { finalOrderData: JSON.stringify(finalOrderData) }
-    //     })
-    //   },
-    //   onError: (error) => {
-    //     console.error('Ship rate error:', error)
-    //     toast.show("Failed to get shipping rates. Please try again.", {
-    //       type: "error",
-    //       placement: "top",
-    //     })
-    //   }
-    // })
-}
+    const { movbay_delivery, shiip_delivery } = parsedData.shipRateResponse
+    const deliveryMethods: React.ReactNode[] = []
 
-  // console.log('Final data', parsedData)
+    // Create a map of store_id to product info
+    const storeProductMap = new Map()
+    parsedData.items.forEach(item => {
+      storeProductMap.set(item.store, {
+        product_name: item.product_name,
+        quantity: item.quantity,
+        amount: item.amount
+      })
+    })
+
+    // Add Movbay delivery methods
+    if (movbay_delivery && movbay_delivery.length > 0) {
+      movbay_delivery.forEach((delivery, index) => {
+        const productInfo = storeProductMap.get(delivery.store_id)
+        if (productInfo) {
+          deliveryMethods.push(
+            <ProductDeliveryItem
+              key={`movbay-${delivery.store_id}`}
+              productName={productInfo.product_name}
+              deliveryMethod="Movbay Dispatch"
+              fare={delivery.fare}
+              carrierName="Movbay Dispatch"
+              isLast={index === movbay_delivery.length - 1 && (!shiip_delivery || shiip_delivery.length === 0)}
+            />
+          )
+        }
+      })
+    }
+
+    // Add Shiip delivery methods
+    if (shiip_delivery && shiip_delivery.length > 0) {
+      shiip_delivery.forEach((delivery, index) => {
+        if (delivery.details.status === "success") {
+          const productInfo = storeProductMap.get(delivery.store_id)
+          if (productInfo) {
+            const { rates } = delivery.details.data
+            deliveryMethods.push(
+              <ProductDeliveryItem
+                key={`shiip-${delivery.store_id}`}
+                productName={productInfo.product_name}
+                deliveryMethod={delivery.delivery_type.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                fare={rates.amount}
+                carrierName={rates.carrier_name}
+                isLast={index === shiip_delivery.length - 1}
+              />
+            )
+          }
+        }
+      })
+    }
+
+    return deliveryMethods.length > 0 ? deliveryMethods : null
+  }
 
   if (!parsedData) {
     return (
@@ -268,7 +269,6 @@ const DeliveryDetailsSummary = () => {
   return (
     <SafeAreaView className="flex-1 bg-white">
       <StatusBar style="dark" />
-      <LoadingOverlay visible={isPending}/>
       
       <View className="flex-1">
         <ScrollView
@@ -284,7 +284,7 @@ const DeliveryDetailsSummary = () => {
           <View className="flex-row items-center gap-2 mb-6">
             <OnboardArrowTextHeader onPressBtn={() => router.back()} />
             <Text className="text-xl text-center m-auto" style={{ fontFamily: "HankenGrotesk_600SemiBold" }}>
-              Delivery Details
+              Delivery Summary
             </Text>
           </View>
 
@@ -347,37 +347,41 @@ const DeliveryDetailsSummary = () => {
               label="State" 
               value={parsedData.delivery.state}
             />
-            {parsedData.delivery.postal_code > 0 && (
+            {parsedData.delivery.postal_code && parsedData.delivery.postal_code > 0 && (
               <SummaryItem 
                 label="Postal Code" 
                 value={parsedData.delivery.postal_code.toString()}
+                isLast={true}
               />
             )}
           </SummarySection>
 
-          {/* Delivery Method */}
-          <SummarySection title="Delivery Method">
-            <SummaryItem 
-              label="Method" 
-              value={getDeliveryMethodName(parsedData.delivery.delivery_method)}
-              isLast={true}
-            />
-          </SummarySection>
+          {/* Product Delivery Methods */}
+          {renderProductDeliveryMethods() && (
+            <SummarySection title="Product Delivery Methods">
+              {renderProductDeliveryMethods()}
+            </SummarySection>
+          )}
 
-          {/* Save for Next Time Option */}
-          <View className="mt-4">
-            <CheckboxOption
-              label="Save delivery details for next time"
-              isChecked={saveForNextTime}
-              onPress={() => setSaveForNextTime(!saveForNextTime)}
-            />
-          </View>
+          {/* Saved for Next Time Indicator */}
+          {parsedData.metadata?.saveForNextTime && (
+            <View className="mb-6">
+              <View className="p-4 bg-blue-50 rounded-lg border border-blue-200">
+                <Text className="text-blue-700 text-sm" style={{ fontFamily: "HankenGrotesk_500Medium" }}>
+                  ✓ Delivery details saved for future orders
+                </Text>
+                <Text className="text-blue-600 text-xs mt-1" style={{ fontFamily: "HankenGrotesk_400Regular" }}>
+                  These details will be pre-filled in your next order
+                </Text>
+              </View>
+            </View>
+          )}
         </ScrollView>
         
         {/* Fixed Proceed Button at Bottom */}
         <View className="px-7 pb-4 pt-2 bg-white border-t border-gray-100">
           <SolidMainButton 
-            onPress={handleProceed}
+            onPress={handleProceedToPayment}
             text="Proceed to Payment"
           />
         </View>
@@ -408,14 +412,44 @@ const styles = StyleSheet.create({
     flex: 1,
     textAlign: "right",
   },
-  checkboxLabel: {
-    fontFamily: "HankenGrotesk_400Regular",
-    fontSize: 14,
-    color: "#000",
-  },
   loadingText: {
     fontFamily: "HankenGrotesk_400Regular",
     fontSize: 16,
     color: "#6B7280",
+  },
+  productNameStyle: {
+    fontFamily: "HankenGrotesk_600SemiBold",
+    fontSize: 14,
+    color: "#000",
+  },
+  carrierNameStyle: {
+    fontFamily: "HankenGrotesk_500Medium",
+    fontSize: 12,
+    color: "#000",
+  },
+  deliveryTypeStyle: {
+    fontFamily: "HankenGrotesk_400Regular",
+    fontSize: 10,
+    color: "#6B7280",
+    marginTop: 1,
+  },
+  fareStyle: {
+    fontFamily: "HankenGrotesk_600SemiBold",
+    fontSize: 14,
+    color: "#000",
+  },
+  initialsLogo: {
+    width: 28,
+    height: 28,
+    borderRadius: 6,
+    backgroundColor: "#F75F15",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  initialsText: {
+    fontFamily: "HankenGrotesk_600SemiBold",
+    fontSize: 12,
+    color: "#FFFFFF",
+    textAlign: "center",
   },
 })

@@ -6,8 +6,8 @@ import { OnboardArrowTextHeader } from '@/components/btns/OnboardHeader'
 import { router, useFocusEffect } from 'expo-router'
 import { KeyboardAwareScrollView } from 'react-native-keyboard-controller'
 import { SolidLightButton, SolidMainButton } from '@/components/btns/CustomButtoms'
-import { useGetUserOrders } from '@/hooks/mutations/sellerAuth'
-import { MaterialIcons } from '@expo/vector-icons'
+import { useGetUserCompleteOrders, useGetUserOngoingOrders } from '@/hooks/mutations/sellerAuth'
+import { Ionicons, MaterialIcons } from '@expo/vector-icons'
 import LoadingOverlay from '@/components/LoadingOverlay'
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window')
@@ -123,7 +123,7 @@ const OrderDetailsBottomSheet = ({ visible, onClose, order }: any) => {
               Order Details
             </Text>
             <TouchableOpacity onPress={onClose}>
-              <Text className="text-gray-500 text-lg">✕</Text>
+              <Text className="text-gray-500 text-lg" style={{fontFamily: 'HankenGrotesk_600SemiBold'}}>✕</Text>
             </TouchableOpacity>
           </View>
 
@@ -181,13 +181,17 @@ const OrderDetailsBottomSheet = ({ visible, onClose, order }: any) => {
             ))}
 
             {/* Store Info */}
-            <View className="bg-blue-50 rounded-xl p-4 mb-4">
+            <View className="bg-gray-50 rounded-xl p-4 mb-4">
               <Text className="text-sm font-semibold mb-2" style={{ fontFamily: "HankenGrotesk_600SemiBold" }}>
                 Store Information
               </Text>
-              <Text className="text-sm text-gray-700" style={{ fontFamily: "HankenGrotesk_500Medium" }}>
-                {order.store.name}
-              </Text>
+
+              <View className="flex-row items-center gap-2 mb-1">
+                <Ionicons name="storefront" size={15} color="#4B5563" />
+                <Text className="text-sm text-gray-700" style={{ fontFamily: "HankenGrotesk_500Medium" }}>
+                  {order.store.name}
+                </Text>
+              </View>
               <Text className="text-xs text-gray-600" style={{ fontFamily: "HankenGrotesk_400Regular" }}>
                 {order.store.description}
               </Text>
@@ -199,22 +203,28 @@ const OrderDetailsBottomSheet = ({ visible, onClose, order }: any) => {
                 <Text className="text-sm font-semibold mb-2" style={{ fontFamily: "HankenGrotesk_600SemiBold" }}>
                   Delivery Information
                 </Text>
-                <Text className="text-sm text-gray-700" style={{ fontFamily: "HankenGrotesk_500Medium" }}>
-                  Method: {order.delivery.delivery_method}
-                </Text>
-                <Text className="text-xs text-gray-600" style={{ fontFamily: "HankenGrotesk_400Regular" }}>
-                  Address: {order.delivery.delivery_address}
-                </Text>
-                <Text className="text-xs text-gray-600" style={{ fontFamily: "HankenGrotesk_400Regular" }}>
-                  City: {order.delivery.city}, {order.delivery.state}
-                </Text>
+                {order.delivery.delivery_method === 'Shiip_terminal' &&
+                  <View className="flex-row items-center gap-2 mb-1">
+                    <MaterialIcons name="local-shipping" size={15} color="#4B5563" />
+                    <Text className="text-sm text-gray-700" style={{ fontFamily: "HankenGrotesk_500Medium" }}>
+                      Shiip Terminal
+                    </Text>
+                  </View>
+                }
+
+                <View className="flex-row items-center gap-2 mb-1">
+                  <Ionicons name="location-sharp" size={15} color="#4B5563" />
+                  <Text className="text-xs text-gray-600" style={{ fontFamily: "HankenGrotesk_400Regular" }}>
+                    Address: {order.delivery[0].delivery_address}, {order.delivery[0].city}, {order.delivery[0].state}
+                  </Text>
+                </View>
               </View>
             )}
           </ScrollView>
 
           {/* Bottom Actions */}
           <View className="px-4">
-            <SolidMainButton text="Track Order" onPress={() => {
+            <SolidMainButton text="View Order" onPress={() => {
               onClose()
               router.push({
                 pathname: "/(access)/(user_stacks)/track-order",
@@ -236,30 +246,37 @@ const OrderHistoryBuyer = () => {
   const [showBottomSheet, setShowBottomSheet] = useState(false)
   const [refreshing, setRefreshing] = useState(false)
 
-  const { newUserOrdersData, isLoading, refetch } = useGetUserOrders()
+  const { newUserOrdersData, isLoading: ongoingLoading, refetch: refetchOngoing } = useGetUserOngoingOrders()
+  const { completedUserOrdersData, isLoading: completedLoading, refetch: refetchCompleted } = useGetUserCompleteOrders()
+  
   const newUserOrder = newUserOrdersData?.data || []
+  const completedUserOrder = completedUserOrdersData?.data || []
 
-  console.log('This is new user order', newUserOrder)
+  console.log('This is completed order', completedUserOrder)
 
   // Refetch data whenever the screen comes into focus
   useFocusEffect(
     useCallback(() => {
-      refetch()
-    }, [refetch])
+      refetchOngoing()
+      refetchCompleted()
+    }, [refetchOngoing, refetchCompleted])
   )
-
 
   // Handle pull-to-refresh
   const onRefresh = useCallback(async () => {
     setRefreshing(true)
     try {
-      await refetch()
+      if (activeTab === 'Ongoing') {
+        await refetchOngoing()
+      } else {
+        await refetchCompleted()
+      }
     } catch (error) {
       console.log('Error refreshing orders:', error)
     } finally {
       setRefreshing(false)
     }
-  }, [refetch])
+  }, [activeTab, refetchOngoing, refetchCompleted])
 
   const handleViewOrder = (order: any) => {
     setSelectedOrder(order)
@@ -334,6 +351,79 @@ const OrderHistoryBuyer = () => {
     </View>
   )
 
+  // Component to render order item
+  const renderOrderItem = (order: any, index: any, isCompleted: boolean = false) => {
+    const { totalPrice, totalQuantity } = calculateOrderTotals(order)
+    
+    return (
+      <View key={order.order_id || index} className="bg-white rounded-xl p-4 mb-4 relative">
+        {/* Quantity Badge in Top Right */}
+        <View className={`absolute top-3 right-3 ${isCompleted ? 'bg-green-100' : 'bg-orange-100'} rounded-full px-3 py-1`}>
+          <Text className={`text-xs font-medium ${isCompleted ? 'text-green-600' : 'text-orange-600'}`} style={{ fontFamily: "HankenGrotesk_500Medium" }}>
+            {totalQuantity} item{totalQuantity > 1 ? 's' : ''}
+          </Text>
+        </View>
+
+        <View className="flex-row items-center mb-4 pr-16">
+          <View className="w-20 h-20 bg-blue-100 rounded-lg mr-4 items-center justify-center overflow-hidden">
+            {order?.order_items?.[0]?.product?.product_images?.[0]?.image_url ? (
+              <Image 
+                source={{ uri: order.order_items[0].product.product_images[0].image_url }} 
+                className="w-full h-full rounded-lg" 
+                resizeMode="cover" 
+              />
+            ) : (
+              <View className="w-full h-full bg-gray-200 items-center justify-center">
+                <Text className="text-gray-400 text-xs">No Image</Text>
+              </View>
+            )}
+          </View>
+          
+          <View className="flex-1">
+            {order?.order_items?.[0]?.product?.title.length > 25 ?
+              <Text className="text-neutral-800 mb-1" style={{ fontFamily: "HankenGrotesk_500Medium" }}>
+                {order?.order_items?.[0]?.product?.title.slice(0, 25) || 'Product Title'}...
+              </Text> :
+              <Text className="text-neutral-800 mb-1" style={{ fontFamily: "HankenGrotesk_500Medium" }}>
+                {order?.order_items?.[0]?.product?.title || 'Product Title'}
+              </Text>
+            }
+
+            {
+              order?.order_items?.[0]?.product?.description.length > 40 ?
+              <Text className="text-sm text-neutral-600" style={{ fontFamily: "HankenGrotesk_400Regular" }}>
+                {order?.order_items?.[0]?.product?.description.slice(0, 40) || 'Product Description'}...
+              </Text> :
+              <Text className="text-sm text-neutral-600" style={{ fontFamily: "HankenGrotesk_400Regular" }}>
+                {order?.order_items?.[0]?.product?.description || 'Product Description'}
+              </Text>
+            }
+            <Text className="text-lg font-bold text-black" style={{ fontFamily: "HankenGrotesk_600SemiBold" }}>
+              ₦{totalPrice.toLocaleString()}
+            </Text>
+          </View>
+        </View>
+
+        <View className='flex-row justify-between items-center'>
+          <View className='w-[48%]'>
+            <SolidLightButton text='View Order' onPress={() => handleViewOrder(order)} />
+          </View>
+
+          <View className='w-[48%]'>
+            {isCompleted ? (
+              <SolidMainButton text='Rate Experience' onPress={() => handleDirectToTrackOrder(order)}/>
+            ) : (
+              <SolidMainButton text='Track order' onPress={() => handleDirectToTrackOrder(order)}/>
+            )}
+          </View>
+        </View>
+      </View>
+    )
+  }
+
+  // Determine which loading state to show
+  const isLoading = activeTab === 'Ongoing' ? ongoingLoading : completedLoading
+
   return (
     <SafeAreaView className="flex-1 bg-gray-50">
       <StatusBar style="dark" />
@@ -399,71 +489,9 @@ const OrderHistoryBuyer = () => {
             <View className="flex-1">
               {newUserOrder.length > 0 ? (
                 <View className="space-y-4">
-                  {/* Product Orders */}
-                  {newUserOrder.map((order: any, index: any) => {
-                    const { totalPrice, totalQuantity } = calculateOrderTotals(order)
-                    
-                    return (
-                      <View key={order.order_id || index} className="bg-white rounded-xl p-4 mb-4 relative">
-                        {/* Quantity Badge in Top Right */}
-                        <View className="absolute top-3 right-3 bg-orange-100 rounded-full px-3 py-1">
-                          <Text className="text-xs font-medium text-orange-600" style={{ fontFamily: "HankenGrotesk_500Medium" }}>
-                            {totalQuantity} item{totalQuantity > 1 ? 's' : ''}
-                          </Text>
-                        </View>
-
-                        <View className="flex-row items-center mb-4 pr-16">
-                          <View className="w-20 h-20 bg-blue-100 rounded-lg mr-4 items-center justify-center overflow-hidden">
-                            {order?.order_items?.[0]?.product?.product_images?.[0]?.image_url ? (
-                              <Image 
-                                source={{ uri: order.order_items[0].product.product_images[0].image_url }} 
-                                className="w-full h-full rounded-lg" 
-                                resizeMode="cover" 
-                              />
-                            ) : (
-                              <View className="w-full h-full bg-gray-200 items-center justify-center">
-                                <Text className="text-gray-400 text-xs">No Image</Text>
-                              </View>
-                            )}
-                          </View>
-                          
-                          <View className="flex-1">
-                            {order?.order_items?.[0]?.product?.title.length > 25 ?
-                              <Text className="text-neutral-800 mb-1" style={{ fontFamily: "HankenGrotesk_500Medium" }}>
-                                {order?.order_items?.[0]?.product?.title.slice(0, 25) || 'Product Title'}...
-                              </Text> :
-                              <Text className="text-neutral-800 mb-1" style={{ fontFamily: "HankenGrotesk_500Medium" }}>
-                                {order?.order_items?.[0]?.product?.title || 'Product Title'}
-                              </Text>
-                            }
-
-                            {
-                              order?.order_items?.[0]?.product?.description.length > 40 ?
-                              <Text className="text-sm text-neutral-600" style={{ fontFamily: "HankenGrotesk_400Regular" }}>
-                                {order?.order_items?.[0]?.product?.description.slice(0, 40) || 'Product Description'}...
-                              </Text> :
-                              <Text className="text-sm text-neutral-600" style={{ fontFamily: "HankenGrotesk_400Regular" }}>
-                                {order?.order_items?.[0]?.product?.description || 'Product Description'}
-                              </Text>
-                            }
-                            <Text className="text-lg font-bold text-black" style={{ fontFamily: "HankenGrotesk_600SemiBold" }}>
-                              ₦{totalPrice.toLocaleString()}
-                            </Text>
-                          </View>
-                        </View>
-
-                        <View className='flex-row justify-between items-center'>
-                          <View className='w-[48%]'>
-                            <SolidLightButton text='View Order' onPress={() => handleViewOrder(order)} />
-                          </View>
-
-                          <View className='w-[48%]'>
-                            <SolidMainButton text='Track order' onPress={()=>handleDirectToTrackOrder(order)}/>
-                          </View>
-                        </View>
-                      </View>
-                    )
-                  })}
+                  {newUserOrder.map((order: any, index: any) => 
+                    renderOrderItem(order, index, false)
+                  )}
                 </View>
               ) : (
                 <EmptyOngoingState />
@@ -473,7 +501,15 @@ const OrderHistoryBuyer = () => {
 
           {activeTab === 'Past' && (
             <View className="flex-1">
-              <EmptyPastState />
+              {completedUserOrder.length > 0 ? (
+                <View className="space-y-4">
+                  {completedUserOrder.map((order: any, index: any) => 
+                    renderOrderItem(order, index, true)
+                  )}
+                </View>
+              ) : (
+                <EmptyPastState />
+              )}
             </View>
           )}
         </KeyboardAwareScrollView>

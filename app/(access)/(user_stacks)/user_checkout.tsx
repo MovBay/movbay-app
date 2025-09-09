@@ -44,6 +44,7 @@ interface FinalOrderData {
     alternative_address: string
     alternative_name: string
     alternative_email: string
+    alternative_phone: string
     postal_code: number
   }
   items: Array<{
@@ -52,11 +53,44 @@ interface FinalOrderData {
     amount: number
     quantity: number
     product_name?: string
+    delivery_method?: string
+    carrier_name?: string
+    id?: string
+    shiiping_amount?: number
+    pickup_address_id?: string
+    delivery_address_id?: string
+    parcel_id?: string
   }>
   total_amount: number
   cart_summary: {
     total_items: number
     subtotal: number
+  }
+  shipRateResponse?: {
+    movbay_delivery?: Array<{
+      store_id: number
+      fare: number
+      delivery_type: string
+    }>
+    shiip_delivery?: Array<{
+      store_id: number
+      delivery_type: string
+      details: {
+        status: string
+        message: string
+        data: {
+          rates: {
+            carrier_name: string
+            amount: number
+            id: string
+            carrier_logo: string
+          }
+          pickup_address_id: string
+          delivery_address_id: string
+          parcel_id: string
+        }
+      }
+    }>
   }
   metadata?: {
     saveForNextTime: boolean
@@ -70,12 +104,27 @@ interface PaymentData {
   provider_name: string
 }
 
+interface DeliveryItem {
+  productName: string
+  deliveryMethod: string
+  carrierName: string
+  fare: number
+  storeId: number
+  shippingAmount: number
+  id?: string
+  pickupAddressId?: string
+  deliveryAddressId?: string
+  parcelId?: string
+}
+
 const UserCheckout = () => {
   const { finalOrderData } = useLocalSearchParams()
   const [parsedOrderData, setParsedOrderData] = useState<FinalOrderData | null>(null)
-  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState("card") // Changed default to card
+  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState("card")
   const [isProcessing, setIsProcessing] = useState(false)
   const [confirmationModalVisible, setConfirmationModalVisible] = useState(false)
+  const [deliveryItems, setDeliveryItems] = useState<DeliveryItem[]>([])
+  const [totalDeliveryFee, setTotalDeliveryFee] = useState(0)
   const toast = useToast()
   const [orderDatas, setOrderDatas] = useState([])
   
@@ -88,11 +137,107 @@ const UserCheckout = () => {
   // Add wallet data hook
   const {walletData, isLoading: isWalletLoading, refetch} = useGetWalletDetails()
 
-  const deliveryFee = 1200
   const discount = 0
 
+  // Enhanced delivery items calculation to handle both old and new data structures
+  const calculateDeliveryDetails = (orderData: FinalOrderData) => {
+    const items: DeliveryItem[] = []
+    let totalFee = 0
+
+    // First, check if items already have delivery_method and shipping info (new structure)
+    if (orderData.items && orderData.items.length > 0) {
+      const hasDeliveryMethod = orderData.items.some(item => item.delivery_method || item.shiiping_amount)
+      
+      if (hasDeliveryMethod) {
+        // New structure: items contain delivery method info
+        orderData.items.forEach(item => {
+          if (item.shiiping_amount && item.shiiping_amount > 0) {
+            items.push({
+              productName: item.product_name || `Product ${item.product}`,
+              deliveryMethod: item.delivery_method?.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase()) || 'Standard Delivery',
+              carrierName: item.carrier_name || 'Standard Carrier',
+              fare: item.shiiping_amount,
+              storeId: item.store || 0,
+              shippingAmount: item.shiiping_amount,
+              id: item.id || `delivery-${item.store}-${Date.now()}`,
+              pickupAddressId: item.pickup_address_id || "N/A",
+              deliveryAddressId: item.delivery_address_id || "N/A",
+              parcelId: item.parcel_id || "N/A"
+            })
+            totalFee += item.shiiping_amount
+          }
+        })
+        return { items, totalFee }
+      }
+    }
+
+    // Fallback to old structure using shipRateResponse
+    if (!orderData.shipRateResponse || !orderData.items) return { items: [], totalFee: 0 }
+
+    const { movbay_delivery, shiip_delivery } = orderData.shipRateResponse
+
+    // Create a map of store_id to product info
+    const storeProductMap = new Map()
+    orderData.items.forEach(item => {
+      storeProductMap.set(item.store, {
+        product_name: item.product_name,
+        quantity: item.quantity,
+        amount: item.amount
+      })
+    })
+
+    // Process Movbay delivery methods
+    if (movbay_delivery && movbay_delivery.length > 0) {
+      movbay_delivery.forEach((delivery) => {
+        const productInfo = storeProductMap.get(delivery.store_id)
+        if (productInfo) {
+          items.push({
+            productName: productInfo.product_name,
+            deliveryMethod: "Movbay Dispatch",
+            carrierName: "Movbay Dispatch",
+            fare: delivery.fare,
+            storeId: delivery.store_id,
+            shippingAmount: delivery.fare,
+            id: `movbay-${delivery.store_id}-${Date.now()}`,
+            pickupAddressId: "N/A",
+            deliveryAddressId: "N/A",
+            parcelId: "N/A"
+          })
+          totalFee += delivery.fare
+        }
+      })
+    }
+
+    // Process Shiip delivery methods
+    if (shiip_delivery && shiip_delivery.length > 0) {
+      shiip_delivery.forEach((delivery) => {
+        if (delivery.details.status === "success") {
+          const productInfo = storeProductMap.get(delivery.store_id)
+          if (productInfo) {
+            const { rates, pickup_address_id, delivery_address_id, parcel_id } = delivery.details.data
+            items.push({
+              productName: productInfo.product_name,
+              deliveryMethod: delivery.delivery_type.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase()),
+              carrierName: rates.carrier_name,
+              fare: rates.amount,
+              storeId: delivery.store_id,
+              shippingAmount: rates.amount,
+              id: rates.id || `shiip-${delivery.store_id}-${Date.now()}`,
+              pickupAddressId: pickup_address_id || "N/A",
+              deliveryAddressId: delivery_address_id || "N/A",
+              parcelId: parcel_id || "N/A"
+            })
+            totalFee += rates.amount
+          }
+        }
+      })
+    }
+
+    return { items, totalFee }
+  }
+
   // Calculate final total including delivery
-  const finalTotal = parsedOrderData ? parsedOrderData.total_amount + deliveryFee - discount : 0
+  const finalTotal = parsedOrderData ? parsedOrderData.total_amount + totalDeliveryFee - discount : 0
   
   // Check if wallet has sufficient balance
   const walletBalance = walletData?.data?.balance || 0
@@ -144,34 +289,6 @@ const UserCheckout = () => {
     }
   }
 
-  // Optional: Send push notification to server (for remote notifications)
-  const sendPushNotificationToServer = async (orderData: any, pushToken: string) => {
-    try {
-      // Replace with your actual server endpoint
-      const response = await fetch('YOUR_SERVER_ENDPOINT/send-notification', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          pushToken,
-          title: "Order Placed Successfully!",
-          body: `Your order #${orderData.id} has been placed successfully.`,
-          data: {
-            orderId: orderData.id,
-            screen: 'order-success',
-          },
-        }),
-      })
-      
-      if (!response.ok) {
-        throw new Error('Failed to send push notification')
-      }
-    } catch (error) {
-      console.error('Error sending push notification to server:', error)
-    }
-  }
-
   useEffect(() => {
     if (finalOrderData) {
       try {
@@ -179,8 +296,13 @@ const UserCheckout = () => {
         setParsedOrderData(parsed)
         console.log("Final Order Data:", parsed)
         
+        // Calculate delivery details
+        const { items, totalFee } = calculateDeliveryDetails(parsed)
+        setDeliveryItems(items)
+        setTotalDeliveryFee(totalFee)
+        
         // Set default payment method based on wallet balance
-        const total = parsed.total_amount + deliveryFee - discount
+        const total = parsed.total_amount + totalFee - discount
         if (walletBalance >= total) {
           setSelectedPaymentMethod("movbay")
         } else {
@@ -263,6 +385,15 @@ const UserCheckout = () => {
     }
     return displays[methodId] || displays["card"]
   }
+
+  // Function to get initials from carrier name
+  const getInitials = (name: string) => {
+    return name
+      .split(' ')
+      .map(word => word.charAt(0).toUpperCase())
+      .join('')
+      .substring(0, 2);
+  };
 
   // Updated PaymentOption component with wallet balance checking
   const PaymentOption = ({ id, title, subtitle, icon, recommended = false }: any) => {
@@ -404,7 +535,31 @@ const UserCheckout = () => {
     setConfirmationModalVisible(true)
   }
 
-  // Proceed with payment after confirmation
+  // Function to ensure delivery data for each item
+  const enrichItemsWithDeliveryData = (items: any[]) => {
+    return items.map((item, index) => {
+      // Find corresponding delivery item
+      const deliveryItem = deliveryItems.find(d => d.storeId === item.store) || deliveryItems[index] || deliveryItems[0]
+      
+      return {
+        store: Number(item.store),
+        amount: Number(item.amount),
+        product: Number(item.product),
+        quantity: Number(item.quantity),
+        // Ensure required delivery fields are present
+        delivery_method: item.delivery_method || deliveryItem?.deliveryMethod?.toLowerCase().replace(/\s+/g, '_'),
+        carrier_name: item.carrier_name || deliveryItem?.carrierName || 'Standard Carrier',
+        id: item.id || deliveryItem?.id || `delivery-${item.store || index}-${Date.now()}`,
+        shiiping_amount: Number(item.shiiping_amount || deliveryItem?.shippingAmount || 0),
+        // Add the new address and parcel ID fields
+        pickup_address_id: item.pickup_address_id || deliveryItem?.pickupAddressId || "N/A",
+        delivery_address_id: item.delivery_address_id || deliveryItem?.deliveryAddressId || "N/A",
+        parcel_id: item.parcel_id || deliveryItem?.parcelId || "N/A"
+      }
+    })
+  }
+
+  // Proceed with payment after confirmation - UPDATED TO MATCH NEW PAYLOAD STRUCTURE
   const proceedWithPayment = async () => {
     closeConfirmationModal()
     
@@ -419,17 +574,16 @@ const UserCheckout = () => {
     setIsProcessing(true)
 
     try {
-      // Get payment method data
       const paymentData = getPaymentMethodData(selectedPaymentMethod)
-
-      // Calculate final total
-      const finalTotal = parsedOrderData.total_amount + deliveryFee - discount
-
-      // Structure final API payload exactly as your backend expects
+      const finalTotalInt = Math.round(parsedOrderData.total_amount + totalDeliveryFee - discount)
+      
+      // Enrich items with delivery data
+      const enrichedItems = enrichItemsWithDeliveryData(parsedOrderData.items)
+      
+      // Build API payload according to the required structure
       const apiPayload = {
         delivery: {
-          delivery_method: parsedOrderData.delivery.delivery_method,
-          full_name: parsedOrderData.delivery.full_name,
+          fullname: parsedOrderData.delivery.full_name,
           phone_number: parsedOrderData.delivery.phone_number,
           email: parsedOrderData.delivery.email,
           landmark: parsedOrderData.delivery.landmark,
@@ -441,64 +595,43 @@ const UserCheckout = () => {
           alternative_email: parsedOrderData.delivery.alternative_email,
           postal_code: Number(parsedOrderData.delivery.postal_code) || 0
         },
-        total_amount: finalTotal,
-        items: parsedOrderData.items.map(item => ({
-          store: Number(item.store), // Ensure it's a number
-          amount: Number(item.amount), // Ensure it's a number
-          product: Number(item.product), // Ensure it's a number
-          product_name: item.product_name,
-          quantity: Number(item.quantity) // Ensure it's a number
-        })),
+        total_amount: finalTotalInt, // Ensure it's an integer
+        items: enrichedItems,
         payment_method: paymentData.payment_method,
         provider_name: paymentData.provider_name,
       }
 
       console.log("Final API Payload:", JSON.stringify(apiPayload, null, 2))
 
-      // Make the API call using your hook
       mutate(apiPayload, {
         onSuccess: async (response) => {
           console.log("Order created successfully:", response.data)
           setOrderDatas(response.data)
           
-          // Send local push notification
           await sendLocalNotification({
             ...response,
-            total_amount: finalTotal,
+            total_amount: finalTotalInt,
           })
-          
-          // Optional: Send push notification via server
-          // const pushToken = await registerForPushNotificationsAsync()
-          // if (pushToken) {
-          //   await sendPushNotificationToServer(response, pushToken)
-          // }
-          
-          // Show success message
           toast.show("Order placed successfully!", {
             type: "success",
             placement: "top",
           })
           
-          // Pass order data to success screen
           router.push({
             pathname: "/(access)/(user_stacks)/order-success",
             params: {
               orderData: JSON.stringify(response.data),
-              totalAmount: finalTotal.toString(),
+              totalAmount: finalTotalInt.toString(),
               paymentMethod: selectedPaymentMethod
             }
           })
         },
         onError: (error) => {
           console.error("Order creation error:", error)
-          
-          // Log the full error for debugging
           console.error("Full error details:", {
             data: getErrorMessage(error),
           })
 
-          
-          // Show specific error message to user
          toast.show(getErrorMessage(error), {
           type: "danger", 
           placement: "top",
@@ -526,7 +659,7 @@ const UserCheckout = () => {
   const PaymentConfirmationModal = () => {
     if (!parsedOrderData) return null
     
-    const finalTotal = parsedOrderData.total_amount + deliveryFee - discount
+    const finalTotal = parsedOrderData.total_amount + totalDeliveryFee - discount
     const paymentDisplay = getPaymentMethodDisplay(selectedPaymentMethod)
     
     return (
@@ -600,14 +733,19 @@ const UserCheckout = () => {
                     ₦{parsedOrderData.total_amount.toLocaleString()}
                   </Text>
                 </View>
-                <View className="flex-row justify-between items-center mb-2">
-                  <Text className="text-sm text-gray-600" style={{ fontFamily: "HankenGrotesk_400Regular" }}>
-                    Delivery to {parsedOrderData.delivery.city}
-                  </Text>
-                  <Text className="text-sm font-semibold text-gray-900" style={{ fontFamily: "HankenGrotesk_600SemiBold" }}>
-                    ₦{deliveryFee.toLocaleString()}
-                  </Text>
-                </View>
+                
+                {/* Delivery Items */}
+                {deliveryItems.map((item, index) => (
+                  <View key={`${item.storeId}-${index}`} className="flex-row justify-between items-center mb-2">
+                    <Text className="text-sm text-gray-600" style={{ fontFamily: "HankenGrotesk_400Regular" }}>
+                      {item.carrierName} delivery
+                    </Text>
+                    <Text className="text-sm font-semibold text-gray-900" style={{ fontFamily: "HankenGrotesk_600SemiBold" }}>
+                      ₦{item.fare.toLocaleString()}
+                    </Text>
+                  </View>
+                ))}
+                
                 <View className="border-t border-gray-200 pt-2 mt-2">
                   <View className="flex-row justify-between items-center">
                     <Text className="text-base font-semibold text-gray-900" style={{ fontFamily: "HankenGrotesk_600SemiBold" }}>
@@ -616,23 +754,6 @@ const UserCheckout = () => {
                     <Text className="text-lg font-bold text-orange-600" style={{ fontFamily: "HankenGrotesk_700Bold" }}>
                       ₦{finalTotal.toLocaleString()}
                     </Text>
-                  </View>
-                </View>
-              </View>
-
-              {/* Payment Method */}
-              <View className="bg-gray-50 p-4 rounded-lg mb-4">
-                <View className="flex-row items-center">
-                  <Text className="text-base mr-2">{paymentDisplay.icon}</Text>
-                  <View className="flex-1">
-                    <Text className="text-sm font-semibold text-gray-900" style={{ fontFamily: "HankenGrotesk_600SemiBold" }}>
-                      {paymentDisplay.title}
-                    </Text>
-                    {selectedPaymentMethod === "movbay" && (
-                      <Text className="text-xs text-gray-600 mt-1" style={{ fontFamily: "HankenGrotesk_400Regular" }}>
-                        Balance after payment: ₦{(walletBalance - finalTotal).toLocaleString()}
-                      </Text>
-                    )}
                   </View>
                 </View>
               </View>
@@ -736,6 +857,21 @@ const UserCheckout = () => {
             </Text>
           </View>
 
+          {/* Delivery Address */}
+          <View className="mb-6 p-4 bg-green-50 rounded-lg">
+            <Text className="text-lg font-semibold mb-2" style={{ fontFamily: "HankenGrotesk_600SemiBold" }}>
+              Delivery Address
+            </Text>
+            <View className="flex-row items-start">
+              <Ionicons name="location" size={16} color="green" className="" />
+              <View className="flex-row ml-1 gap-2">
+                <Text className="text-sm text-gray-600" style={{ fontFamily: "HankenGrotesk_400Regular" }}>
+                  {parsedOrderData.delivery.delivery_address}, {parsedOrderData.delivery.city}, {parsedOrderData.delivery.state}
+                </Text>
+              </View>
+            </View>
+          </View>
+
           {/* Order Summary */}
           <View className="mb-6 p-4 bg-gray-50 rounded-lg">
             <Text className="text-lg font-semibold mb-2" style={{ fontFamily: "HankenGrotesk_600SemiBold" }}>
@@ -745,10 +881,15 @@ const UserCheckout = () => {
               <Text className="text-sm text-gray-600">Items ({parsedOrderData.cart_summary.total_items})</Text>
               <Text className="text-sm text-gray-900">₦{parsedOrderData.total_amount.toLocaleString()}</Text>
             </View>
-            <View className="flex-row justify-between mb-2">
-              <Text className="text-sm text-gray-600">Delivery to {parsedOrderData.delivery.city}</Text>
-              <Text className="text-sm text-gray-900">₦{deliveryFee.toLocaleString()}</Text>
-            </View>
+            
+            {/* Individual delivery fees */}
+            {deliveryItems.map((item, index) => (
+              <View key={`delivery-${item.storeId}-${index}`} className="flex-row justify-between mb-2">
+                <Text className="text-sm text-gray-600">{item.carrierName} delivery</Text>
+                <Text className="text-sm text-gray-900">₦{item.fare.toLocaleString()}</Text>
+              </View>
+            ))}
+            
             {discount > 0 && (
               <View className="flex-row justify-between mb-2">
                 <Text className="text-sm text-gray-600">Discount</Text>
@@ -780,5 +921,19 @@ const styles = StyleSheet.create({
     fontFamily: "HankenGrotesk_400Regular",
     fontSize: 14,
     color: "#6B7280",
+  },
+  initialsLogo: {
+    width: 30,
+    height: 30,
+    borderRadius: 6,
+    backgroundColor: "#F75F15",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  initialsText: {
+    fontFamily: "HankenGrotesk_600SemiBold",
+    fontSize: 12,
+    color: "#FFFFFF",
+    textAlign: "center",
   },
 })

@@ -16,7 +16,6 @@ const LoadingOverlay: React.FC<LoadingOverlayProps> = ({
     <View style={styles.container}>
       <View style={styles.overlay}>
         <ActivityIndicator size="small" color="#F75F15" />
-        {/* <Text style={styles.message}>{message}</Text> */}
       </View>
     </View>
   );

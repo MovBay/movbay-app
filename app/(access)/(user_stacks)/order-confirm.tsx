@@ -166,6 +166,9 @@ const OrderConfirm = () => {
 
   const { mutate: confirmOrder, isPending } = useComfirmOrder(orderId)
 
+  console.log('This is new datas', order)
+
+
   useEffect(() => {
     if (orderData) {
       setOrder(JSON.parse(orderData))
@@ -233,9 +236,9 @@ const OrderConfirm = () => {
     setErrorDetails(null)
   }
 
-    const handleBackPress = () => {
-      router.back()
-    }
+  const handleBackPress = () => {
+    router.back()
+  }
 
   return (
     <SafeAreaView className="bg-white flex-1">
@@ -290,7 +293,7 @@ const OrderConfirm = () => {
               </Text>
             </View>
             {/* Rating */}
-            <View className="flex-row items-center gap-2 mb-4">
+            {/* <View className="flex-row items-center gap-2 mb-4">
               <View className="flex-row">
                 {[1, 2, 3, 4].map((star) => (
                   <MaterialIcons key={star} name="star" size={16} color="#FBBC05" />
@@ -303,7 +306,7 @@ const OrderConfirm = () => {
               <Text className="text-sm text-gray-600" style={{ fontFamily: "HankenGrotesk_400Regular" }}>
                 May 19, 2025 | 7:14 am
               </Text>
-            </View>
+            </View> */}
           </View>
         </View>
         {/* Order Details */}
@@ -320,10 +323,10 @@ const OrderConfirm = () => {
             </View>
             {/* Buyer Name */}
             <View className="flex-row justify-between items-center">
-              <Text className="text-base font-medium" style={{ fontFamily: "HankenGrotesk_500Medium" }}>
+              <Text className="text-sm font-medium" style={{ fontFamily: "HankenGrotesk_500Medium" }}>
                 Buyer Name:
               </Text>
-              <Text className="text-base" style={{ fontFamily: "HankenGrotesk_500Medium" }}>
+              <Text className="text-sm" style={{ fontFamily: "HankenGrotesk_500Medium" }}>
                 {order.buyer.fullname}
               </Text>
             </View>
@@ -333,7 +336,7 @@ const OrderConfirm = () => {
                 Buyer Phone Number:
               </Text>
               <Text className="text-sm" style={{ fontFamily: "HankenGrotesk_500Medium" }}>
-                {order.delivery.phone_number}
+                {order.buyer.phone_number}
               </Text>
             </View>
             {/* Color Variation */}
@@ -352,9 +355,11 @@ const OrderConfirm = () => {
               <Text className="text-base font-medium" style={{ fontFamily: "HankenGrotesk_500Medium" }}>
                 Delivery Option:
               </Text>
-              <Text className="text-base" style={{ fontFamily: "HankenGrotesk_500Medium" }}>
-                {order.delivery.delivery_method}
-              </Text>
+              {order.delivery[0].delivery_method === 'movbay_dispatch' && 
+                <Text className="text-base" style={{ fontFamily: "HankenGrotesk_500Medium" }}>
+                  Movbay Dispatch
+                </Text>
+              }
             </View>
             {/* Status */}
             <View className="flex-row justify-between items-center">
@@ -387,8 +392,7 @@ const OrderConfirm = () => {
             <View className="flex-row gap-2 items-center">
               <Ionicons name="location" size={15} />
               <Text className="text-base" style={{ fontFamily: "HankenGrotesk_400Regular" }}>
-                {order.delivery.delivery_address}, {order.delivery.city}, {order.delivery.state},{" "}
-                {order.delivery.postal_code}
+                {order.delivery[0].delivery_address}, {order.delivery[0].city}, {order.delivery[0].state}
               </Text>
             </View>
             <Text className="text-base text-black" style={{ fontFamily: "HankenGrotesk_400Regular" }}>

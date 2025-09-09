@@ -204,5 +204,69 @@ export const useVerifyDeliveryOrder = (orderID: any) => {
 };
 
 
+
+// ================= Total Earnings =====================
+
+export const useGetRidersEarnings = () => {
+  const { data, isLoading, isError, isFetched, refetch } = useQuery({
+    queryKey: ["earnings"],
+    queryFn: async () => {
+      const token = (await AsyncStorage.getItem("movebay_token")) || "";
+      return get_requests("/logistics/total-earnings/", token);
+    },
+  });
+
+  return {
+    getRidersEarnings: data,
+    isLoading,
+    isError,
+    isFetched,
+    refetch,
+  };
+};
+
+
+export const useGetRidersCompletedRides = () => {
+  const { data, isLoading, isError, isFetched, refetch } = useQuery({
+    queryKey: ["completed"],
+    queryFn: async () => {
+      const token = (await AsyncStorage.getItem("movebay_token")) || "";
+      return get_requests("/logistics/completed-rides/", token);
+    },
+  });
+
+  return {
+    getRidersCompletedCount: data,
+    isLoading,
+    isError,
+    isFetched,
+    refetch,
+  };
+};
+
+
+export const useGetVerifiedStatus = ()=>{
+  const { data, isLoading, isError, isFetched, refetch } = useQuery({
+    queryKey: ["verified"],
+    queryFn: async () => {
+      const token = (await AsyncStorage.getItem("movebay_token")) || "";
+      return get_requests("/logistics/check-rider-verified/", token);
+    },
+  })
+
+  return{
+    isRiderVerified: data,
+    isLoading,
+    isError,
+    isFetched,
+    refetch,
+  }
+}
+
+
+  // https://api.movbay.com/logistics/completed-rides/
+
+
+
 // verify-order/MOVIBGAZ6WS/
 // logistics/MOVIBGAZ6WS/mark-as-delivered/

@@ -879,7 +879,7 @@ export const nigeriaStates: State[] = [
       { id: "omuma", name: "Omuma", stateId: "rivers" },
       { id: "opobo-nkoro", name: "Opobo/Nkoro", stateId: "rivers" },
       { id: "pari", name: "Pari", stateId: "rivers" },
-      { id: "ph", name: "Ph", stateId: "rivers" },
+      { id: "ph", name: "Port Harcourt", stateId: "rivers" },
       { id: "tai", name: "Tai", stateId: "rivers" }
     ]
   },

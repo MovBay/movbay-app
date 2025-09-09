@@ -4,7 +4,7 @@ import { shopCategory } from "@/constants/datas"
 import { useProfile } from "@/hooks/mutations/auth"
 import { useCart } from "@/context/cart-context"
 import { useFavorites } from "@/context/favorite-context"
-import { useGetProducts, useGetStoreStatus } from "@/hooks/mutations/sellerAuth"
+import { useGetProductsOriginal, useGetStoreStatus } from "@/hooks/mutations/sellerAuth"
 import Ionicons from "@expo/vector-icons/Ionicons"
 import MaterialIcons from "@expo/vector-icons/MaterialIcons"
 import { router, useFocusEffect } from "expo-router"
@@ -21,13 +21,10 @@ export default function HomeScreen() {
     productData, 
     isLoading: productLoading, 
     refetch: refetchProducts,
-    fetchNextPage,
-    hasNextPage,
-    isFetchingNextPage,
-  } = useGetProducts()
+  } = useGetProductsOriginal()
   const { storeStatusData, isLoading: storeStatusLoading, refetch: storeRefetch } = useGetStoreStatus()
   
-  const allProducts = productData?.data?.results
+  const allProducts = productData?.data?.results || productData?.data
 
   // console.log('This are products', allProducts)
 
@@ -38,9 +35,16 @@ export default function HomeScreen() {
   const [searchQuery, setSearchQuery] = useState("")
   const [hasInitiallyLoaded, setHasInitiallyLoaded] = useState(false)
   const searchInputRef = useRef<TextInput>(null)
+  // Add ref for category FlatList
+  const categoryFlatListRef = useRef<FlatList>(null)
 
   const ItemSeparator = () => <View style={{ height: 15 }} />
   const insets = useSafeAreaInsets()
+
+  // Function to format category name for display
+  const formatCategoryName = useCallback((name: string) => {
+    return name.replace(/_/g, ' ')
+  }, [])
 
   // Refetch data when screen comes into focus
   useFocusEffect(
@@ -130,29 +134,12 @@ export default function HomeScreen() {
 
   const handleCategoryPress = useCallback((categoryId: number) => {
     setActiveCategoryId(categoryId)
+    // Don't scroll to beginning - let it maintain current position
   }, [])
 
   const handleViewStatus = (id: string) => {
     router.push(`/user_status_view/${id}` as any)
   }
-
-  // Handle loading more products
-  const handleLoadMore = useCallback(() => {
-    if (hasNextPage && !isFetchingNextPage && searchQuery.trim() === "") {
-      fetchNextPage()
-    }
-  }, [hasNextPage, isFetchingNextPage, fetchNextPage, searchQuery])
-
-  // Footer component for loading indicator
-  const renderFooter = useCallback(() => {
-    if (!isFetchingNextPage) return null
-    
-    return (
-      <View className="bg-white rounded-lg w-8 h-8 flex shadow-md shadow-slate-700 elevation-md items-center justify-center m-auto mb-20 mt-10">
-        <ActivityIndicator size="small" color="#F75F15" />
-      </View>
-    )
-  }, [isFetchingNextPage])
 
   const MemoizedFixedHeader = useMemo(
     () => (
@@ -373,6 +360,7 @@ export default function HomeScreen() {
         {/* Shop Categories - Horizontal FlatList */}
         <View className="pt-5 pb-5">
           <FlatList
+            ref={categoryFlatListRef}
             horizontal
             showsHorizontalScrollIndicator={false}
             data={shopCategory}
@@ -395,7 +383,7 @@ export default function HomeScreen() {
                       className={`text-sm ${activeCategoryId === item.id ? "text-orange-600" : "text-neutral-700"}`}
                       style={{ fontFamily: "HankenGrotesk_500Medium" }}
                     >
-                      {item?.name}
+                      {formatCategoryName(item?.name)}
                     </Text>
                   </Pressable>
                 </AnimationWrapper>
@@ -409,7 +397,7 @@ export default function HomeScreen() {
         </View>
       </View>
     )
-  }, [searchQuery, activeCategoryId, handleCategoryPress, hasInitiallyLoaded, storeStatusData, storeStatusLoading])
+  }, [searchQuery, activeCategoryId, handleCategoryPress, hasInitiallyLoaded, storeStatusData, storeStatusLoading, formatCategoryName])
 
   const renderProduct = useCallback(
     ({ item }: { item: any }) => (
@@ -484,15 +472,12 @@ export default function HomeScreen() {
           renderItem={renderProduct}
           ItemSeparatorComponent={ItemSeparator}
           ListEmptyComponent={EmptyComponent}
-          ListFooterComponent={renderFooter}
           keyboardShouldPersistTaps="handled"
           removeClippedSubviews={false}
           maxToRenderPerBatch={10}
           updateCellsBatchingPeriod={50}
           initialNumToRender={10}
           windowSize={10}
-          onEndReached={handleLoadMore}
-          onEndReachedThreshold={0.5}
         />
       )}
     </SafeAreaView>

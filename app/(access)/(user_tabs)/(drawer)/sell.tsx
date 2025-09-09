@@ -153,7 +153,7 @@ const Sell =()=> {
                 </Pressable>
               </Animated.View>
     
-              <Pressable className='absolute bottom-10 right-8 bg-[#F75F15] p-4 py-3.5 rounded-full border-4 border-gray-200'>
+              <Pressable onPress={()=> router.push('/(access)/(user_stacks)/courier/deliver-parcel-home')} className='absolute bottom-10 right-8 bg-[#F75F15] p-4 py-3.5 rounded-full border-4 border-gray-200'>
                 <MaterialIcons name='motorcycle' size={30} color={'white'} style={{margin: 'auto'}}/>
                 <Text className='text-sm text-white text-center pt-0 mt-0' style={{fontFamily: 'HankenGrotesk_500Medium'}}>Courier</Text>
               </Pressable>

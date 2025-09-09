@@ -1,4 +1,4 @@
-import { View, Text, TouchableOpacity, Image, Modal, StyleSheet } from 'react-native'
+import { View, Text, TouchableOpacity, Image, Modal, StyleSheet, Pressable } from 'react-native'
 import React, { useState } from 'react'
 import { OnboardArrowTextHeader } from '@/components/btns/OnboardHeader'
 import { KeyboardAwareScrollView } from 'react-native-keyboard-controller'
@@ -6,9 +6,10 @@ import LoadingOverlay from '@/components/LoadingOverlay'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { StatusBar } from 'expo-status-bar'
 import { router } from 'expo-router'
-import { Ionicons } from '@expo/vector-icons'
+import { Ionicons, MaterialIcons } from '@expo/vector-icons'
 import { SolidLightButton, SolidMainButton } from '@/components/btns/CustomButtoms'
-import { useRiderKYC } from '@/hooks/mutations/auth'
+import { useRiderKYC, useRiderProfile } from '@/hooks/mutations/auth'
+import { useGetVerifiedStatus } from '@/hooks/mutations/ridersAuth'
 
 // Image Preview Modal Component
 const ImagePreviewModal = ({ 
@@ -51,7 +52,11 @@ const ImagePreviewModal = ({
 };
 
 const RiderKYC = () => {
-    const { riderKYC, isLoading } = useRiderKYC()
+    const { riderKYC, isLoading, refetch } = useRiderKYC()
+    const {isLoading: isRiderLoading, profile} = useRiderProfile()  
+    const {isRiderVerified, isLoading: isRiderVerifiedLoading} = useGetVerifiedStatus()
+    const isMyAccountVerified = isRiderVerified?.data?.verified
+
     console.log('Riders KYC Data:', riderKYC?.data)
     
     // Image preview states
@@ -73,7 +78,6 @@ const RiderKYC = () => {
     )
 
     const handleAddKYC = () => {
-      // Navigate to KYC form or handle KYC addition
       router.push('/(access)/(rider_stacks)/kycUpdate') // Adjust route as needed
     }
 
@@ -95,18 +99,6 @@ const RiderKYC = () => {
       });
     };
 
-    // Helper function to get verification status
-    const getVerificationStatus = (field: string) => {
-      // You can customize this based on your API response structure
-      // For now, showing different statuses for demonstration
-      if (field === 'nin') {
-        return { label: 'Verified', color: 'green-600', bgColor: 'green-100', textColor: 'green-800' };
-      } else if (field === 'proof_of_address') {
-        return { label: 'Pending', color: 'orange-400', bgColor: 'orange-50', textColor: 'orange-700' };
-      } else {
-        return { label: 'Verified', color: 'green-600', bgColor: 'green-100', textColor: 'green-800' };
-      }
-    };
 
   return (
     <SafeAreaView className="flex-1 bg-white">
@@ -130,6 +122,59 @@ const RiderKYC = () => {
               </Text>
             </View>
           </View>
+
+          <View className="flex-row items-center mt-6 ">
+            <Pressable
+              onPress={() => router.push("/(access)/(rider_tabs)/riderProfile")}
+              className="flex w-14 h-14 mr-2 rounded-full justify-center items-center overflow-hidden relative"
+            >
+              {profile?.data?.profile_picture === null ? (
+                <MaterialIcons name="person-4" size={35} color={"gray"} style={{padding: 3}}/>
+              ) : (
+                <Image
+                  source={{ uri: profile?.data?.profile_picture }}
+                  style={{ objectFit: "cover", width: "100%", height: "100%" }}
+                />
+              )}
+            </Pressable>
+            <View className="flex-1">
+              <View className="flex-row items-center">
+                <View>
+                  <View className="flex-row items-center">
+                    <Text
+                      style={{ fontFamily: "HankenGrotesk_500Medium" }}
+                      className="text-black font-semibold text-base"
+                    >
+                      {profile?.data?.fullname}
+                    </Text>
+                    {!isMyAccountVerified && !isRiderVerifiedLoading ? (
+                      <View className="">
+                        <MaterialIcons name="error-outline" size={14} color="red" style={{ marginLeft: 2 }} />
+                      </View>
+                    ): 
+                      <View className="">
+                        <MaterialIcons name="verified" size={14} color="green" style={{ marginLeft: 2 }} />
+                      </View>
+                    }
+                  </View>
+                  <Text
+                    style={{ fontFamily: "HankenGrotesk_400Regular", fontSize: 12 }}
+                    className="text-gray-500 font-semibold mr-2"
+                  >
+                    @{profile?.data?.username}
+                  </Text>
+                </View>
+              </View>
+            </View>
+      
+          </View>
+            
+            {!isMyAccountVerified === true && (
+              <View className='bg-yellow-50 border border-yellow-200 p-3 rounded-lg mt-4'>
+                <Text className='text-sm text-yellow-600 text-center'>Your account has not been verified</Text>
+              </View>
+            )}
+              
 
           {!hasKYCData ? (
             // Empty KYC State
@@ -157,7 +202,7 @@ const RiderKYC = () => {
             // Existing KYC Data Display
             <>
               {/* KYC Documents Section */}
-              <View className="mt-8 space-y-4">
+              <View className="mt-6 space-y-4">
                 {/* Valid ID/NIN */}
                 {kycData?.nin_url && (
                   <View className="flex-row items-center justify-between p-4 bg-gray-50 rounded-lg">
@@ -166,14 +211,6 @@ const RiderKYC = () => {
                       <View>
                         <View className="flex-row items-center gap-2">
                           <Text style={{fontFamily: 'HankenGrotesk_500Medium'}} className="text-sm font-medium text-gray-900">Valid ID/NIN</Text>
-                          {(() => {
-                            const status = getVerificationStatus('nin');
-                            return (
-                              <View className={`border border-${status.color} bg-${status.bgColor} px-2 py-1 rounded-full`}>
-                                <Text style={{fontFamily: 'HankenGrotesk_500Medium'}} className={`text-${status.textColor} text-xs`}>{status.label}</Text>
-                              </View>
-                            );
-                          })()}
                         </View>
                         <Text style={{fontFamily: 'HankenGrotesk_500Medium'}} className="text-sm text-gray-500">Document</Text>
                       </View>
@@ -195,14 +232,6 @@ const RiderKYC = () => {
                       <View>
                         <View className="flex-row items-center gap-2">
                           <Text style={{fontFamily: 'HankenGrotesk_500Medium'}} className="text-base font-medium text-gray-900">Proof of Address</Text>
-                          {(() => {
-                            const status = getVerificationStatus('proof_of_address');
-                            return (
-                              <View className={`border border-${status.color} bg-${status.bgColor} px-2 py-1 rounded-full`}>
-                                <Text style={{fontFamily: 'HankenGrotesk_500Medium'}} className={`text-${status.textColor} text-xs`}>{status.label}</Text>
-                              </View>
-                            );
-                          })()}
                         </View>
                         <Text style={{fontFamily: 'HankenGrotesk_500Medium'}} className="text-sm text-gray-500">Document</Text>
                       </View>
@@ -218,7 +247,7 @@ const RiderKYC = () => {
               </View>
 
               {/* Vehicle Details Section */}
-              {(kycData?.drivers_licence || kycData?.vehicle_type || kycData?.plate_number || kycData?.vehicle_color) && (
+              {(kycData?.drivers_licence_url || kycData?.vehicle_type || kycData?.plate_number || kycData?.vehicle_color) && (
                 <View className="mt-8">
                   <Text style={{fontFamily: 'HankenGrotesk_500Medium'}} className="text-lg font-semibold text-gray-900 mb-4">Vehicle details</Text>
                   
@@ -230,21 +259,13 @@ const RiderKYC = () => {
                         <View>
                           <View className="flex-row items-center gap-2">
                             <Text style={{fontFamily: 'HankenGrotesk_500Medium'}} className="text-sm font-medium text-gray-900">Driver's License</Text>
-                            {(() => {
-                              const status = getVerificationStatus('drivers_licence');
-                              return (
-                                <View className={`border border-${status.color} bg-${status.bgColor} px-2 py-1 rounded-full`}>
-                                  <Text style={{fontFamily: 'HankenGrotesk_500Medium'}} className={`text-${status.textColor} text-xs`}>{status.label}</Text>
-                                </View>
-                              );
-                            })()}
                           </View>
                           <Text style={{fontFamily: 'HankenGrotesk_500Medium'}} className="text-sm text-gray-500">Document</Text>
                         </View>
                       </View>
                       <TouchableOpacity 
                         className="p-2"
-                        onPress={() => openImagePreview(kycData.drivers_licence, "Driver's License")}
+                        onPress={() => openImagePreview(kycData.drivers_licence_url, "Driver's License")}
                       >
                         <Ionicons name="eye-outline" size={20} color="#666" />
                       </TouchableOpacity>
@@ -278,7 +299,11 @@ const RiderKYC = () => {
               )}
 
               {/* Complete KYC Button */}
+
+            
+              
               <SolidMainButton text='Update KYC' onPress={handleAddKYC}/>
+              {/* <SolidMainButton text='Refresh' onPress={handleRefresh}/> */}
             </>
           )}
         </KeyboardAwareScrollView>

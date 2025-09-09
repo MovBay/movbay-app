@@ -22,6 +22,9 @@ import { OnboardArrowTextHeader } from "@/components/btns/OnboardHeader"
 import { SolidMainButton } from "@/components/btns/CustomButtoms"
 import { useToast } from "react-native-toast-notifications"
 import { useWalletWithdrawal } from "@/hooks/mutations/sellerAuth"
+import { useGetRiderBank } from "@/hooks/mutations/ridersAuth"
+import { useGetWalletDetails } from "@/hooks/mutations/sellerAuth"
+
 import { MaterialIcons } from "@expo/vector-icons"
 
 const { height: SCREEN_HEIGHT } = Dimensions.get("window")
@@ -49,9 +52,19 @@ interface WithdrawalPayload {
   bank_code: string
 }
 
-const FundsWithdraw = () => {
+const RidersFundsWithdraw = () => {
   const toast = useToast()
   const { isLoading, profile } = useProfile()
+  
+  // Get rider bank details and wallet data
+  const { getRidersBank, isLoading: bankLoading } = useGetRiderBank()
+  const { walletData, isLoading: walletLoading, refetch } = useGetWalletDetails()
+  
+  const bankDetails = getRidersBank?.data
+  const walletBalance = walletData?.data?.balance || 0
+
+  console.log(walletBalance)
+  
   const [banks, setBanks] = useState<Bank[]>([])
   const [selectedBank, setSelectedBank] = useState<string>("")
   const [selectedBankName, setSelectedBankName] = useState<string>("")
@@ -62,6 +75,7 @@ const FundsWithdraw = () => {
   const [amount, setAmount] = useState<string>("")
   const [description, setDescription] = useState<string>("")
   const [loadingBanks, setLoadingBanks] = useState<boolean>(true)
+  const [useSavedBank, setUseSavedBank] = useState<boolean>(false)
 
   // Search modal states
   const [showBankModal, setShowBankModal] = useState<boolean>(false)
@@ -81,10 +95,33 @@ const FundsWithdraw = () => {
   // Use the withdrawal hook
   const { mutate: processWithdrawal, isPending: isWithdrawing } = useWalletWithdrawal()
 
+  // Check if user has saved bank details
+  const hasSavedBank = bankDetails && bankDetails.account_name && bankDetails.account_number && bankDetails.bank_name
+
   // Fetch Nigerian banks from Paystack API
   useEffect(() => {
-    fetchNigerianBanks()
-  }, [])
+    if (!useSavedBank) {
+      fetchNigerianBanks()
+    }
+  }, [useSavedBank])
+
+  // Set saved bank details when use saved bank is toggled
+  useEffect(() => {
+    if (useSavedBank && hasSavedBank) {
+      setAccountName(bankDetails.account_name)
+      setAccountNumber(bankDetails.account_number)
+      setSelectedBankName(bankDetails.bank_name)
+      setIsAccountVerified(true)
+      // You might need to find the bank code from the bank name
+      // This depends on how your saved bank data is structured
+    } else if (!useSavedBank) {
+      setAccountName("")
+      setAccountNumber("")
+      setSelectedBankName("")
+      setSelectedBank("")
+      setIsAccountVerified(false)
+    }
+  }, [useSavedBank, hasSavedBank, bankDetails])
 
   // Filter banks based on search query
   useEffect(() => {
@@ -196,6 +233,10 @@ const FundsWithdraw = () => {
 
   // Handle opening bank modal
   const handleOpenBankModal = () => {
+    if (useSavedBank) {
+      toast.show("Cannot select bank while using saved bank details", { type: "warning" })
+      return
+    }
     showBankModalWithAnimation()
   }
 
@@ -230,6 +271,12 @@ const FundsWithdraw = () => {
     return `₦${num.toLocaleString("en-NG", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
   }
 
+  // Check if amount exceeds wallet balance
+  const isInsufficientFunds = () => {
+    const requestedAmount = Number.parseFloat(amount) || 0
+    return requestedAmount > walletBalance
+  }
+
   // Bottom sheet animations
   const showBottomSheet = () => {
     setShowConfirmationBottomSheet(true)
@@ -251,7 +298,13 @@ const FundsWithdraw = () => {
   }
 
   const handleNext = () => {
-    if (!selectedBank) {
+    // Check wallet balance first
+    if (walletBalance === 0) {
+      toast.show("Insufficient funds. Your wallet balance is ₦0.00", { type: "danger" })
+      return
+    }
+
+    if (!useSavedBank && !selectedBank) {
       toast.show("Please select a bank", { type: "danger" })
       return
     }
@@ -267,6 +320,13 @@ const FundsWithdraw = () => {
       toast.show("Please enter a valid amount", { type: "danger" })
       return
     }
+
+    // Check if amount exceeds wallet balance
+    if (isInsufficientFunds()) {
+      toast.show(`Insufficient funds. Available balance: ${formatAmount(walletBalance)}`, { type: "danger" })
+      return
+    }
+
     // Show confirmation bottom sheet
     showBottomSheet()
   }
@@ -277,7 +337,7 @@ const FundsWithdraw = () => {
         amount: Number.parseFloat(amount),
         provider_name: "paystack", 
         account_number: accountNumber,
-        bank_code: selectedBank,
+        bank_code: useSavedBank ? (bankDetails?.bank_code || selectedBank) : selectedBank,
       }
 
       processWithdrawal(withdrawalPayload, {
@@ -293,6 +353,9 @@ const FundsWithdraw = () => {
           setSelectedBankName("")
           setIsAccountVerified(false)
           setDescription("")
+          setUseSavedBank(false)
+          // Refetch wallet data to update balance
+          refetch()
         },
         onError: (error) => {
           console.error("Withdrawal error:", error)
@@ -344,7 +407,7 @@ const FundsWithdraw = () => {
   return (
     <SafeAreaView className="flex-1 bg-white">
       <StatusBar style="dark" />
-      <LoadingOverlay visible={loadingBanks} />
+      <LoadingOverlay visible={loadingBanks || bankLoading || walletLoading} />
       <View className="flex-1">
         <KeyboardAwareScrollView
           className="flex-1"
@@ -360,62 +423,109 @@ const FundsWithdraw = () => {
               </Text>
             </View>
 
-            {/* Bank Selection */}
-            <View className="mb-6">
-              <Text className="text-base mb-3" style={{ fontFamily: "HankenGrotesk_500Medium", color: "#333" }}>
-                Bank
+            {/* Wallet Balance Display */}
+            <View className="mb-2 flex-row items-center gap-3" >
+              <Text className="text-sm" style={{ fontFamily: "HankenGrotesk_400Regular", color: "#666" }}>
+                Available Balance
               </Text>
-              <TouchableOpacity
-                onPress={handleOpenBankModal}
-                activeOpacity={0.7}
-                style={{
-                  paddingVertical: 16,
-                  paddingHorizontal: 16,
-                  borderRadius: 7,
-                  backgroundColor: "#F6F6F6",
-                  height: 56,
-                  justifyContent: "center",
-                  flexDirection: "row",
-                  alignItems: "center",
-                }}
-              >
-                <Text
-                  style={{
-                    fontFamily: "HankenGrotesk_400Regular",
-                    fontSize: 15,
-                    color: selectedBankName ? "#000" : "#AFAFAF",
-                    flex: 1,
-                  }}
-                >
-                  {selectedBankName || "Select a Bank"}
-                </Text>
-                <Ionicons name="chevron-down" size={20} color="#AFAFAF" />
-              </TouchableOpacity>
+              <Text className="text-sm text-green-700" style={{ fontFamily: "HankenGrotesk_700Bold"}}>
+                ₦{walletBalance}.00
+              </Text>
             </View>
 
-            {/* Account Number */}
-            <View className="mb-4">
-              <Text className="text-base mb-3" style={{ fontFamily: "HankenGrotesk_500Medium", color: "#333" }}>
-                Account Number
-              </Text>
-              <TextInput
-                value={accountNumber}
-                onChangeText={handleAccountNumberChange}
-                placeholder="Enter 10-digit account number"
-                keyboardType="number-pad"
-                maxLength={10}
-                style={{
-                  fontFamily: "HankenGrotesk_400Regular",
-                  color: "#000",
-                  paddingVertical: 16,
-                  paddingHorizontal: 16,
-                  borderRadius: 7,
-                  backgroundColor: "#F6F6F6",
-                  fontSize: 15,
-                }}
-                placeholderTextColor="#AFAFAF"
-              />
-            </View>
+            {/* Use Saved Bank Option */}
+            {hasSavedBank && (
+              <View className="mb-6 ">
+                <TouchableOpacity
+                  onPress={() => setUseSavedBank(!useSavedBank)}
+                  activeOpacity={0.7}
+                  className={`flex-row items-top p-3 rounded-lg ${ useSavedBank ? 'bg-gray-50 border border-gray-100': 'bg-gray- border border-gray-100'}`}
+              
+                >
+                  <View 
+                    className="w-6 h-6 rounded border-2 mr-3 items-center justify-center"
+                    style={{ 
+                      borderColor: useSavedBank ? "#FF6B35" : "#E0E0E0",
+                      backgroundColor: useSavedBank ? "#FF6B35" : "transparent"
+                    }}
+                  >
+                    {useSavedBank && <Ionicons name="checkmark" size={12} color="white" />}
+                  </View>
+                  <View className="flex-col">
+                    <Text className="pb-1" style={{ fontFamily: "HankenGrotesk_500Medium", fontSize: 14, color: "#333" }}>
+                      Use saved bank details
+                    </Text>
+                    <Text style={{ fontFamily: "HankenGrotesk_400Regular", fontSize: 10, color: "#666", marginTop: 2, marginBottom: 2 }}>
+                      {bankDetails.account_name} • {bankDetails.account_number}
+                    </Text>
+                    <Text style={{ fontFamily: "HankenGrotesk_400Regular", fontSize: 10, color: "#666" }}>
+                      {bankDetails.bank_name}
+                    </Text>
+                  </View>
+                </TouchableOpacity>
+              </View>
+            )}
+
+            {/* Bank Selection - Only show if not using saved bank */}
+            {!useSavedBank && (
+              <View className="mb-6">
+                <Text className="text-base mb-3" style={{ fontFamily: "HankenGrotesk_500Medium", color: "#333" }}>
+                  Bank
+                </Text>
+                <TouchableOpacity
+                  onPress={handleOpenBankModal}
+                  activeOpacity={0.7}
+                  style={{
+                    paddingVertical: 16,
+                    paddingHorizontal: 16,
+                    borderRadius: 7,
+                    backgroundColor: "#F6F6F6",
+                    height: 56,
+                    justifyContent: "center",
+                    flexDirection: "row",
+                    alignItems: "center",
+                  }}
+                >
+                  <Text
+                    style={{
+                      fontFamily: "HankenGrotesk_400Regular",
+                      fontSize: 15,
+                      color: selectedBankName ? "#000" : "#AFAFAF",
+                      flex: 1,
+                    }}
+                  >
+                    {selectedBankName || "Select a Bank"}
+                  </Text>
+                  <Ionicons name="chevron-down" size={20} color="#AFAFAF" />
+                </TouchableOpacity>
+              </View>
+            )}
+
+            {/* Account Number - Only show if not using saved bank */}
+            {!useSavedBank && (
+              <View className="mb-4">
+                <Text className="text-base mb-3" style={{ fontFamily: "HankenGrotesk_500Medium", color: "#333" }}>
+                  Account Number
+                </Text>
+                <TextInput
+                  value={accountNumber}
+                  onChangeText={handleAccountNumberChange}
+                  placeholder="Enter 10-digit account number"
+                  keyboardType="number-pad"
+                  maxLength={10}
+                  style={{
+                    fontFamily: "HankenGrotesk_400Regular",
+                    color: "#000",
+                    paddingVertical: 16,
+                    paddingHorizontal: 16,
+                    borderRadius: 7,
+                    backgroundColor: "#F6F6F6",
+                    fontSize: 15,
+                  }}
+                  placeholderTextColor="#AFAFAF"
+                />
+              </View>
+            )}
 
             {/* Account Name Verification */}
             {(isVerifying || accountName) && (
@@ -462,19 +572,29 @@ const FundsWithdraw = () => {
                 keyboardType="number-pad"
                 style={{
                   fontFamily: "HankenGrotesk_600SemiBold",
-                  color: "#000",
+                  color: isInsufficientFunds() ? "#FF4444" : "#000",
                   paddingVertical: 16,
                   paddingHorizontal: 16,
                   borderRadius: 7,
                   backgroundColor: "#F6F6F6",
                   fontSize: 15,
+                  borderWidth: isInsufficientFunds() ? 1 : 0,
+                  borderColor: isInsufficientFunds() ? "#FF4444" : "transparent",
                 }}
                 placeholderTextColor="#AFAFAF"
+                editable={walletBalance > 0}
               />
               {amount && (
-                <Text className="mt-2 text-right" style={{ fontFamily: "HankenGrotesk_400Regular", color: "#666" }}>
-                  {formatAmount(amount)}
-                </Text>
+                <View className="mt-2">
+                  <Text className="text-right" style={{ fontFamily: "HankenGrotesk_400Regular", color: "#666" }}>
+                    {formatAmount(amount)}
+                  </Text>
+                  {isInsufficientFunds() && (
+                    <Text className="text-right text-sm mt-1" style={{ fontFamily: "HankenGrotesk_400Regular", color: "#FF4444" }}>
+                      Exceeds available balance
+                    </Text>
+                  )}
+                </View>
               )}
             </View>
 
@@ -501,19 +621,23 @@ const FundsWithdraw = () => {
                   textAlignVertical: "top",
                 }}
                 placeholderTextColor="#AFAFAF"
+                editable={walletBalance > 0}
               />
             </View>
 
             {/* Next Button */}
             <View className="px-0 pb-4 pt-2">
-              <SolidMainButton onPress={handleNext} text="Next" />
+              <SolidMainButton 
+                onPress={handleNext} 
+                text="Next" 
+              />
             </View>
           </View>
         </KeyboardAwareScrollView>
       </View>
 
       {/* Custom Bank Selection Modal */}
-      {showBankModal && (
+      {showBankModal && !useSavedBank && (
         <View style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, zIndex: 1000 }}>
           {/* Backdrop */}
           <Animated.View
@@ -668,7 +792,7 @@ const FundsWithdraw = () => {
               <View className="flex-row items-center mb-6">
                 <View className="w-11 h-11 rounded-full bg-[#FF6B35] items-center justify-center mr-2">
                   <Text style={{ fontFamily: "HankenGrotesk_600SemiBold", fontSize: 16, color: "white" }}>
-                    {selectedBankName.charAt(0).toUpperCase()}
+                    {(useSavedBank ? bankDetails?.bank_name : selectedBankName)?.charAt(0).toUpperCase()}
                   </Text>
                 </View>
                 <View className="flex-1">
@@ -678,7 +802,7 @@ const FundsWithdraw = () => {
                     {accountName}
                   </Text>
                   <Text style={{ fontFamily: "HankenGrotesk_400Regular", fontSize: 12, color: "#666" }}>
-                    {accountNumber} • {selectedBankName}
+                    {accountNumber} • {useSavedBank ? bankDetails?.bank_name : selectedBankName}
                   </Text>
                 </View>
               </View>
@@ -743,4 +867,4 @@ const FundsWithdraw = () => {
   )
 }
 
-export default FundsWithdraw
+export default RidersFundsWithdraw

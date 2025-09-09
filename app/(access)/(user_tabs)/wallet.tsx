@@ -1,14 +1,15 @@
 import { View, Text, Pressable, RefreshControl, TouchableOpacity, FlatList } from 'react-native'
-import React, { useState, useMemo } from 'react'
+import React, { useState, useMemo, useEffect, useRef } from 'react'
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import MaterialIcons from '@expo/vector-icons/MaterialIcons'
 import Ionicons from '@expo/vector-icons/Ionicons'
 import Animated, { FadeInDown } from 'react-native-reanimated'
 import { KeyboardAwareScrollView } from 'react-native-keyboard-controller'
-import { router } from 'expo-router'
+import { router, useFocusEffect } from 'expo-router'
 import { useGetWalletDetails, useGetTransaction } from '@/hooks/mutations/sellerAuth'
 import { StatusBar } from 'expo-status-bar'
 import LoadingOverlay from '@/components/LoadingOverlay'
+import { useToast } from 'react-native-toast-notifications'
 
 // Transaction interface (matching your transaction screen)
 export interface Transaction {
@@ -26,30 +27,88 @@ export interface Transaction {
 const Wallet = () => {
   const [viewBalance, setViewBalance] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
+  const previousBalance = useRef<number | null>(null)
+  
   const {walletData, isLoading, refetch} = useGetWalletDetails()
-  const { isLoading: transactionLoading, transactionData } = useGetTransaction()
+  const { isLoading: transactionLoading, transactionData, refetch: refetchTransactions } = useGetTransaction()
 
   const myTransactionData = transactionData?.data?.results
-    const insets = useSafeAreaInsets()
-  
+  const insets = useSafeAreaInsets()
+  const toast = useToast()
 
-  // Transform API data to match Transaction interface (same logic from transactions screen)
+  console.log("Transaction Data:", myTransactionData)
+
+  // Auto-refetch data when screen comes into focus
+  useFocusEffect(
+    React.useCallback(() => {
+      const refetchData = async () => {
+        try {
+          await Promise.all([refetch(), refetchTransactions()])
+        } catch (error) {
+          console.error('Error refetching data on focus:', error)
+        }
+      }
+      
+      refetchData()
+    }, [refetch, refetchTransactions])
+  )
+
+  // Monitor balance changes and show toast
+  useEffect(() => {
+    if (walletData?.data?.balance !== undefined) {
+      const currentBalance = walletData.data.balance
+      // Check if balance increased (credit)
+      if (previousBalance.current !== null && currentBalance > previousBalance.current) {
+        const creditAmount = currentBalance - previousBalance.current
+        toast.show(`${creditAmount} Credited Successfully`, { type: "success" })
+      }
+      previousBalance.current = currentBalance
+    }
+  }, [walletData?.data?.balance])
+
+  // Transform API data to match Transaction interface
   const transactions: Transaction[] = useMemo(() => {
     if (!myTransactionData || !Array.isArray(myTransactionData)) {
       return []
     }
 
-    return myTransactionData.map((item: any) => ({
-      id: item.id.toString(),
-      title: item.content || "Transaction",
-      amount: item.type === "Account-Funded" ? 0 : 0, // You may need to adjust this based on actual amount field
-      date: item.created_at,
-      status: "successful" as const, // You may need to map this based on your API response
-      type: item.type === "Account-Funded" ? "credit" : "debit" as const,
-      description: item.content || "",
-      recipient: item.type === "Account-Funded" ? "Account Funding" : "Item Purchase",
-      reference: `TXN${item.id.toString().padStart(9, '0')}`,
-    }))
+    return myTransactionData.map((item: any) => {
+      // Determine transaction type based on API type
+      let transactionType: "credit" | "debit" = "debit"
+      let recipient = ""
+      
+      switch (item.type) {
+        case "Account-Funded":
+          transactionType = "credit"
+          recipient = "Account Funding"
+          break
+        case "Withdrawal":
+          transactionType = "debit"
+          recipient = "Withdrawal"
+          break
+        case "Item-Purchased":
+          transactionType = "debit"
+          recipient = "Item Purchase"
+          break
+        default:
+          recipient = item.type || "Transaction"
+      }
+
+      // Use actual status from API, default to successful if not provided
+      const status = item.status === "pending" ? "pending" : "successful"
+
+      return {
+        id: item.id.toString(),
+        title: item.content || "Transaction",
+        amount: item.amount || 0,
+        date: item.created_at,
+        status: status as "successful" | "pending" | "failed",
+        type: transactionType,
+        description: item.content || "",
+        recipient: recipient,
+        reference: item.reference_code || `TXN${item.id.toString().padStart(9, '0')}`,
+      }
+    })
   }, [myTransactionData])
 
   // Get only the first 5 transactions for wallet display
@@ -60,9 +119,7 @@ const Wallet = () => {
   const onRefresh = async () => {
     setRefreshing(true)
     try {
-      await refetch()
-    } catch (error) {
-      console.error('Error refreshing wallet data:', error)
+      await Promise.all([refetch(), refetchTransactions()])
     } finally {
       setRefreshing(false)
     }
@@ -97,7 +154,7 @@ const Wallet = () => {
   const getStatusColor = (status: Transaction["status"]): string => {
     switch (status) {
       case "successful":
-        return "#22C55E"
+        return "green"
       case "pending":
         return "#F59E0B"
       case "failed":
@@ -128,13 +185,13 @@ const Wallet = () => {
       <View className="flex-row items-center">
         <View
           className={`w-12 h-12 rounded-full items-center justify-center mr-3 ${
-            item.type === "credit" ? "bg-green-100" : "bg-red-100"
+            item.type === "credit" ? "bg-white" : "bg-white"
           }`}
         >
           <Ionicons
-            name={item.type === "credit" ? "arrow-up" : "arrow-down"}
+            name={item.type === "credit" ? "arrow-down" : "arrow-up"}
             size={18}
-            color={item.type === "credit" ? "#22C55E" : "#EF4444"}
+            color={item.type === "credit" ? "green" : "#EF4444"}
           />
         </View>
 
@@ -155,8 +212,8 @@ const Wallet = () => {
             </View>
 
             <View className="items-end">
-              <Text style={{fontFamily: 'HankenGrotesk_500Medium'}} className={`text-base font-semibold mb-1 ${item.amount > 0 ? "text-green-600" : "text-gray-900"}`}>
-                {item.amount > 0 ? "+" : ""}₦
+              <Text style={{fontFamily: 'HankenGrotesk_500Medium'}} className={`text-base font-semibold mb-1 ${item.amount > 0 && item.type === 'credit' ? "text-green-800" : "text-[#F75F15]"}`}>
+                {item.amount > 0 && item.type === 'credit'  ? " + " : " - "}₦
                 {Math.abs(item.amount).toLocaleString("en-US", {
                   minimumFractionDigits: 2,
                   maximumFractionDigits: 2,
@@ -176,18 +233,31 @@ const Wallet = () => {
   )
 
   return (
-    <SafeAreaView className='flex-1 bg-white px-5'>
+    <SafeAreaView className='flex-1 bg-white'>
       <StatusBar style='dark'/>
       <LoadingOverlay visible={isLoading || transactionLoading} />
       
-      <View className='flex-1'>
-        {/* Fixed Header Content */}
+      {/* Wrap entire content in KeyboardAwareScrollView with RefreshControl */}
+      <KeyboardAwareScrollView
+        className='flex-1 px-5'
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={['#F75F15']} // Android
+            tintColor='#F75F15' // iOS
+          />
+        }
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ paddingBottom: insets.bottom + 20 }}
+      >
+        {/* Header Content */}
         <View className='pt-5'>
           <Text className='text-2xl' style={{fontFamily: 'HankenGrotesk_600SemiBold'}}>My Wallet</Text>
           <Text className='text-base' style={{fontFamily: 'HankenGrotesk_400Regular'}}>Manage your balance, payments, and earnings.</Text>
         </View>
 
-        {/* Fixed Wallet Balance Card */}
+        {/* Wallet Balance Card */}
         <View className='bg-[#F75F15] p-7 mt-5 rounded-3xl shadow-slate-400'>
           <View className='flex-row m-auto gap-3 items-center pb-3'>
             <Text className='text-base text-orange-100' style={{fontFamily: 'HankenGrotesk_400Regular'}}>Wallet Balance</Text>
@@ -215,7 +285,7 @@ const Wallet = () => {
           </View>
         </View>
 
-        {/* Fixed Stats Cards */}
+        {/* Stats Cards */}
         <Animated.View className='flex-row justify-between pt-5' entering={FadeInDown.duration(300).delay(200).springify()}>
           <View className='bg-[#ECFDF2] p-5 rounded-2xl w-[49%]'>
             <View className=''>
@@ -250,37 +320,25 @@ const Wallet = () => {
           </Pressable>
         </Animated.View>
 
-        {/* Transaction History Section - Now Scrollable */}
-        <View className='pt-5  flex-1'>
+        {/* Transaction History Section */}
+        <View className='pt-5'>
           <View className='flex-row justify-between items-center pb-2'>
             <Text className='text-lg' style={{fontFamily: 'HankenGrotesk_600SemiBold'}}>Transaction History</Text>
-            <Pressable className='flex-row items-center gap-2 bg-orange-50 p-3 px-4 rounded-md' onPress={()=>router.push('/(access)/(user_stacks)/transactions')}>
-              <Text className='text-sm text-[#F75F15]' style={{fontFamily: 'HankenGrotesk_600SemiBold'}}>View more</Text>
-              <MaterialIcons name='arrow-forward' color={'#F75F15'}/>
+            <Pressable className='flex-row items-center gap-2 bg-green-50 p-3 px-4 rounded-full' onPress={()=>router.push('/(access)/(user_stacks)/transactions')}>
+              <Text className='text-sm text-green-800' style={{fontFamily: 'HankenGrotesk_600SemiBold'}}>View more</Text>
+              <MaterialIcons name='arrow-forward' color={'green'}/>
             </Pressable>
           </View>
 
-          {/* Scrollable Transaction List */}
+          {/* Transaction List */}
           {previewTransactions.length > 0 ? (
-            <FlatList
-              data={previewTransactions}
-              renderItem={renderTransaction}
-
-              keyExtractor={(item) => item.id}
-              className='pt-1'
-              showsVerticalScrollIndicator={false}
-              contentContainerStyle={{
-                paddingBottom: insets.bottom + 30,
-              }}
-              refreshControl={
-                <RefreshControl
-                  refreshing={refreshing}
-                  onRefresh={onRefresh}
-                  colors={['#F75F15']} // Android
-                  tintColor='#F75F15' // iOS
-                />
-              }
-            />
+            <View className='pt-1'>
+              {previewTransactions.map((item, index) => (
+                <View key={item.id}>
+                  {renderTransaction({ item })}
+                </View>
+              ))}
+            </View>
           ) : (
             <View className='pt-14 pb-10'>
               <View className='bg-gray-100 p-4 rounded-full w-fit m-auto items-center'>
@@ -290,7 +348,8 @@ const Wallet = () => {
             </View>
           )}
         </View>
-      </View>
+      </KeyboardAwareScrollView>
+
     </SafeAreaView>
   )
 }

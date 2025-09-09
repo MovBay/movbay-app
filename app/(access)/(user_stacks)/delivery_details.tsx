@@ -1,4 +1,4 @@
-import { View, Text, Image } from "react-native"
+import { View, Text, Image, ActivityIndicator } from "react-native"
 import { useState, useEffect, useCallback } from "react"
 import { router, useLocalSearchParams } from "expo-router"
 import { Pressable, TouchableOpacity } from "react-native"
@@ -15,8 +15,10 @@ import { Controller, useForm } from "react-hook-form"
 import { StyleSheet } from "react-native"
 import RNPickerSelect from "react-native-picker-select"
 import { useToast } from "react-native-toast-notifications"
-import { nigeriaStates, State, City } from "../../../constants/state-city"
 import { useProfile } from "@/hooks/mutations/auth"
+import { usePostShipRate } from "@/hooks/mutations/sellerAuth"
+import { deliveryStates } from "@/constants/deliveryStates"
+import { TerminalCity, fetchTerminalCities } from "@/hooks/mutations/termina"
 
 // Use environment variable for Google Places API key
 const GOOGLE_PLACES_API_KEY = process.env.EXPO_PUBLIC_GOOGLE_PLACES_API_KEY
@@ -41,7 +43,6 @@ interface AddressBookItem {
 }
 
 interface FormData {
-  deliveryMethod: string;
   recipientFullName: string;
   recipientPhone: string;
   recipientEmail: string;
@@ -65,11 +66,6 @@ interface CartData {
   cart_summary: {
     total_items: number;
     subtotal: number;
-  };
-  delivery_types?: {
-    movbay_express: boolean;
-    speed_dispatch: boolean;
-    pickup: boolean;
   };
 }
 
@@ -196,7 +192,7 @@ const CustomPhoneInput = ({
   </View>
 )
 
-// Google Places Address Input Component - FIXED
+// Google Places Address Input Component
 const GooglePlacesAddressInput = ({
   label,
   name,
@@ -320,6 +316,7 @@ const CustomPicker = ({
   items,
   placeholder,
   disabled = false,
+  loading = false,
   errors,
 }: {
   label: string;
@@ -329,6 +326,7 @@ const CustomPicker = ({
   items: Array<{ label: string; value: string }>;
   placeholder: string;
   disabled?: boolean;
+  loading?: boolean;
   errors: any;
 }) => (
   <View className="mb-5">
@@ -343,13 +341,20 @@ const CustomPicker = ({
             onValueChange={onChange}
             value={value}
             items={items}
-            placeholder={{ label: placeholder, value: "" }}
+            placeholder={{ 
+              label: loading ? "Loading..." : placeholder, 
+              value: "" 
+            }}
             style={disabled ? disabledPickerSelectStyles : pickerSelectStyles}
             useNativeAndroidPickerStyle={false}
-            disabled={disabled}
+            disabled={disabled || loading}
           />
           <View className="absolute right-6 top-4">
-            <MaterialIcons name="arrow-drop-down" size={25} color={disabled ? "#ccc" : "gray"} />
+            <MaterialIcons 
+              name={loading ? "refresh" : "arrow-drop-down"} 
+              size={25} 
+              color={disabled || loading ? "#ccc" : "gray"} 
+            />
           </View>
         </View>
       )}
@@ -367,14 +372,16 @@ const DeliveryDetails = () => {
   const [parsedCartData, setParsedCartData] = useState<CartData | null>(null)
   const [useAddressBook, setUseAddressBook] = useState(false)
   const [selectedAddressId, setSelectedAddressId] = useState("")
-  const [availableCities, setAvailableCities] = useState<City[]>([])
-  const [deliveryMethodOptions, setDeliveryMethodOptions] = useState<Array<{ label: string; value: string }>>([])
+  const [availableCities, setAvailableCities] = useState<TerminalCity[]>([])
+  const [isCitiesLoading, setIsCitiesLoading] = useState(false)
   const [addressBookData, setAddressBookData] = useState<AddressBookItem[]>([])
   const [hasProfileAddress, setHasProfileAddress] = useState(false)
   const [isAddressLoading, setIsAddressLoading] = useState(true)
+  const [saveForNextTime, setSaveForNextTime] = useState(false)
   const toast = useToast()
 
   const { profile, isLoading } = useProfile()
+  const { mutate: postShipRate, isPending: isShipRatePending } = usePostShipRate()
   
   // Helper function to truncate address for label
   const truncateAddress = (address: string, maxLength: number = 50) => {
@@ -382,7 +389,7 @@ const DeliveryDetails = () => {
     return address.substring(0, maxLength) + '...'
   }
 
-  // Process profile address and set up address book - FIXED
+  // Process profile address and set up address book
   useEffect(() => {
     setIsAddressLoading(true)
     
@@ -456,51 +463,18 @@ const DeliveryDetails = () => {
     return `+234${cleanNumber}`;
   };
 
-  // Parse cart data and set up delivery options on component mount
+  // Parse cart data on component mount
   useEffect(() => {
     if (cartData) {
       try {
         const parsed = JSON.parse(cartData as string)
         setParsedCartData(parsed)
-        
-        // Set up delivery method options based on available delivery types
-        if (parsed.delivery_types) {
-          const availableOptions = []
-          
-          // Check each delivery type and add to options if true
-          if (parsed.delivery_types.movbay_express) {
-            availableOptions.push({ label: "MovBay Express", value: "MovBay_Dispatch" })
-          }
-          if (parsed.delivery_types.speed_dispatch) {
-            availableOptions.push({ label: "Speedy Dispatch", value: "Speedy_Dispatch" })
-          }
-          if (parsed.delivery_types.pickup) {
-            availableOptions.push({ label: "Pickup Hub", value: "Pickup_Hub" })
-          }
-          
-          setDeliveryMethodOptions(availableOptions)
-        } else {
-          // Fallback: show all options if no delivery types data
-          setDeliveryMethodOptions([
-            { label: "MovBay Express", value: "MovBay_Dispatch" },
-            { label: "Speedy Dispatch", value: "Speedy_Dispatch" },
-            { label: "Pickup Hub", value: "Pickup_Hub" },
-          ])
-        }
-        
       } catch (error) {
         console.error("Error parsing cart data:", error)
         toast.show("Error loading cart data", {
           type: "error",
           placement: "top",
         })
-        
-        // Set default delivery options on error
-        setDeliveryMethodOptions([
-          { label: "MovBay Express", value: "MovBay_Dispatch" },
-          { label: "Speedy Dispatch", value: "Speedy_Dispatch" },
-          { label: "Pickup Hub", value: "Pickup_Hub" },
-        ])
       }
     }
   }, [cartData])
@@ -515,7 +489,6 @@ const DeliveryDetails = () => {
     getValues,
   } = useForm<FormData>({
     defaultValues: {
-      deliveryMethod: "",
       recipientFullName: "",
       recipientPhone: "",
       recipientEmail: "",
@@ -532,18 +505,44 @@ const DeliveryDetails = () => {
 
   const selectedState = watch("state")
 
-  // Load cities when state changes
+  // Load cities when state changes using Terminal Africa API
   useEffect(() => {
     if (selectedState) {
-      const selectedStateData = nigeriaStates.find(state => state.id === selectedState)
-      if (selectedStateData) {
-        setAvailableCities(selectedStateData.cities)
+      setIsCitiesLoading(true)
+      setAvailableCities([])
+      setValue("city", "") // Clear selected city when state changes
+      
+      const loadCities = async () => {
+        try {
+          const cities = await fetchTerminalCities("NG", selectedState)
+          if (cities && cities.length > 0) {
+            setAvailableCities(cities)
+          } else {
+            toast.show("No cities found for selected state", {
+              type: "warning",
+              placement: "top",
+            })
+            setAvailableCities([])
+          }
+        } catch (error) {
+          console.error('Error loading cities:', error)
+          toast.show("Failed to load cities for selected state", {
+            type: "error",
+            placement: "top",
+          })
+          setAvailableCities([])
+        } finally {
+          setIsCitiesLoading(false)
+        }
       }
+
+      loadCities()
     } else {
       setAvailableCities([])
       setValue("city", "")
+      setIsCitiesLoading(false)
     }
-  }, [selectedState, setValue])
+  }, [selectedState, setValue, toast])
 
   // Address book selection handler
   const handleAddressBookSelection = useCallback((addressId: string) => {
@@ -609,18 +608,14 @@ const DeliveryDetails = () => {
 
   // Helper function to get state name from ID
   const getStateName = (stateId: string) => {
-    const state = nigeriaStates.find(s => s.id === stateId)
+    const state = deliveryStates.find(s => s.id === stateId)
     return state ? state.name : stateId
   }
 
   // Helper function to get city name from ID
-  const getCityName = (cityId: string, stateId: string) => {
-    const state = nigeriaStates.find(s => s.id === stateId)
-    if (state) {
-      const city = state.cities.find(c => c.id === cityId)
-      return city ? city.name : cityId
-    }
-    return cityId
+  const getCityName = (cityId: string) => {
+    const city = availableCities.find(c => c.id === cityId)
+    return city ? city.name : cityId
   }
 
   const onSubmit = (data: FormData) => {
@@ -635,13 +630,12 @@ const DeliveryDetails = () => {
 
       // Structure delivery data according to API format
       const deliveryData = {
-        delivery_method: data.deliveryMethod,
         full_name: data.recipientFullName,
         phone_number: formatPhoneNumber(data.recipientPhone),
         email: data.recipientEmail,
         landmark: data.landmark,
         delivery_address: data.streetAddress,
-        city: getCityName(data.city, data.state),
+        city: getCityName(data.city),
         state: getStateName(data.state),
         alternative_address: data.streetAddress,
         alternative_name: data.alternativeFullName,
@@ -649,18 +643,60 @@ const DeliveryDetails = () => {
         alternative_email: data.alternativeEmail,
       }
 
-      // Combine cart data and delivery data
-      const combinedData = {
-        delivery: deliveryData,
-        items: parsedCartData.items,
-        total_amount: parsedCartData.total_amount,
-        cart_summary: parsedCartData.cart_summary,
+      // Prepare the payload for the ship rate API
+      const shipRatePayload = {
+        delivery_details: {
+          fullname: deliveryData.full_name,
+          phone_number: deliveryData.phone_number,
+          email_address: deliveryData.email || "",
+          country: "NG", // Assuming Nigeria based on your example
+          city: deliveryData.city,
+          state: deliveryData.state,
+          delivery_address: deliveryData.delivery_address,
+          alternative_address: deliveryData.alternative_address || ""
+        },
+        items: parsedCartData.items.map(item => ({
+          amount: item.amount,
+          product: Number(item.product),
+          store: item.store,
+          quantity: item.quantity
+        }))
       }
-      
-      // Navigate to delivery summary with combined data
-      router.push({
-        pathname: "/(access)/(user_stacks)/delivery_details_summary",
-        params: { orderData: JSON.stringify(combinedData) }
+
+      console.log("Ship Rate Payload:", shipRatePayload)
+
+      // Make the API call
+      postShipRate(shipRatePayload, {
+        onSuccess: (response) => {
+          console.log('Ship rate response:', response?.data)
+          
+          // Combine cart data and delivery data
+          const combinedData = {
+            delivery: deliveryData,
+            items: parsedCartData.items,
+            total_amount: parsedCartData.total_amount,
+            cart_summary: parsedCartData.cart_summary,
+            shipRateResponse: response?.data, // Include the API response
+            metadata: {
+              saveForNextTime,
+              processedAt: new Date().toISOString(),
+              screen: "delivery_details"
+            }
+          }
+          
+          // Navigate to delivery summary with combined data
+          router.push({
+            pathname: "/(access)/(user_stacks)/delivery_details_summary",
+            params: { orderData: JSON.stringify(combinedData) }
+          })
+        },
+        onError: (error) => {
+          console.error('Ship rate error:', error)
+          toast.show("Failed to get shipping rates. Please try again.", {
+            type: "error",
+            placement: "top",
+          })
+        }
       })
       
     } catch (error) {
@@ -675,7 +711,7 @@ const DeliveryDetails = () => {
   return (
     <SafeAreaView className="flex-1 bg-white">
       <StatusBar style="dark" />
-      <LoadingOverlay visible={isLoading || isAddressLoading} />
+      <LoadingOverlay visible={isLoading || isAddressLoading || isShipRatePending} />
       
       <View className="flex-1">
         <KeyboardAwareScrollView
@@ -697,31 +733,6 @@ const DeliveryDetails = () => {
             </View>
 
             <View className="mt-6 flex-col">
-              {/* Delivery Method - Now shows only available options */}
-              <CustomPicker
-                label="Delivery Method"
-                name="deliveryMethod"
-                control={control}
-                rules={{ required: "Delivery method is required" }}
-                items={deliveryMethodOptions}
-                placeholder={
-                  deliveryMethodOptions.length > 0 
-                    ? "Select a delivery method" 
-                    : "No delivery methods available"
-                }
-                disabled={deliveryMethodOptions.length === 0}
-                errors={errors}
-              />
-
-              {/* Show message if no delivery methods are available */}
-              {deliveryMethodOptions.length === 0 && (
-                <View className="mb-4 p-3 bg-orange-50 rounded-lg border border-orange-200">
-                  <Text className="text-orange-800 text-sm" style={{ fontFamily: "HankenGrotesk_400Regular" }}>
-                    No delivery methods are available for the selected items. Please contact support for assistance.
-                  </Text>
-                </View>
-              )}
-
               {/* Recipient Information */}
               <Text className="text-lg pb-3" style={{ fontFamily: "HankenGrotesk_600SemiBold" }}>
                 Recipient Information
@@ -869,7 +880,7 @@ const DeliveryDetails = () => {
                 name="state"
                 control={control}
                 rules={{ required: "State is required" }}
-                items={nigeriaStates.map((state) => ({
+                items={deliveryStates.map((state) => ({
                   label: state.name,
                   value: state.id,
                 }))}
@@ -888,8 +899,37 @@ const DeliveryDetails = () => {
                 }))}
                 placeholder={selectedState ? "Select a city" : "Select state first"}
                 disabled={!selectedState}
+                loading={isCitiesLoading}
                 errors={errors}
               />
+
+              {/* Loading indicator for cities */}
+              {isCitiesLoading && selectedState && (
+                <View className="mb-4 p-3 flex-row gap-2 bg-green-50 rounded-lg border border-green-200">
+                  <ActivityIndicator size="small" color="green" className="" />
+                  <Text className="text-gray-700 text-sm" style={{ fontFamily: "HankenGrotesk_400Regular" }}>
+                    Loading cities for {getStateName(selectedState)}...
+                  </Text>
+                </View>
+              )}
+
+              {/* No cities found message */}
+              {!isCitiesLoading && selectedState && availableCities.length === 0 && (
+                <View className="mb-4 p-3 bg-yellow-50 rounded-lg border border-yellow-200">
+                  <Text className="text-yellow-700 text-sm" style={{ fontFamily: "HankenGrotesk_400Regular" }}>
+                    No cities found for {getStateName(selectedState)}. Please select a different state.
+                  </Text>
+                </View>
+              )}
+
+              {/* Save for Next Time Option */}
+              <View className="mt-4">
+                <ToggleSwitch
+                  value={saveForNextTime}
+                  onValueChange={setSaveForNextTime}
+                  label="Save delivery details for next time"
+                />
+              </View>
             </View>
           </View>
         </KeyboardAwareScrollView>

@@ -6,7 +6,9 @@ import Ionicons from "@expo/vector-icons/Ionicons"
 import { router } from "expo-router"
 import { useCart } from "@/context/cart-context"
 import { useFavorites } from "@/context/favorite-context"
+import { useProfile } from "@/hooks/mutations/auth"
 import { Toast } from "react-native-toast-notifications"
+import { useGetStore } from "@/hooks/mutations/sellerAuth"
 
 interface ProductsProps {
   id: string
@@ -32,17 +34,28 @@ const Products = memo(
   }: ProductsProps) => {
     const { addToCart, isItemAtStockLimit, getRemainingStock, getItemQuantity } = useCart()
     const { toggleFavorite, isItemInFavorites } = useFavorites()
+    const { profile } = useProfile()
 
     const isOutOfStock = stock_available === 0
     const currentQuantity = getItemQuantity(id)
     const isAtStockLimit = isItemAtStockLimit(id, stock_available)
     const remainingStock = getRemainingStock(id, stock_available)
-
+    const {storeData, refetch, isLoading} = useGetStore()
+    
+    
+    // Check if current user is the owner of this product
+    const isOwner = storeData?.data?.id === store?.id
     const handleViewProduct = (id: string) => {
       router.push(`/product/${id}` as any)
     }
 
     const handleAddToCart = async () => {
+      // Don't allow owners to add their own products to cart
+      if (isOwner) {
+        Toast.show("You cannot add your own product to cart", { type: "warning" })
+        return
+      }
+
       // Check if product is out of stock
       if (isOutOfStock) {
         Toast.show("This product is currently out of stock", { type: "warning" })
@@ -120,6 +133,15 @@ const Products = memo(
                 style={{ width: "100%", height: "100%", objectFit: "cover", borderRadius: 16 }}
               />
               
+              {/* Owner Badge */}
+              {/* {isOwner && (
+                <View className="absolute top-2 right-2 bg-[#4285F4] border-2 border-blue-100 rounded-full px-3 py-1.5">
+                  <Text className="text-white text-xs font-semibold" style={{ fontFamily: "HankenGrotesk_600SemiBold" }}>
+                    Your Product
+                  </Text>
+                </View>
+              )} */}
+              
               {/* Stock Status Badge */}
               {isOutOfStock ? (
                 <View className="absolute bottom-2 right-2 bg-[#F75F15] border-2 border-red-100 rounded-full px-3 py-1.5">
@@ -130,24 +152,24 @@ const Products = memo(
               ) : (
                 /* Cart Button */
                 <Pressable
-                  className={`absolute bottom-2 right-2 p-3 flex justify-center items-center rounded-full ${
-                    isAtStockLimit 
-                      ? 'bg-gray-300 opacity-50' 
-                      : 'bg-[#FEEEE6]'
+                  className={`absolute bottom-2 right-2 p-2.5 flex justify-center items-center rounded-full ${
+                    isOwner || isAtStockLimit 
+                      ? 'bg-gray-100 border-2 border-white shadow-sm' 
+                      : 'bg-[#FEEEE6] border-2 border-white shadow-sm'
                   }`}
                   onPress={handleAddToCart}
-                  disabled={isAtStockLimit}
+                  disabled={isOwner || isAtStockLimit}
                 >
                   <Ionicons 
-                    name="cart-outline" 
+                    name={isOwner ? "person" : "cart-outline"} 
                     size={20} 
-                    color={isAtStockLimit ? "#9CA3AF" : "#F75F15"} 
+                    color={isOwner || isAtStockLimit ? "#9CA3AF" : "#F75F15"} 
                   />
                 </Pressable>
               )}
 
               {/* Stock limit reached badge */}
-              {isAtStockLimit && !isOutOfStock && (
+              {isAtStockLimit && !isOutOfStock && !isOwner && (
                 <View className="absolute top-2 right-2 bg-[#F75F15] border-2 border-red-100 rounded-full px-2 py-1">
                   <Text className="text-white text-xs font-semibold" style={{ fontFamily: "HankenGrotesk_600SemiBold" }}>
                     Max in Cart
@@ -155,8 +177,8 @@ const Products = memo(
                 </View>
               )}
 
-              {/* Low Stock Warning (only show if not at stock limit) */}
-              {!isOutOfStock && !isAtStockLimit && remainingStock <= 5 && remainingStock > 0 && (
+              {/* Low Stock Warning (only show if not at stock limit and not owner) */}
+              {!isOutOfStock && !isAtStockLimit && !isOwner && remainingStock <= 5 && remainingStock > 0 && (
                 <View className="absolute top-2 right-2 bg-[#FBBC05] border-2 border-gray-100 rounded-full px-2 py-1">
                   <Text className="text-white text-xs font-semibold" style={{ fontFamily: "HankenGrotesk_600SemiBold" }}>
                     Only {remainingStock} left
@@ -199,7 +221,7 @@ const Products = memo(
 
             {/* Favorite Button */}
             <Pressable
-              className="absolute top-2 left-2 p-3 flex justify-center items-center rounded-full bg-[#FEEEE6]"
+              className="absolute top-2 left-2 p-2.5 flex justify-center items-center rounded-full bg-[#FEEEE6] border-2 border-white shadow-sm"
               onPress={handleToggleFavorite}
             >
               <MaterialIcons name={isInFavorites ? "favorite" : "favorite-outline"} size={20} color={"#F75F15"} />

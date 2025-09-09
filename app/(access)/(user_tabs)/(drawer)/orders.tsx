@@ -328,7 +328,7 @@ const Orders = () => {
     refetch: outForDeliveryRefetch,
   } = useGetOutForDeliveryOrders()
 
-  console.log('This is out for delivery data', outForDeliveryOrdersData?.data)
+  // console.log('This is new data', newOrdersData?.data)
   console.log('This is processing data', processingOrdersData?.data)
   // console.log('This is processing data', processingOrdersData?.data)
   const {
@@ -346,17 +346,17 @@ const Orders = () => {
   const { notification, error, expoPushToken, tokenSent } = useNotification()
 
   // Memoize data for each tab
-  const newUserOrders = useMemo(() => newOrdersData?.data?.results || [], [newOrdersData?.data?.results])
+  const newUserOrders = useMemo(() => newOrdersData?.data || [], [newOrdersData?.data])
   const processingOrders = useMemo(
-    () => processingOrdersData?.data?.results || [],
-    [processingOrdersData?.data?.results],
+    () => processingOrdersData?.data || [],
+    [processingOrdersData?.data],
   )
   const outForDeliveryOrders = useMemo(
-    () => outForDeliveryOrdersData?.data?.results || [],
-    [outForDeliveryOrdersData?.data?.results],
+    () => outForDeliveryOrdersData?.data || [],
+    [outForDeliveryOrdersData?.data],
   )
-  const completedOrders = useMemo(() => completedOrdersData?.data?.results || [], [completedOrdersData?.data?.results])
-  const cancelledOrders = useMemo(() => cancelledOrdersData?.data?.results || [], [cancelledOrdersData?.data?.results])
+  const completedOrders = useMemo(() => completedOrdersData?.data || [], [completedOrdersData?.data])
+  const cancelledOrders = useMemo(() => cancelledOrdersData?.data || [], [cancelledOrdersData?.data])
 
   const openDrawer = useCallback(() => {
     navigation.dispatch(DrawerActions.openDrawer())
