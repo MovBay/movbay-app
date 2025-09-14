@@ -11,7 +11,7 @@ import {
   Image,
   RefreshControl,
 } from "react-native"
-import { useState, useRef, useCallback, useEffect } from "react"
+import { useState, useRef, useCallback, useEffect, useMemo } from "react"
 import { SafeAreaView } from "react-native-safe-area-context"
 import { StatusBar } from "expo-status-bar"
 import { Ionicons, MaterialIcons } from "@expo/vector-icons"
@@ -22,7 +22,6 @@ import { SolidInactiveButton, SolidMainButton } from "@/components/btns/CustomBu
 import { useGetNearbyRides } from '@/hooks/mutations/parcelAuth'
 
 interface Rider {
-  id: number
   riders_name: string
   riders_picture: string | null
   rating: number
@@ -56,7 +55,8 @@ interface SummaryData {
 }
 
 const ParcelAvailableRiders = ({ navigation }: { navigation?: any }) => {
-  const [selectedRider, setSelectedRider] = useState<Rider | null>(null)
+  // Updated to use lat-lng as unique identifier instead of id
+  const [selectedRiderKey, setSelectedRiderKey] = useState<string | null>(null)
   const [isWaitingForAcceptance, setIsWaitingForAcceptance] = useState(false)
   const [summaryData, setSummaryData] = useState<SummaryData | null>(null)
   const [riders, setRiders] = useState<Rider[]>([])
@@ -66,13 +66,27 @@ const ParcelAvailableRiders = ({ navigation }: { navigation?: any }) => {
   const toast = useToast()
   const progressAnim = useRef(new Animated.Value(0)).current
 
+  // Helper function to generate unique key from lat-lng
+  const generateRiderKey = useCallback((rider: Rider): string => {
+    return `${rider.latitude}_${rider.longitude}`;
+  }, [])
+
   // Call the hook after summaryData is available
   const { nearbyRides, isLoading, isError, refetch } = useGetNearbyRides(
     summaryData?.pickupAddress, 
     summaryData?.dropOffAddress
   );
 
+  // Get selected rider object using the new key system
+  const selectedRider = useMemo(() => {
+    if (!selectedRiderKey) return null;
+    return riders.find(rider => generateRiderKey(rider) === selectedRiderKey) || null;
+  }, [riders, selectedRiderKey, generateRiderKey])
+
   console.log('Available Riders:', riders);
+  console.log('Selected Rider Key:', selectedRiderKey);
+  console.log('Selected Rider:', selectedRider);
+
   // Parse summary data on component mount
   useEffect(() => {
     if (params.summaryData) {
@@ -91,12 +105,15 @@ const ParcelAvailableRiders = ({ navigation }: { navigation?: any }) => {
     if (nearbyRides?.data) {
       console.log('Available rides:', nearbyRides.data);
       setRiders(nearbyRides.data);
+      // Reset selected rider when new data loads
+      setSelectedRiderKey(null);
     }
     
     if (isError) {
       console.error('Error fetching nearby rides:', isError);
       toast.show('Error loading riders. Please refresh to retry.', { type: 'error' });
       setRiders([]);
+      setSelectedRiderKey(null);
     }
   }, [nearbyRides, isError, toast]);
 
@@ -114,15 +131,18 @@ const ParcelAvailableRiders = ({ navigation }: { navigation?: any }) => {
   }, [progressAnim, toast])
 
   const handleRiderSelect = useCallback((rider: Rider) => {
-    console.log('Rider selected:', rider.riders_name, 'ID:', rider.id);
-    if (selectedRider?.id === rider.id) {
-      setSelectedRider(null)
+    const riderKey = generateRiderKey(rider);
+    console.log('Rider selected:', rider.riders_name, 'Key:', riderKey);
+    console.log('Current selectedRiderKey:', selectedRiderKey);
+    
+    if (selectedRiderKey === riderKey) {
+      setSelectedRiderKey(null)
       console.log('Rider deselected');
     } else {
-      setSelectedRider(rider)
+      setSelectedRiderKey(riderKey)
       console.log('New rider selected:', rider);
     }
-  }, [selectedRider])
+  }, [selectedRiderKey, generateRiderKey])
 
   const handleContinue = useCallback(() => {
     if (selectedRider && summaryData) {
@@ -139,7 +159,7 @@ const ParcelAvailableRiders = ({ navigation }: { navigation?: any }) => {
     setRefreshing(true)
     
     // Reset selected rider on refresh
-    setSelectedRider(null)
+    setSelectedRiderKey(null)
     
     // Refetch nearby rides
     if (summaryData && refetch) {
@@ -192,122 +212,140 @@ const ParcelAvailableRiders = ({ navigation }: { navigation?: any }) => {
     setIsWaitingForAcceptance(false)
     progressAnim.stopAnimation()
     progressAnim.setValue(0)
-    setSelectedRider(null)
+    setSelectedRiderKey(null)
   }, [progressAnim])
 
-  // Format price helper function
-  // const formatPrice = useCallback((fareAmount: string) => {
-  //   // Remove any currency symbols and parse as number
-  //   const numericFare = parseFloat(fareAmount.replace(/[^\d.-]/g, ''));
+  // Fixed format price helper function
+  const formatPrice = useCallback((fareAmount: string | number | undefined | null) => {
+    // Handle undefined, null, or empty values
+    if (fareAmount === undefined || fareAmount === null || fareAmount === '') {
+      return 'N/A';
+    }
     
-  //   if (isNaN(numericFare)) {
-  //     return fareAmount; // Return original if can't parse
-  //   }
+    let numericFare: number;
     
-  //   // Format with commas for thousands
-  //   return `₦${numericFare.toLocaleString('en-US', { 
-  //     minimumFractionDigits: 0,
-  //     maximumFractionDigits: 0 
-  //   })}`;
-  // }, [])
+    // If it's already a number, use it directly
+    if (typeof fareAmount === 'number') {
+      numericFare = fareAmount;
+    } else {
+      // Convert to string and remove any currency symbols
+      const cleanedAmount = String(fareAmount).replace(/[₦$,\s]/g, '');
+      numericFare = parseFloat(cleanedAmount);
+    }
+    
+    // Check if parsing was successful
+    if (isNaN(numericFare)) {
+      return String(fareAmount); // Return original if can't parse
+    }
+    
+    // Format with commas for thousands
+    return `₦${numericFare.toLocaleString('en-US', { 
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0 
+    })}`;
+  }, [])
 
-  const RiderCard = ({ rider, isSelected }: { rider: Rider; isSelected: boolean }) => (
-    <TouchableOpacity
-      onPress={() => handleRiderSelect(rider)}
-      className={`p-4 rounded-xl mb-3 ${
-        isSelected ? "border border-[#f7c0a4] bg-[#fff7f3]" : "border border-gray-100 bg-white"
-      }`}
-    >
-      <View className="flex-row items-center">
-        <View className="relative">
-          <View className="w-16 h-16 rounded-full bg-gray-200 mr-4 overflow-hidden">
-            {rider?.riders_picture ? (
-              <Image source={{ uri: rider?.riders_picture }} className="w-full h-full object-cover" />
-            ) : (
-              <View className="w-full h-full justify-center items-center">
-                <MaterialIcons name="person" size={30} color="gray" />
-              </View>
-            )}
-          </View>
-          <View style={{position: 'absolute', top: 3, right: 10}} className="bg-white rounded-full justify-center items-center border border-white">
-            <MaterialIcons name="verified" size={15} color="green" />
-          </View>
-        </View>
-
-        <View className="flex-1">
-          <View className="flex-row items-center justify-between mb-1">
-            <View className="flex-row items-center">
-              <Text
-                style={{ fontFamily: "HankenGrotesk_600SemiBold" }}
-                className="text-base font-semibold text-gray-900"
-              >
-                {rider.riders_name.toUpperCase()}
-              </Text>
+  const RiderCard = ({ rider, isSelected }: { rider: Rider; isSelected: boolean }) => {
+    const riderKey = generateRiderKey(rider);
+    console.log(`RiderCard for ${rider.riders_name} - isSelected: ${isSelected}, riderKey: ${riderKey}, selectedRiderKey: ${selectedRiderKey}`);
+    
+    return (
+      <TouchableOpacity
+        onPress={() => handleRiderSelect(rider)}
+        className={`p-4 rounded-xl mb-3 ${
+          isSelected ? "border border-[#f7c0a4] bg-[#fff7f3]" : "border border-gray-100 bg-white"
+        }`}
+      >
+        <View className="flex-row items-start">
+          <View className="relative">
+            <View className="w-20 h-20 rounded-full bg-gray-200 mr-4 overflow-hidden">
+              {rider?.riders_picture ? (
+                <Image source={{ uri: rider?.riders_picture }} className="w-full h-full object-cover" />
+              ) : (
+                <View className="w-full h-full justify-center items-center">
+                  <MaterialIcons name="person" size={30} color="gray" />
+                </View>
+              )}
             </View>
-            <View className="flex-row items-center">
-              {renderStarRating(rider.rating)}
-              <Text style={{ fontFamily: "HankenGrotesk_500Medium" }} className="text-sm text-gray-600 ml-1">
-                {rider.rating}
-              </Text>
+            <View style={{position: 'absolute', top: 3, right: 10}} className="bg-white rounded-full justify-center items-center border border-white">
+              <MaterialIcons name="verified" size={15} color="green" />
             </View>
           </View>
 
-          <View className="flex-row items-center mb-1">
-            <Ionicons name={getVehicleIcon(rider.vehicle_type)} size={14} color="#666" />
-            <Text style={{ fontFamily: "HankenGrotesk_400Regular" }} className="text-xs text-gray-600 ml-1 mr-3">
-              {rider.vehicle_color} {rider.vehicle_type}
-            </Text>
-            {(rider.plate_number || rider.license) && (
-              <Text style={{ fontFamily: "HankenGrotesk_400Regular" }} className="text-xs text-gray-600">
-                {rider.plate_number || rider.license}
-              </Text>
-            )}
-          </View>
-
-          <View className="flex-row items-center justify-between">
-            <View className="flex-row items-center gap-2">
+          <View className="flex-1">
+            <View className="flex-row items-center justify-between mb-1">
               <View className="flex-row items-center">
-                <Ionicons name="location" size={14} color="#F75F15" />
-                <Text style={{ fontFamily: "HankenGrotesk_400Regular" }} className="text-xs text-gray-600 ml-1">
-                  {rider.eta.distance_km} km away
+                <Text
+                  style={{ fontFamily: "HankenGrotesk_600SemiBold" }}
+                  className="text-base font-semibold text-gray-900"
+                >
+                  {rider.riders_name}
                 </Text>
               </View>
-
               <View className="flex-row items-center">
-                <Ionicons name="time-outline" size={14} color="#F75F15" />
-                <Text style={{ fontFamily: "HankenGrotesk_400Regular" }} className="text-xs text-gray-600 ml-1">
-                  {rider.eta.duration_minutes} mins
+                {renderStarRating(rider.rating)}
+                <Text style={{ fontFamily: "HankenGrotesk_500Medium" }} className="text-sm text-gray-600 ml-1">
+                  {rider.rating}
                 </Text>
               </View>
             </View>
 
-            <Text style={{ fontFamily: "HankenGrotesk_400Regular" }} className="text-xs text-gray-500">
-              {rider.ride_count} rides
-            </Text>
-          </View>
+            <View className="flex-row items-center mb-1">
+              <Ionicons name={getVehicleIcon(rider.vehicle_type)} size={14} color="#668" />
+              <Text style={{ fontFamily: "HankenGrotesk_400Regular" }} className="text-xs text-gray-600 ml-1 mr-2">
+                {rider.vehicle_color} {rider.vehicle_type}
+              </Text> 
+              <Text style={{ fontFamily: "HankenGrotesk_400Regular" }} className="text-xs text-gray-600 mr-2">•</Text>
+              {(rider.plate_number || rider.license) && (
+                <Text style={{ fontFamily: "HankenGrotesk_400Regular" }} className="text-xs text-gray-600">
+                  {rider.plate_number || rider.license}
+                </Text>
+              )}
+            </View>
 
-          {/* Price Display */}
-          <View className="flex-row items-center justify-between mt-2 pt-2 border-t border-gray-100">
-            {/* <View className="bg-green-50 px-3 py-1 rounded-full">
-              <Text style={{ fontFamily: "HankenGrotesk_600SemiBold" }} className="text-green-700 text-sm">
-                {rider.eta.fare_amount ? formatPrice(rider.eta.fare_amount): 'N/A'}
+            <View className="flex-row items-center justify-between">
+              <View className="flex-row items-center gap-2">
+                <View className="flex-row items-center">
+                  <Ionicons name="location" size={14} color="#F75F15" />
+                  <Text style={{ fontFamily: "HankenGrotesk_400Regular" }} className="text-xs text-gray-600 ml-1">
+                    {rider.eta.distance_km} km away
+                  </Text>
+                </View>
+
+                <View className="flex-row items-center">
+                  <Ionicons name="time-outline" size={14} color="#F75F15" />
+                  <Text style={{ fontFamily: "HankenGrotesk_400Regular" }} className="text-xs text-gray-600 ml-1">
+                    {rider.eta.duration_minutes} mins
+                  </Text>
+                </View>
+              </View>
+
+              <Text style={{ fontFamily: "HankenGrotesk_400Regular" }} className="text-xs text-gray-500">
+                {rider.ride_count} rides
               </Text>
-            </View> */}
+            </View>
+
+            {/* Price Display */}
+            <View className="flex-row items-center justify-between mt-2 pt-2 border-t border-gray-100">
+              <View className="bg-green-50 px-4 py-1 border border-green-200 rounded-full">
+                <Text style={{ fontFamily: "HankenGrotesk_600SemiBold" }} className="text-green-800 text-base">
+                  {formatPrice(rider.eta.fare_amount)}
+                </Text>
+              </View>
+              
             
-            <Text style={{ fontFamily: "HankenGrotesk_400Regular" }} className="text-xs text-gray-500">
-              Delivery Fee
-            </Text>
+            </View>
           </View>
-        </View>
 
-        {isSelected && (
-          <View className="ml-2">
-            <Ionicons name="checkmark-circle" size={24} color="#F75F15" />
-          </View>
-        )}
-      </View>
-    </TouchableOpacity>
-  )
+          {isSelected && (
+            <View className="ml-2">
+              <Ionicons name="checkmark-circle" size={24} color="#F75F15" />
+            </View>
+          )}
+        </View>
+      </TouchableOpacity>
+    )
+  }
 
   const LoadingRidersState = () => (
     <View className="flex-1 justify-center items-center py-10">
@@ -360,7 +398,7 @@ const ParcelAvailableRiders = ({ navigation }: { navigation?: any }) => {
                 </View>
               )}
               <View className="absolute top-0 right-0 bg-white rounded-full justify-center items-center border border-white">
-                <MaterialIcons name="verified" size={26} color="green" />
+                <MaterialIcons name="verified" size={20} color="green" />
               </View>
             </View>
 
@@ -413,9 +451,9 @@ const ParcelAvailableRiders = ({ navigation }: { navigation?: any }) => {
                 <Text style={{ fontFamily: "HankenGrotesk_500Medium" }} className="text-sm text-gray-600">
                   Delivery Fee:
                 </Text>
-                {/* <Text style={{ fontFamily: "HankenGrotesk_600SemiBold" }} className="text-sm text-gray-900">
-                  {selectedRider?.eta.fare_amount ? formatPrice(selectedRider.eta.fare_amount) : 'N/A'}
-                </Text> */}
+                <Text style={{ fontFamily: "HankenGrotesk_600SemiBold" }} className="text-sm text-gray-900">
+                  {formatPrice(selectedRider?.eta.fare_amount)}
+                </Text>
               </View>
             </View>
 
@@ -457,6 +495,7 @@ const ParcelAvailableRiders = ({ navigation }: { navigation?: any }) => {
   )
 
   // Debug log for selectedRider state
+  console.log('Current selectedRiderKey:', selectedRiderKey);
   console.log('Current selectedRider:', selectedRider);
   console.log('Riders length:', riders.length);
   console.log('IsLoading:', isLoading);
@@ -502,14 +541,21 @@ const ParcelAvailableRiders = ({ navigation }: { navigation?: any }) => {
               Select a rider for your parcel delivery
             </Text>
 
-            {riders.map((rider) => (
-              <RiderCard key={rider.id} rider={rider} isSelected={selectedRider?.id === rider.id} />
-            ))}
+            {riders.map((rider) => {
+              const riderKey = generateRiderKey(rider);
+              return (
+                <RiderCard 
+                  key={riderKey} 
+                  rider={rider} 
+                  isSelected={selectedRiderKey === riderKey} 
+                />
+              );
+            })}
           </View>
         )}
       </ScrollView>
 
-      {/* Continue Button - Fixed logic */}
+      {/* Continue Button */}
       {!isLoading && riders.length > 0 && (
         <View className="py-4 border-t border-gray-100">
           {selectedRider ? (

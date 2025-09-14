@@ -32,7 +32,6 @@ const DeliverParcelHome = () => {
                     <View className='flex-row justify-between items-center mt-6'>
                         <View className='w-[80%]'>
                             <SolidMainButton text='Send a Parcel' onPress={() => router.push('/(access)/(user_stacks)/courier/parcel-form-one')} />
-                            <SolidMainButton text='View Map' onPress={() => router.push('/(access)/(user_stacks)/courier/parcel-available-riders')} />
                         </View>
                     </View>
                 </View>
