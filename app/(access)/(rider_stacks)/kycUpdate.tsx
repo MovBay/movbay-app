@@ -1,440 +1,562 @@
-"use client"
+import { View, Text, Image } from 'react-native'
+import React, { useState, useEffect } from 'react'
+import { router, useLocalSearchParams } from 'expo-router';
+import { Pressable } from 'react-native';
+import LoadingOverlay from '@/components/LoadingOverlay';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { StatusBar } from 'expo-status-bar';
+import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
+import MaterialIcons from '@expo/vector-icons/MaterialIcons';
+import { OnboardArrowTextHeader } from '@/components/btns/OnboardHeader';
+import { SolidLightButton, SolidMainButton } from '@/components/btns/CustomButtoms';
+import { TextInput } from 'react-native';
+import { ErrorMessage } from '@hookform/error-message';
+import { Controller, useForm } from 'react-hook-form';
+import { StyleSheet } from 'react-native';
+import * as ImagePicker from 'expo-image-picker';
+import * as DocumentPicker from 'expo-document-picker';
+import RNPickerSelect from "react-native-picker-select";
+import { useToast } from 'react-native-toast-notifications';
+// Import your KYC hooks here - adjust the import path as needed
+import { useUpdateRiderKYC, useRiderKYC } from '@/hooks/mutations/auth';
 
-import { View, Text, TouchableOpacity, Image, Modal, StyleSheet, Pressable, RefreshControl } from "react-native"
-import { useState } from "react"
-import { OnboardArrowTextHeader } from "@/components/btns/OnboardHeader"
-import { KeyboardAwareScrollView } from "react-native-keyboard-controller"
-import LoadingOverlay from "@/components/LoadingOverlay"
-import { SafeAreaView } from "react-native-safe-area-context"
-import { StatusBar } from "expo-status-bar"
-import { router } from "expo-router"
-import { Ionicons, MaterialIcons } from "@expo/vector-icons"
-import { SolidLightButton, SolidMainButton } from "@/components/btns/CustomButtoms"
-import { useRiderKYC, useRiderProfile } from "@/hooks/mutations/auth"
-import { useGetVerifiedStatus } from "@/hooks/mutations/ridersAuth"
-
-// Image Preview Modal Component
-const ImagePreviewModal = ({
-  visible,
-  imageUrl,
-  onClose,
-  title,
-}: {
-  visible: boolean
-  imageUrl: string | null
-  onClose: () => void
-  title: string
-}) => {
-  return (
-    <Modal visible={visible} transparent animationType="fade">
-      <View style={styles.previewModalOverlay}>
-        <View style={styles.previewModalContainer}>
-          <View style={styles.previewHeader}>
-            <Text style={styles.previewTitle}>{title}</Text>
-            <TouchableOpacity onPress={onClose} style={styles.previewCloseButton}>
-              <Ionicons name="close" size={20} color="#666" />
-            </TouchableOpacity>
-          </View>
-
-          {imageUrl && (
-            <View style={styles.previewImageContainer}>
-              <Image source={{ uri: imageUrl }} style={styles.previewImage} resizeMode="contain" />
-            </View>
-          )}
-
-          <SolidLightButton text="Close" onPress={onClose} />
-        </View>
-      </View>
-    </Modal>
-  )
-}
-
-const RiderKYC = () => {
-  const { riderKYC, isLoading, refetch } = useRiderKYC()
-  const { isLoading: isRiderLoading, profile, refetch: refetchProfile } = useRiderProfile()
-  const { isRiderVerified, isLoading: isRiderVerifiedLoading, refetch: refetchVerifiedStatus } = useGetVerifiedStatus()
-  const isMyAccountVerified = isRiderVerified?.data?.verified
-
-  const [refreshing, setRefreshing] = useState(false)
-
-  console.log("Riders KYC Data:", riderKYC?.data)
-
-  // Image preview states
-  const [previewModal, setPreviewModal] = useState({
-    visible: false,
-    imageUrl: null as string | null,
-    title: "",
-  })
-
-  // Check if KYC data exists and has values
-  const kycData = riderKYC?.data
-  const hasKYCData =
-    kycData &&
-    (kycData.nin ||
-      kycData.proof_of_address ||
-      kycData.drivers_licence ||
-      kycData.vehicle_type ||
-      kycData.plate_number ||
-      kycData.vehicle_color)
-
-  const handleAddKYC = () => {
-    router.push("/(access)/(rider_stacks)/kycUpdate") // Adjust route as needed
-  }
-
-  const onRefresh = async () => {
-    setRefreshing(true)
-    try {
-      await Promise.all([refetch(), refetchProfile(), refetchVerifiedStatus()])
-    } catch (error) {
-      console.error("Error refreshing data:", error)
-    } finally {
-      setRefreshing(false)
-    }
-  }
-
-  // Function to open image preview
-  const openImagePreview = (imageUrl: string, title: string) => {
-    setPreviewModal({
-      visible: true,
-      imageUrl,
-      title,
-    })
-  }
-
-  // Function to close image preview
-  const closeImagePreview = () => {
-    setPreviewModal({
-      visible: false,
-      imageUrl: null,
-      title: "",
-    })
-  }
-
-  return (
-    <SafeAreaView className="flex-1 bg-white">
-      <StatusBar style="dark" />
-      <LoadingOverlay visible={isLoading} />
-
-      <View className="flex-1">
-        <KeyboardAwareScrollView
-          className="flex-1"
-          contentContainerStyle={{
-            paddingHorizontal: 28,
-            paddingTop: 24,
-            paddingBottom: 20,
-          }}
-          refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#666" colors={["#666"]} />
-          }
-        >
-          <View className="">
-            <View className="flex-row items-center gap-2">
-              <OnboardArrowTextHeader onPressBtn={() => router.back()} />
-              <Text className="text-xl text-center m-auto" style={{ fontFamily: "HankenGrotesk_600SemiBold" }}>
-                KYC Verification
-              </Text>
-            </View>
-          </View>
-
-          <View className="flex-row items-center mt-6 ">
-            <Pressable
-              onPress={() => router.push("/(access)/(rider_tabs)/riderProfile")}
-              className="flex w-14 h-14 mr-2 rounded-full justify-center items-center overflow-hidden relative"
-            >
-              {profile?.data?.profile_picture === null ? (
-                <MaterialIcons name="person-4" size={35} color={"gray"} style={{ padding: 3 }} />
-              ) : (
-                <Image
-                  source={{ uri: profile?.data?.profile_picture }}
-                  style={{ objectFit: "cover", width: "100%", height: "100%" }}
-                />
-              )}
-            </Pressable>
-            <View className="flex-1">
-              <View className="flex-row items-center">
-                <View>
-                  <View className="flex-row items-center">
-                    <Text
-                      style={{ fontFamily: "HankenGrotesk_500Medium" }}
-                      className="text-black font-semibold text-base"
-                    >
-                      {profile?.data?.fullname}
+// Custom Modal Component
+const CustomSuccessModal = ({ visible, onClose }: { visible: boolean; onClose: () => void }) => {
+    if (!visible) return null;
+    
+    return (
+        <View style={styles.modalOverlay}>
+            <View style={styles.modalContainer}>
+                <View style={styles.modalContent}>
+                    <Image 
+                        source={require('../../../assets/images/success.png')} 
+                        style={styles.successImage}
+                    />
+                </View>
+                <View style={styles.textContainer}>
+                    <Text style={styles.modalTitle}>
+                        KYC Updated Successfully!
                     </Text>
-                    {!isMyAccountVerified && !isRiderVerifiedLoading ? (
-                      <View className="">
-                        <MaterialIcons name="error-outline" size={14} color="red" style={{ marginLeft: 2 }} />
-                      </View>
-                    ) : (
-                      <View className="">
-                        <MaterialIcons name="verified" size={14} color="green" style={{ marginLeft: 2 }} />
-                      </View>
-                    )}
-                  </View>
-                  <Text
-                    style={{ fontFamily: "HankenGrotesk_400Regular", fontSize: 12 }}
-                    className="text-gray-500 font-semibold mr-2"
-                  >
-                    @{profile?.data?.username}
-                  </Text>
+                    <Text style={styles.modalDescription}>
+                        Your KYC information has been updated successfully and is under review.
+                    </Text>
+                    
+                    <View className='flex-row items-center justify-between'>
+                        <View style={styles.buttonContainer}>
+                            <SolidLightButton 
+                                text='Close' 
+                                onPress={() => {
+                                    onClose();
+                                }}
+                            />
+                        </View>
+
+                        <View style={styles.buttonContainer}>
+                            <SolidMainButton 
+                                text='Back to Profile' 
+                                onPress={() => {
+                                    onClose();
+                                    router.back();
+                                }}
+                            />
+                        </View>
+                    </View>
                 </View>
-              </View>
             </View>
-          </View>
+        </View>
+    );
+};
 
-          {!isMyAccountVerified === true && (
-            <View className="bg-yellow-50 border border-yellow-200 p-3 rounded-lg mt-4">
-              <Text className="text-sm text-yellow-600 text-center">Your account has not been verified</Text>
-            </View>
-          )}
+const KycUpdate = () => {
+    // Document states
+    const [ninImage, setNinImage] = useState<string | null>(null);
+    const [proofOfAddressImage, setProofOfAddressImage] = useState<string | null>(null);
+    const [driversLicenceImage, setDriversLicenceImage] = useState<string | null>(null);
+    
+    const toast = useToast();
+    const [showSuccessModal, setShowSuccessModal] = useState(false);
+    
+    // Uncomment and adjust these hooks based on your implementation
+    const { mutate: updateKYC, isPending } = useUpdateRiderKYC();
+    const { riderKYC, isLoading: isLoadingKYC } = useRiderKYC();
+    console.log('Riders KYC Data:', driversLicenceImage)
 
-          {!hasKYCData ? (
-            // Empty KYC State
-            <View className="flex-1 justify-center items-center " style={{ marginTop: 100 }}>
-              <View className="w-24 h-24 bg-gray-100 rounded-full justify-center items-center mb-6">
-                <Ionicons name="document-text-outline" size={40} color="#9CA3AF" />
-              </View>
+    
+    const closeModal = () => {
+        setShowSuccessModal(false);
+    };
 
-              <Text
-                style={{ fontFamily: "HankenGrotesk_600SemiBold" }}
-                className="text-xl text-gray-900 mb-2 text-center"
-              >
-                Complete your KYC
-              </Text>
+    // Image picker for NIN
+    const pickNinImage = async () => {
+        let result = await ImagePicker.launchImageLibraryAsync({
+            mediaTypes: ['images'],
+            allowsEditing: true,
+            aspect: [4, 3],
+            quality: 1,
+        });
 
-              <Text
-                style={{ fontFamily: "HankenGrotesk_400Regular" }}
-                className="text-base text-gray-500 text-center mb-8 px-4"
-              >
-                You need to complete your KYC verification to start using our services
-              </Text>
+        if (!result.canceled) {
+            setNinImage(result.assets[0].uri);
+        }
+    };
 
-              <View className="w-[50%]">
-                <SolidMainButton text="Add KYC Documents" onPress={handleAddKYC} />
-              </View>
-            </View>
-          ) : (
-            // Existing KYC Data Display
-            <>
-              {/* KYC Documents Section */}
-              <View className="mt-6 space-y-4">
-                {/* Valid ID/NIN */}
-                {kycData?.nin_url && (
-                  <View className="flex-row items-center justify-between p-4 bg-gray-50 rounded-lg">
-                    <View className="flex-row items-center gap-3">
-                      <Ionicons name="document-text-outline" size={24} color="#666" />
-                      <View>
-                        <View className="flex-row items-center gap-2">
-                          <Text
-                            style={{ fontFamily: "HankenGrotesk_500Medium" }}
-                            className="text-sm font-medium text-gray-900"
-                          >
-                            Valid ID/NIN
-                          </Text>
-                        </View>
-                        <Text style={{ fontFamily: "HankenGrotesk_500Medium" }} className="text-sm text-gray-500">
-                          Document
-                        </Text>
-                      </View>
-                    </View>
-                    <TouchableOpacity className="p-2" onPress={() => openImagePreview(kycData.nin_url, "Valid ID/NIN")}>
-                      <Ionicons name="eye-outline" size={20} color="#666" />
-                    </TouchableOpacity>
-                  </View>
-                )}
+    // Image picker for Proof of Address
+    const pickProofOfAddress = async () => {
+        let result = await ImagePicker.launchImageLibraryAsync({
+            mediaTypes: ['images'],
+            allowsEditing: true,
+            aspect: [4, 3],
+            quality: 1,
+        });
 
-                {/* Proof of Address */}
-                {kycData?.poa_url && (
-                  <View className="flex-row items-center justify-between p-4 bg-gray-50 rounded-lg">
-                    <View className="flex-row items-center gap-3">
-                      <Ionicons name="document-text-outline" size={24} color="#666" />
-                      <View>
-                        <View className="flex-row items-center gap-2">
-                          <Text
-                            style={{ fontFamily: "HankenGrotesk_500Medium" }}
-                            className="text-base font-medium text-gray-900"
-                          >
-                            Proof of Address
-                          </Text>
-                        </View>
-                        <Text style={{ fontFamily: "HankenGrotesk_500Medium" }} className="text-sm text-gray-500">
-                          Document
-                        </Text>
-                      </View>
-                    </View>
-                    <TouchableOpacity
-                      className="p-2"
-                      onPress={() => openImagePreview(kycData.poa_url, "Proof of Address")}
-                    >
-                      <Ionicons name="eye-outline" size={20} color="#666" />
-                    </TouchableOpacity>
-                  </View>
-                )}
-              </View>
+        if (!result.canceled) {
+            setProofOfAddressImage(result.assets[0].uri);
+        }
+    };
 
-              {/* Vehicle Details Section */}
-              {(kycData?.drivers_licence_url ||
-                kycData?.vehicle_type ||
-                kycData?.plate_number ||
-                kycData?.vehicle_color) && (
-                <View className="mt-8">
-                  <Text
-                    style={{ fontFamily: "HankenGrotesk_500Medium" }}
-                    className="text-lg font-semibold text-gray-900 mb-4"
-                  >
-                    Vehicle details
-                  </Text>
+    // Image picker for Driver's License
+    const pickDriversLicence = async () => {
+        let result = await ImagePicker.launchImageLibraryAsync({
+            mediaTypes: ['images'],
+            allowsEditing: true,
+            aspect: [4, 3],
+            quality: 1,
+        });
 
-                  {/* Driver's License */}
-                  {kycData?.drivers_licence_url && (
-                    <View className="flex-row items-center justify-between p-4 bg-gray-50 rounded-lg mb-4">
-                      <View className="flex-row items-center gap-3">
-                        <Ionicons name="document-text-outline" size={24} color="#666" />
-                        <View>
-                          <View className="flex-row items-center gap-2">
-                            <Text
-                              style={{ fontFamily: "HankenGrotesk_500Medium" }}
-                              className="text-sm font-medium text-gray-900"
-                            >
-                              Driver's License
-                            </Text>
-                          </View>
-                          <Text style={{ fontFamily: "HankenGrotesk_500Medium" }} className="text-sm text-gray-500">
-                            Document
-                          </Text>
-                        </View>
-                      </View>
-                      <TouchableOpacity
-                        className="p-2"
-                        onPress={() => openImagePreview(kycData.drivers_licence_url, "Driver's License")}
-                      >
-                        <Ionicons name="eye-outline" size={20} color="#666" />
-                      </TouchableOpacity>
-                    </View>
-                  )}
+        if (!result.canceled) {
+            setDriversLicenceImage(result.assets[0].uri);
+        }
+    };
 
-                  {/* Vehicle Type */}
-                  {kycData?.vehicle_type && (
-                    <View className="mb-4 p-4 bg-gray-50 rounded-lg">
-                      <Text
-                        style={{ fontFamily: "HankenGrotesk_500Medium" }}
-                        className="text-sm font-medium text-gray-600 mb-1"
-                      >
-                        Vehicle Type
-                      </Text>
-                      <Text
-                        style={{ fontFamily: "HankenGrotesk_500Medium" }}
-                        className="text-base text-gray-900 capitalize"
-                      >
-                        {kycData.vehicle_type}
-                      </Text>
-                    </View>
-                  )}
+    const {
+        control,
+        handleSubmit,
+        formState: { errors },
+        reset,
+        setValue,
+    } = useForm({
+        defaultValues: {
+            vehicle_type: "",
+            plate_number: "",
+            vehicle_color: "",
+        },
+    });
 
-                  {/* Plate Number */}
-                  {kycData?.plate_number && (
-                    <View className="p-4 bg-gray-50 rounded-lg mb-4">
-                      <Text
-                        style={{ fontFamily: "HankenGrotesk_500Medium" }}
-                        className="text-sm font-medium text-gray-600 mb-1"
-                      >
-                        Plate Number
-                      </Text>
-                      <Text
-                        style={{ fontFamily: "HankenGrotesk_500Medium" }}
-                        className="text-base font-bold text-gray-900 uppercase"
-                      >
-                        {kycData.plate_number}
-                      </Text>
-                    </View>
-                  )}
+    // Pre-populate form with existing KYC data
+    useEffect(() => {
+        if (riderKYC?.data) {
+            const kyc = riderKYC.data;
+            setValue('vehicle_type', kyc.vehicle_type || '');
+            setValue('plate_number', kyc.plate_number || '');
+            setValue('vehicle_color', kyc.vehicle_color || '');
+            
+            // Set existing images if available - using correct field names
+            if (kyc.nin_url) {
+                setNinImage(kyc.nin_url);
+            }
+            if (kyc.poa_url) {
+                setProofOfAddressImage(kyc.poa_url);
+            }
+            if (kyc.drivers_licence_url) {
+                setDriversLicenceImage(kyc.drivers_licence_url);
+            }
+        }
+    }, [riderKYC, setValue]);
 
-                  {/* Vehicle Color */}
-                  {kycData?.vehicle_color && (
-                    <View className="p-4 bg-gray-50 rounded-lg mb-8">
-                      <Text
-                        style={{ fontFamily: "HankenGrotesk_500Medium" }}
-                        className="text-sm font-medium text-gray-600 mb-1"
-                      >
-                        Vehicle Color
-                      </Text>
-                      <Text
-                        style={{ fontFamily: "HankenGrotesk_500Medium" }}
-                        className="text-base font-bold text-gray-900 capitalize"
-                      >
-                        {kycData.vehicle_color}
-                      </Text>
-                    </View>
-                  )}
+    const onSubmit = (data: any) => {
+        // Create FormData object
+        const formData = new FormData();
+        
+        // Add text fields
+        Object.keys(data).forEach(key => {
+            if (data[key]) {
+                formData.append(key, data[key]);
+            }
+        });
+
+        // Add NIN image if selected (only if it's a new image, not existing URL)
+        if (ninImage && !ninImage.startsWith('http')) {
+            const imageUri = ninImage;
+            const filename = imageUri.split('/').pop();
+            const match = /\.(\w+)$/.exec(filename || '');
+            const type = match ? `image/${match[1]}` : 'image';
+            
+            formData.append('nin', {
+                uri: imageUri,
+                name: filename,
+                type,
+            } as any);
+        }
+
+        // Add Proof of Address image if selected (only if it's a new image, not existing URL)
+        if (proofOfAddressImage && !proofOfAddressImage.startsWith('http')) {
+            const imageUri = proofOfAddressImage;
+            const filename = imageUri.split('/').pop();
+            const match = /\.(\w+)$/.exec(filename || '');
+            const type = match ? `image/${match[1]}` : 'image';
+            
+            formData.append('proof_of_address', {
+                uri: imageUri,
+                name: filename,
+                type,
+            } as any);
+        }
+
+        // Add Driver's License image if selected (only if it's a new image, not existing URL)
+        if (driversLicenceImage && !driversLicenceImage.startsWith('http')) {
+            const imageUri = driversLicenceImage;
+            const filename = imageUri.split('/').pop();
+            const match = /\.(\w+)$/.exec(filename || '');
+            const type = match ? `image/${match[1]}` : 'image';
+            
+            formData.append('drivers_licence', {
+                uri: imageUri,
+                name: filename,
+                type,
+            } as any);
+        }
+
+        // Submit the form
+        updateKYC(formData, {
+            onSuccess: (response) => {
+                setShowSuccessModal(true);
+                console.log(response);
+            },
+            onError: (error: any) => {
+                console.log(error?.response?.data);
+                if(error?.response?.data?.nin){
+                    toast.show('Invalid NIN document', {type: 'danger'});
+                }
+                else if(error?.response?.data?.proof_of_address){
+                    toast.show('Invalid proof of address document', {type: 'danger'});
+                }
+                else if(error?.response?.data?.drivers_licence){
+                    toast.show('Invalid driver\'s license document', {type: 'danger'});
+                }
+                else {
+                    toast.show('Failed to update KYC. Please try again.', {type: 'danger'});
+                }
+            }
+        });
+    };
+
+    if (isLoadingKYC) {
+        return (
+            <SafeAreaView className='flex-1 bg-white'>
+                <View className='flex-1 justify-center items-center'>
+                    <LoadingOverlay visible={true} />
                 </View>
-              )}
+            </SafeAreaView>
+        );
+    }
 
-              {/* Complete KYC Button */}
+    return (
+        <SafeAreaView className='flex-1 bg-white'>
+            <StatusBar style='dark'/>
+            <LoadingOverlay visible={isPending} />
+            <View className='flex-1'>
+                <KeyboardAwareScrollView 
+                    className='flex-1'
+                    contentContainerStyle={{
+                        paddingHorizontal: 28, 
+                        paddingTop: 24, 
+                        paddingBottom: 20
+                    }}
+                    showsVerticalScrollIndicator={false}
+                >
+                    <View className=''>
+                        <View className='flex-row items-center gap-2'>
+                            <OnboardArrowTextHeader onPressBtn={()=>router.back()}/>
+                        </View>
+                        <View className='pt-3'>
+                            <Text className='text-2xl' style={{fontFamily: 'HankenGrotesk_600SemiBold'}}>KYC Verification</Text>
+                            <Text className='text-base' style={{fontFamily: 'HankenGrotesk_400Regular'}}>Upload the document's below for KYC verification</Text>
+                        </View>
 
-              <SolidMainButton text="Update KYC" onPress={handleAddKYC} />
-            </>
-          )}
-        </KeyboardAwareScrollView>
-      </View>
+                        <View className='mt-6 flex-col'>
+                            {/* Upload Valid ID / NIN */}
+                            <View className='mb-6'>
+                                <Text style={styles.titleStyle}>Upload Valid ID / NIN (For Verification)</Text>
+                                <View className='flex-row gap-3 items-center mt-2'>
+                                    <View className='w-[40%]'>
+                                        <SolidLightButton text='Upload' onPress={pickNinImage}/>
+                                    </View>
+                                    {ninImage ? 
+                                        <View className='w-20 h-14 rounded-lg overflow-hidden'>
+                                            <Image source={{uri: ninImage}} style={{width: '100%', height: '100%', borderRadius: 10, objectFit: 'cover'}}/>
+                                        </View> :
+                                        <Text style={{fontFamily: 'HankenGrotesk_400Regular', color: '#AFAFAF'}}>No file chosen</Text>
+                                    }
+                                </View>
+                            </View>
 
-      {/* Image Preview Modal */}
-      <ImagePreviewModal
-        visible={previewModal.visible}
-        imageUrl={previewModal.imageUrl}
-        title={previewModal.title}
-        onClose={closeImagePreview}
-      />
-    </SafeAreaView>
-  )
+                            {/* Upload Proof of Address */}
+                            <View className='mb-6'>
+                                <Text style={styles.titleStyle}>Upload Proof of Address</Text>
+                                <View className='flex-row gap-3 items-center mt-2'>
+                                    <View className='w-[40%]'>
+                                        <SolidLightButton text='Upload' onPress={pickProofOfAddress}/>
+                                    </View>
+                                    {proofOfAddressImage ? 
+                                        <View className='w-20 h-14 rounded-lg overflow-hidden'>
+                                            <Image source={{uri: proofOfAddressImage}} style={{width: '100%', height: '100%', borderRadius: 10, objectFit: 'cover'}}/>
+                                        </View> :
+                                        <Text style={{fontFamily: 'HankenGrotesk_400Regular', color: '#AFAFAF'}}>No file chosen</Text>
+                                    }
+                                </View>
+                            </View>
+
+                            {/* Vehicle Details Section */}
+                            <View className='mb-4'>
+                                <Text className='text-lg' style={{fontFamily: 'HankenGrotesk_600SemiBold'}}>Vehicle details</Text>
+                            </View>
+
+                            {/* Driver's License Upload */}
+                            <View className='mb-6'>
+                                <Text style={styles.titleStyle}>Driver's License (Car/Bike)</Text>
+                                <View className='flex-row gap-3 items-center mt-2'>
+                                    <View className='w-[40%]'>
+                                        <SolidLightButton text='Upload' onPress={pickDriversLicence}/>
+                                    </View>
+                                    {driversLicenceImage ? 
+                                        <View className='w-20 h-14 rounded-lg overflow-hidden'>
+                                            <Image source={{uri: driversLicenceImage}} style={{width: '100%', height: '100%', borderRadius: 10, objectFit: 'cover'}}/>
+                                        </View> :
+                                        <Text style={{fontFamily: 'HankenGrotesk_400Regular', color: '#AFAFAF'}}>No file chosen</Text>
+                                    }
+                                </View>
+                            </View>
+
+                            {/* Vehicle Type */}
+                            <View className='mb-6'>
+                                <Text style={styles.titleStyle}>Vehicle Type</Text>
+                                <Controller
+                                    name="vehicle_type"
+                                    control={control}
+                                    render={({ field: { onChange, onBlur, value } }) => (
+                                        <View className='relative'>
+                                            <RNPickerSelect
+                                                onValueChange={(itemValue) => onChange(itemValue)}
+                                                value={value}
+                                                items={[
+                                                    { label: "Car", value: "car" },
+                                                    { label: "Motorcycle", value: "motorcycle" },
+                                                    { label: "Bicycle", value: "bicycle" },
+                                                    { label: "Van", value: "van" },
+                                                    { label: "Truck", value: "truck" },
+                                                ]}
+                                                placeholder={{
+                                                    label: "Select",
+                                                    value: "",
+                                                }}
+                                                style={{
+                                                    inputIOS: {
+                                                        fontFamily: "HankenGrotesk_400Regular",
+                                                        color: "#000",
+                                                        paddingVertical: 16,
+                                                        paddingHorizontal: 16,
+                                                        borderRadius: 7,
+                                                        backgroundColor: '#F6F6F6',
+                                                        height: 56,
+                                                    },
+                                                    inputAndroid: {
+                                                        fontFamily: "HankenGrotesk_400Regular",
+                                                        color: "#000",
+                                                        paddingVertical: 16,
+                                                        paddingHorizontal: 16,
+                                                        borderRadius: 7,
+                                                        backgroundColor: '#F6F6F6',
+                                                        height: 56,
+                                                    },
+                                                    placeholder: {
+                                                        color: "#AFAFAF",
+                                                    }
+                                                }}
+                                                useNativeAndroidPickerStyle={false}
+                                            />
+                                            
+                                            <View className='absolute right-6 top-4'>
+                                                <MaterialIcons name='arrow-drop-down' size={25} color={'gray'}/>
+                                            </View>
+                                        </View>
+                                    )}
+                                />
+                            </View>
+
+                            {/* Vehicle License/Plate Number */}
+                            <View className='mb-6'>
+                                <Text style={styles.titleStyle}>Vehicle License</Text>
+                                <Controller
+                                    name="plate_number"
+                                    control={control}
+                                    render={({ field: { onChange, onBlur, value } }) => (
+                                        <TextInput 
+                                            placeholder='Enter Vehicle License'
+                                            placeholderTextColor={"#AFAFAF"}
+                                            onChangeText={onChange}
+                                            onBlur={onBlur}
+                                            value={value}
+                                            keyboardType="default"
+                                            style={styles.inputStyle}
+                                            autoCapitalize="characters"
+                                            autoCorrect={false}
+                                        />
+                                    )}
+                                />
+                            </View>
+
+                            {/* Vehicle Color */}
+                            <View className='mb-6'>
+                                <Text style={styles.titleStyle}>Vehicle Color</Text>
+                                <Controller
+                                    name="vehicle_color"
+                                    control={control}
+                                    render={({ field: { onChange, onBlur, value } }) => (
+                                        <View className='relative'>
+                                            <RNPickerSelect
+                                                onValueChange={(itemValue) => onChange(itemValue)}
+                                                value={value}
+                                                items={[
+                                                    { label: "White", value: "white" },
+                                                    { label: "Black", value: "black" },
+                                                    { label: "Silver", value: "silver" },
+                                                    { label: "Red", value: "red" },
+                                                    { label: "Blue", value: "blue" },
+                                                    { label: "Green", value: "green" },
+                                                    { label: "Yellow", value: "yellow" },
+                                                    { label: "Orange", value: "orange" },
+                                                    { label: "Brown", value: "brown" },
+                                                    { label: "Gray", value: "gray" },
+                                                    { label: "Other", value: "other" },
+                                                ]}
+                                                placeholder={{
+                                                    label: "Select",
+                                                    value: "",
+                                                }}
+                                                style={{
+                                                    inputIOS: {
+                                                        fontFamily: "HankenGrotesk_400Regular",
+                                                        color: "#000",
+                                                        paddingVertical: 16,
+                                                        paddingHorizontal: 16,
+                                                        borderRadius: 7,
+                                                        backgroundColor: '#F6F6F6',
+                                                        height: 56,
+                                                    },
+                                                    inputAndroid: {
+                                                        fontFamily: "HankenGrotesk_400Regular",
+                                                        color: "#000",
+                                                        paddingVertical: 16,
+                                                        paddingHorizontal: 16,
+                                                        borderRadius: 7,
+                                                        backgroundColor: '#F6F6F6',
+                                                        height: 56,
+                                                    },
+                                                    placeholder: {
+                                                        color: "#AFAFAF",
+                                                    }
+                                                }}
+                                                useNativeAndroidPickerStyle={false}
+                                            />
+                                            
+                                            <View className='absolute right-6 top-4'>
+                                                <MaterialIcons name='arrow-drop-down' size={25} color={'gray'}/>
+                                            </View>
+                                        </View>
+                                    )}
+                                />
+                            </View>
+                        </View>
+                    </View>
+                </KeyboardAwareScrollView>
+
+                {/* Fixed Submit Button at Bottom */}
+                <View className='px-7 pb-4 pt-2 bg-white border-t border-gray-100'>
+                    <SolidMainButton
+                        onPress={handleSubmit(onSubmit)}
+                        text={'Submit'}
+                    />
+                </View>
+
+                {/* Custom Modal */}
+                <CustomSuccessModal 
+                    visible={showSuccessModal} 
+                    onClose={closeModal} 
+                />
+            </View>
+        </SafeAreaView>
+    )
 }
 
-export default RiderKYC
+export default KycUpdate
 
 const styles = StyleSheet.create({
-  previewModalOverlay: {
-    flex: 1,
-    backgroundColor: "rgba(0, 0, 0, 0.9)",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  previewModalContainer: {
-    width: "90%",
-    maxHeight: "80%",
-    backgroundColor: "white",
-    borderRadius: 16,
-    padding: 20,
-  },
-  previewHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 16,
-  },
-  previewTitle: {
-    fontSize: 15,
-    fontFamily: "HankenGrotesk_600SemiBold",
-    color: "#333",
-  },
-  previewCloseButton: {
-    padding: 4,
-  },
-  previewImageContainer: {
-    alignItems: "center",
-    marginBottom: 20,
-  },
-  previewImage: {
-    width: "100%",
-    height: 300,
-    borderRadius: 8,
-  },
-  previewCloseTextButton: {
-    backgroundColor: "#f0f0f0",
-    padding: 12,
-    borderRadius: 50,
-    alignItems: "center",
-  },
-  previewCloseText: {
-    fontSize: 16,
-    fontFamily: "HankenGrotesk_500Medium",
-    color: "#333",
-  },
-})
+    inputStyle: {
+        borderRadius: 7,
+        paddingHorizontal: 16,
+        paddingVertical: 16,
+        fontFamily: "HankenGrotesk_400Regular",
+        backgroundColor: '#F6F6F6',
+    },
+    titleStyle: {
+        fontFamily: "HankenGrotesk_500Medium",
+        fontSize: 14,
+        color: "#3A3541",
+        paddingBottom: 8,
+        paddingTop: 6
+    },
+    // Custom Modal Styles
+    modalOverlay: {
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        backgroundColor: 'rgba(0, 0, 0, 0.5)',
+        justifyContent: 'center',
+        alignItems: 'center',
+        zIndex: 1000,
+    },
+    modalContainer: {
+        backgroundColor: 'white',
+        width: '85%',
+        borderRadius: 24,
+        padding: 20,
+    },
+    closeButton: {
+        alignSelf: 'flex-end',
+        marginBottom: 8,
+        backgroundColor: 'gray',
+        borderRadius: 50,
+        padding: 5
+    },
+    modalContent: {
+        alignItems: 'center',
+    },
+    successImage: {
+        width: 150,
+        height: 150,
+    },
+    textContainer: {
+        marginTop: 16,
+    },
+    modalTitle: {
+        fontSize: 20,
+        textAlign: 'center',
+        fontFamily: 'HankenGrotesk_600SemiBold',
+    },
+    modalDescription: {
+        fontSize: 14,
+        color: '#6B7280',
+        textAlign: 'center',
+        width: '90%',
+        alignSelf: 'center',
+        paddingTop: 8,
+        fontFamily: 'HankenGrotesk_400Regular',
+    },
+    buttonContainer: {
+        width: '48%',
+        alignSelf: 'center',
+        marginTop: 24,
+    },
+});

@@ -2,7 +2,7 @@
 
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { get_requests, post_requests, put_requests } from "../helpers/axios_helpers"
+import { get_requests, post_request_with_image, post_requests, put_requests } from "../helpers/axios_helpers"
 import AsyncStorage from "@react-native-async-storage/async-storage"
 
 
@@ -17,6 +17,19 @@ export const useGetParcelPrice = () => {
 
   return parcelPrice
 };
+
+export const useSendRidersRequest = (id: any) => {
+  const parcelPrice = useMutation({
+    mutationFn: async (data: any) => {
+      const token = (await AsyncStorage.getItem("movebay_token")) || ""
+      return post_request_with_image(`/logistics/select-ride/${id}/`, data, token)
+    }
+  })
+
+  return parcelPrice
+};
+
+
 
 export const useGetNearbyRides = (pickUpAddress: any, deliveryAddress: any) => {
   const { data, isLoading, isError, isFetched, refetch } = useQuery({

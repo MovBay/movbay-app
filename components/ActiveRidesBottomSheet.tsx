@@ -22,6 +22,8 @@ const ActiveRidesBottomSheet: React.FC<ActiveRidesBottomSheetProps> = ({
   onRefresh,
   refreshing,
 }) => {
+
+  console.log('Rides in Bottom Sheet:', rides);
   return (
     <Modal animationType="slide" transparent={true} visible={isVisible} onRequestClose={onClose}>
       <View className="flex-1 justify-end bg-black/50">

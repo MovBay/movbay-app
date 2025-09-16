@@ -1,5 +1,5 @@
-import { View, Text, TextInput, TouchableOpacity, StyleSheet } from 'react-native'
-import React, { useState, useEffect } from 'react'
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, Keyboard, ScrollView } from 'react-native'
+import React, { useState, useEffect, useRef } from 'react'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { StatusBar } from 'expo-status-bar'
 import { OnboardArrowTextHeader } from '@/components/btns/OnboardHeader'
@@ -100,6 +100,7 @@ const GooglePlacesAddressInput = ({
   rules,
   errors,
   placeholder,
+  zIndex = 1000,
 }: {
   label: string;
   name: keyof FormData;
@@ -107,9 +108,13 @@ const GooglePlacesAddressInput = ({
   rules?: any;
   errors: any;
   placeholder: string;
+  zIndex?: number;
 }) => {
   const [addressPredictions, setAddressPredictions] = useState<PlacePrediction[]>([])
   const [showAddressPredictions, setShowAddressPredictions] = useState(false)
+  const [isInputFocused, setIsInputFocused] = useState(false)
+  const inputRef = useRef<TextInput>(null)
+  const scrollViewRef = useRef<ScrollView>(null)
 
   // Function to fetch Google Places predictions
   const fetchAddressPredictions = async (input: string) => {
@@ -140,10 +145,39 @@ const GooglePlacesAddressInput = ({
     }
   }
 
+  const handlePredictionSelect = (prediction: PlacePrediction, onChange: (value: string) => void) => {
+    onChange(prediction.description)
+    setShowAddressPredictions(false)
+    setAddressPredictions([])
+    setIsInputFocused(false)
+    Keyboard.dismiss()
+    inputRef.current?.blur()
+  }
+
+  const handleInputFocus = () => {
+    setIsInputFocused(true)
+  }
+
+  const handleInputBlur = () => {
+    // Don't hide predictions immediately when input loses focus
+    // Let the prediction selection handle hiding
+    setTimeout(() => {
+      if (!showAddressPredictions) {
+        setIsInputFocused(false)
+      }
+    }, 100)
+  }
+
+  // Calculate dynamic margin bottom based on predictions visibility
+  const containerStyle = {
+    marginBottom: showAddressPredictions && addressPredictions.length > 0 ? 200 : 16,
+    zIndex: zIndex,
+  }
+
   return (
-    <View className="mb-4">
+    <View style={containerStyle}>
       <Text style={styles.labelStyle}>{label}</Text>
-      <View style={{ position: "relative" }}>
+      <View style={{ position: "relative", zIndex: zIndex }}>
         <Controller
           name={name}
           control={control}
@@ -152,16 +186,17 @@ const GooglePlacesAddressInput = ({
             <>
               <View style={styles.inputContainer}>
                 <TextInput
+                  ref={inputRef}
                   placeholder={placeholder}
                   placeholderTextColor={"#AFAFAF"}
                   onChangeText={(text) => {
                     onChange(text)
                     fetchAddressPredictions(text)
                   }}
+                  onFocus={handleInputFocus}
                   onBlur={() => {
                     onBlur()
-                    // Delay hiding predictions to allow for selection
-                    setTimeout(() => setShowAddressPredictions(false), 150)
+                    handleInputBlur()
                   }}
                   value={value || ""}
                   keyboardType="default"
@@ -170,32 +205,40 @@ const GooglePlacesAddressInput = ({
                   autoCorrect={false}
                 />
                 <View style={styles.searchIconContainer}>
-                    <Ionicons name="search" size={25} color="#AFAFAF" />
+                  <Ionicons name="search" size={25} color="#AFAFAF" />
                 </View>
               </View>
               
               {/* Address Predictions List */}
               {showAddressPredictions && addressPredictions.length > 0 && (
-                <View style={styles.predictionsContainer}>
-                  {addressPredictions.map((item) => (
-                    <TouchableOpacity
-                      key={item.place_id}
-                      style={styles.predictionItem}
-                      onPress={() => {
-                        onChange(item.description)
-                        setShowAddressPredictions(false)
-                        setAddressPredictions([])
-                      }}
-                    >
-                      <MaterialIcons name="location-on" size={20} color="#666" style={{ marginRight: 10 }} />
-                      <View style={{ flex: 1 }}>
-                        <Text style={styles.predictionMainText}>{item.structured_formatting.main_text}</Text>
-                        <Text style={styles.predictionSecondaryText}>
-                          {item.structured_formatting.secondary_text}
-                        </Text>
-                      </View>
-                    </TouchableOpacity>
-                  ))}
+                <View style={[
+                  styles.predictionsContainer,
+                  { zIndex: zIndex + 1 }
+                ]}>
+                  <ScrollView 
+                    ref={scrollViewRef}
+                    nestedScrollEnabled={true}
+                    keyboardShouldPersistTaps="always"
+                    keyboardDismissMode="none"
+                    showsVerticalScrollIndicator={false}
+                  >
+                    {addressPredictions.map((item) => (
+                      <TouchableOpacity
+                        key={item.place_id}
+                        style={styles.predictionItem}
+                        onPress={() => handlePredictionSelect(item, onChange)}
+                        activeOpacity={0.7}
+                      >
+                        <MaterialIcons name="location-on" size={20} color="#666" style={{ marginRight: 10 }} />
+                        <View style={{ flex: 1 }}>
+                          <Text style={styles.predictionMainText}>{item.structured_formatting.main_text}</Text>
+                          <Text style={styles.predictionSecondaryText}>
+                            {item.structured_formatting.secondary_text}
+                          </Text>
+                        </View>
+                      </TouchableOpacity>
+                    ))}
+                  </ScrollView>
                 </View>
               )}
             </>
@@ -288,8 +331,6 @@ const ParcelFormOne = () => {
 
   const onSubmit = (data: FormData) => {
     console.log('Form Data:', data)
-    
-    // Navigate to next screen with data
     router.push({
       pathname: "/(access)/(user_stacks)/courier/parcel-form-two",
       params: {
@@ -311,6 +352,7 @@ const ParcelFormOne = () => {
             paddingBottom: 20,
           }}
           showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
         >
           {/* Header */}
           <View className="flex-row items-center mb-6">
@@ -325,7 +367,7 @@ const ParcelFormOne = () => {
             </Text>
           </View>
 
-          {/* Pickup Address */}
+          {/* Pickup Address - Higher z-index */}
           <GooglePlacesAddressInput
             label="Pickup Address"
             name="pickupAddress"
@@ -333,6 +375,7 @@ const ParcelFormOne = () => {
             rules={{ required: "Pickup address is required" }}
             placeholder="Where should the rider collect it?"
             errors={errors}
+            zIndex={2000}
           />
 
           {/* Recipient Information Section */}
@@ -340,6 +383,7 @@ const ParcelFormOne = () => {
             <Text style={styles.sectionTitleStyle}>Recipient Information</Text>
           </View>
 
+          {/* Drop-off Address - Lower z-index */}
           <GooglePlacesAddressInput
             label="Drop-Off Address"
             name="dropOffAddress"
@@ -347,6 +391,7 @@ const ParcelFormOne = () => {
             rules={{ required: "Drop-off address is required" }}
             placeholder="Where's it heading to?"
             errors={errors}
+            zIndex={1900}
           />
 
           <CustomPhoneInput
@@ -374,12 +419,14 @@ const ParcelFormOne = () => {
             <Text style={styles.sectionTitleStyle}>Alternate Recipient Information</Text>
           </View>
 
+          {/* Alternative Drop-off Address - Even lower z-index */}
           <GooglePlacesAddressInput
             label="Alternative Drop-Off Address (Optional)"
             name="alternativeDropOffAddress"
             control={control}
             placeholder="Alternative Address?"
             errors={errors}
+            zIndex={1800}
           />
 
           <CustomPhoneInput
@@ -469,7 +516,6 @@ const styles = StyleSheet.create({
     top: "100%",
     left: 0,
     right: 0,
-    zIndex: 1000,
     backgroundColor: "white",
     borderRadius: 12,
     shadowColor: "#000",
@@ -492,6 +538,7 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     borderBottomWidth: 1,
     borderBottomColor: "#F3F4F6",
+    backgroundColor: "white",
   },
   predictionMainText: {
     fontFamily: "HankenGrotesk_500Medium",

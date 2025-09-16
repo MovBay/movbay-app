@@ -5,7 +5,6 @@ import {
   Text,
   TouchableOpacity,
   ScrollView,
-  Modal,
   ActivityIndicator,
   Animated,
   Image,
@@ -19,9 +18,11 @@ import { OnboardArrowTextHeader } from "@/components/btns/OnboardHeader"
 import { router, useLocalSearchParams } from "expo-router"
 import { useToast } from "react-native-toast-notifications"
 import { SolidInactiveButton, SolidMainButton } from "@/components/btns/CustomButtoms"
-import { useGetNearbyRides } from '@/hooks/mutations/parcelAuth'
+import { useGetNearbyRides, useSendRidersRequest } from '@/hooks/mutations/parcelAuth'
+import LoadingOverlay from "@/components/LoadingOverlay"
 
 interface Rider {
+  riders_id: string
   riders_name: string
   riders_picture: string | null
   rating: number
@@ -33,7 +34,7 @@ interface Rider {
     distance_km: string;
     duration_minutes: string;
     fare_amount: string;
-    distance?: string; // Alternative field
+    distance?: string;
   }
   latitude: number
   longitude: number
@@ -54,9 +55,30 @@ interface SummaryData {
   packageImages: any[];
 }
 
+// Custom Modal Component
+const CustomModal = ({ visible, children, onClose }: { visible: boolean; children: React.ReactNode; onClose: () => void }) => {
+  if (!visible) return null;
+
+  return (
+    <View style={{
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      backgroundColor: 'rgba(0, 0, 0, 0.7)',
+      justifyContent: 'center',
+      alignItems: 'center',
+      zIndex: 1000,
+      paddingHorizontal: 20,
+    }}>
+      {children}
+    </View>
+  );
+};
+
 const ParcelAvailableRiders = ({ navigation }: { navigation?: any }) => {
-  // Updated to use lat-lng as unique identifier instead of id
-  const [selectedRiderKey, setSelectedRiderKey] = useState<string | null>(null)
+  const [selectedRiderId, setSelectedRiderId] = useState<string | null>(null)
   const [isWaitingForAcceptance, setIsWaitingForAcceptance] = useState(false)
   const [summaryData, setSummaryData] = useState<SummaryData | null>(null)
   const [riders, setRiders] = useState<Rider[]>([])
@@ -66,26 +88,20 @@ const ParcelAvailableRiders = ({ navigation }: { navigation?: any }) => {
   const toast = useToast()
   const progressAnim = useRef(new Animated.Value(0)).current
 
-  // Helper function to generate unique key from lat-lng
-  const generateRiderKey = useCallback((rider: Rider): string => {
-    return `${rider.latitude}_${rider.longitude}`;
-  }, [])
-
   // Call the hook after summaryData is available
+  const {mutate, isPending} = useSendRidersRequest(selectedRiderId)
   const { nearbyRides, isLoading, isError, refetch } = useGetNearbyRides(
     summaryData?.pickupAddress, 
     summaryData?.dropOffAddress
   );
 
-  // Get selected rider object using the new key system
+  // Get selected rider object using riders_id
   const selectedRider = useMemo(() => {
-    if (!selectedRiderKey) return null;
-    return riders.find(rider => generateRiderKey(rider) === selectedRiderKey) || null;
-  }, [riders, selectedRiderKey, generateRiderKey])
+    if (!selectedRiderId) return null;
+    return riders.find(rider => rider.riders_id === selectedRiderId) || null;
+  }, [riders, selectedRiderId])
 
   console.log('Available Riders:', riders);
-  console.log('Selected Rider Key:', selectedRiderKey);
-  console.log('Selected Rider:', selectedRider);
 
   // Parse summary data on component mount
   useEffect(() => {
@@ -105,24 +121,22 @@ const ParcelAvailableRiders = ({ navigation }: { navigation?: any }) => {
     if (nearbyRides?.data) {
       console.log('Available rides:', nearbyRides.data);
       setRiders(nearbyRides.data);
-      // Reset selected rider when new data loads
-      setSelectedRiderKey(null);
+      setSelectedRiderId(null);
     }
     
     if (isError) {
       console.error('Error fetching nearby rides:', isError);
       toast.show('Error loading riders. Please refresh to retry.', { type: 'error' });
       setRiders([]);
-      setSelectedRiderKey(null);
+      setSelectedRiderId(null);
     }
   }, [nearbyRides, isError, toast]);
 
-  // Progress animation
   const startProgressAnimation = useCallback(() => {
     progressAnim.setValue(0)
     Animated.timing(progressAnim, {
       toValue: 1,
-      duration: 25000,
+      duration: 150000,
       useNativeDriver: false,
     }).start(() => {
       setIsWaitingForAcceptance(false)
@@ -131,43 +145,59 @@ const ParcelAvailableRiders = ({ navigation }: { navigation?: any }) => {
   }, [progressAnim, toast])
 
   const handleRiderSelect = useCallback((rider: Rider) => {
-    const riderKey = generateRiderKey(rider);
-    console.log('Rider selected:', rider.riders_name, 'Key:', riderKey);
-    console.log('Current selectedRiderKey:', selectedRiderKey);
-    
-    if (selectedRiderKey === riderKey) {
-      setSelectedRiderKey(null)
-      console.log('Rider deselected');
+    console.log('Rider selected:', rider);
+    if (selectedRiderId === rider.riders_id) {
+      setSelectedRiderId(null)
     } else {
-      setSelectedRiderKey(riderKey)
-      console.log('New rider selected:', rider);
+      setSelectedRiderId(rider.riders_id)
     }
-  }, [selectedRiderKey, generateRiderKey])
+  }, [selectedRiderId])
 
+  // Modified handleContinue function
   const handleContinue = useCallback(() => {
     if (selectedRider && summaryData) {
-      setIsWaitingForAcceptance(true)
-      startProgressAnimation()
-      
-      // Here you would typically send the request to the selected rider
-      console.log('Sending request to rider:', selectedRider.riders_name)
       console.log('With parcel data:', summaryData)
+
+      const payload = {
+        recipient_name: summaryData.recipientName,
+        pick_address: summaryData.pickupAddress,
+        drop_address: summaryData.dropOffAddress,
+        alternative_drop_address: summaryData.alternativeDropOffAddress || "",
+        alternative_recipient_name: summaryData.alternativeRecipientName || "",
+        alternative_number: summaryData.alternativeRecipientPhoneNumber || "",
+        package_type: summaryData.packageType,
+        package_description: summaryData.packageDescription,
+        packageimages: summaryData.packageImages || []
+      };
+
+      console.log('Payload to be sent:', payload);
+
+      // Send the request
+      mutate(payload, {
+        onSuccess: (response) => {
+          console.log('Request successful:', response.data);
+          // Only show waiting modal on success
+          setIsWaitingForAcceptance(true);
+          startProgressAnimation();
+        },
+        onError: (error) => {
+          console.error('Request failed:', error);
+          toast.show('Failed to send request to rider. Please try again.', { type: 'error' });
+          // Don't show waiting modal on error
+        }
+      });
     }
-  }, [selectedRider, summaryData, startProgressAnimation])
+  }, [selectedRider, summaryData, mutate, startProgressAnimation, toast])
 
   const onRefresh = useCallback(() => {
     setRefreshing(true)
+    setSelectedRiderId(null)
     
-    // Reset selected rider on refresh
-    setSelectedRiderKey(null)
-    
-    // Refetch nearby rides
     if (summaryData && refetch) {
       refetch().finally(() => {
         setRefreshing(false)
       })
     } else {
-      // Fallback timeout
       setTimeout(() => {
         setRefreshing(false)
       }, 2000)
@@ -212,33 +242,26 @@ const ParcelAvailableRiders = ({ navigation }: { navigation?: any }) => {
     setIsWaitingForAcceptance(false)
     progressAnim.stopAnimation()
     progressAnim.setValue(0)
-    setSelectedRiderKey(null)
+    setSelectedRiderId(null)
   }, [progressAnim])
 
-  // Fixed format price helper function
   const formatPrice = useCallback((fareAmount: string | number | undefined | null) => {
-    // Handle undefined, null, or empty values
     if (fareAmount === undefined || fareAmount === null || fareAmount === '') {
       return 'N/A';
     }
     
     let numericFare: number;
-    
-    // If it's already a number, use it directly
     if (typeof fareAmount === 'number') {
       numericFare = fareAmount;
     } else {
-      // Convert to string and remove any currency symbols
       const cleanedAmount = String(fareAmount).replace(/[₦$,\s]/g, '');
       numericFare = parseFloat(cleanedAmount);
     }
     
-    // Check if parsing was successful
     if (isNaN(numericFare)) {
-      return String(fareAmount); // Return original if can't parse
+      return String(fareAmount);
     }
     
-    // Format with commas for thousands
     return `₦${numericFare.toLocaleString('en-US', { 
       minimumFractionDigits: 0,
       maximumFractionDigits: 0 
@@ -246,8 +269,7 @@ const ParcelAvailableRiders = ({ navigation }: { navigation?: any }) => {
   }, [])
 
   const RiderCard = ({ rider, isSelected }: { rider: Rider; isSelected: boolean }) => {
-    const riderKey = generateRiderKey(rider);
-    console.log(`RiderCard for ${rider.riders_name} - isSelected: ${isSelected}, riderKey: ${riderKey}, selectedRiderKey: ${selectedRiderKey}`);
+    console.log(`RiderCard for ${rider.riders_name} - isSelected: ${isSelected}, riders_id: ${rider.riders_id}, selectedRiderId: ${selectedRiderId}`);
     
     return (
       <TouchableOpacity
@@ -325,15 +347,12 @@ const ParcelAvailableRiders = ({ navigation }: { navigation?: any }) => {
               </Text>
             </View>
 
-            {/* Price Display */}
             <View className="flex-row items-center justify-between mt-2 pt-2 border-t border-gray-100">
               <View className="bg-green-50 px-4 py-1 border border-green-200 rounded-full">
                 <Text style={{ fontFamily: "HankenGrotesk_600SemiBold" }} className="text-green-800 text-base">
                   {formatPrice(rider.eta.fare_amount)}
                 </Text>
               </View>
-              
-            
             </View>
           </View>
 
@@ -348,7 +367,7 @@ const ParcelAvailableRiders = ({ navigation }: { navigation?: any }) => {
   }
 
   const LoadingRidersState = () => (
-    <View className="flex-1 justify-center items-center py-10">
+    <View className="flex-1 justify-center items-center py-10 pt-20">
       <ActivityIndicator size="large" color="#F75F15" />
       <Text style={{ fontFamily: "HankenGrotesk_500Medium" }} className="text-gray-600 mt-4 text-center">
         Finding available riders...
@@ -379,130 +398,259 @@ const ParcelAvailableRiders = ({ navigation }: { navigation?: any }) => {
     </View>
   )
 
-  const WaitingModal = () => (
-    <Modal
-      animationType="fade"
-      transparent={true}
-      visible={isWaitingForAcceptance}
-      onRequestClose={handleCancelRequest}
-    >
-      <View className="flex-1 justify-center items-center bg-black/70">
-        <View className="bg-white rounded-3xl p-6 py-8 mx-6 w-[88%]">
-          <View className="items-center">
-            <View className="relative">
-              {selectedRider?.riders_picture ? (
-                <Image source={{ uri: selectedRider.riders_picture }} className="w-28 h-28 rounded-full mb-4" />
-              ) : (
-                <View className="w-28 h-28 rounded-full bg-gray-200 justify-center items-center mb-4">
-                  <MaterialIcons name="person" size={40} color="gray" />
-                </View>
-              )}
-              <View className="absolute top-0 right-0 bg-white rounded-full justify-center items-center border border-white">
-                <MaterialIcons name="verified" size={20} color="green" />
-              </View>
+  // Custom Waiting Modal Content
+  const WaitingModalContent = () => (
+    <View style={{
+      backgroundColor: 'white',
+      borderRadius: 24,
+      padding: 24,
+      paddingVertical: 32,
+      width: '100%',
+      maxWidth: 400,
+    }}>
+      <View style={{ alignItems: 'center' }}>
+        <View style={{ position: 'relative' }}>
+          {selectedRider?.riders_picture ? (
+            <Image 
+              source={{ uri: selectedRider.riders_picture }} 
+              style={{ 
+                width: 100, 
+                height: 100, 
+                borderRadius: 56, 
+                marginBottom: 16 
+              }} 
+            />
+          ) : (
+            <View style={{
+              width: 100,
+              height: 100,
+              borderRadius: 56,
+              backgroundColor: '#e5e5e5',
+              justifyContent: 'center',
+              alignItems: 'center',
+              marginBottom: 16
+            }}>
+              <MaterialIcons name="person" size={40} color="gray" />
             </View>
-
-            <Text style={{ fontFamily: "HankenGrotesk_600SemiBold" }} className="text-lg text-gray-500 mb-3">
-              Waiting for {selectedRider?.riders_name} ...
-            </Text>
-
-            <View className="flex-row items-center mb-3">
-              <View className="bg-green-100 px-3 py-1 rounded-full mr-2">
-                <Text style={{ fontFamily: "HankenGrotesk_500Medium" }} className="text-xs text-green-700">
-                  Verified Rider
-                </Text>
-              </View>
-              <View className="flex-row items-center">
-                {renderStarRating(selectedRider?.rating || 0)}
-                <Text style={{ fontFamily: "HankenGrotesk_500Medium" }} className="text-sm text-gray-600 ml-1">
-                  {selectedRider?.rating}
-                </Text>
-              </View>
-            </View>
-
-            <View className="bg-gray-50 rounded-xl p-4 w-full mb-4">
-              <View className="flex-row justify-between items-center mb-2">
-                <Text style={{ fontFamily: "HankenGrotesk_500Medium" }} className="text-sm text-gray-600">
-                  Vehicle:
-                </Text>
-                <Text style={{ fontFamily: "HankenGrotesk_600SemiBold" }} className="text-sm text-gray-900">
-                  {selectedRider?.vehicle_color} {selectedRider?.vehicle_type}
-                </Text>
-              </View>
-              {(selectedRider?.plate_number || selectedRider?.license) && (
-                <View className="flex-row justify-between items-center mb-2">
-                  <Text style={{ fontFamily: "HankenGrotesk_500Medium" }} className="text-sm text-gray-600">
-                    Plate Number:
-                  </Text>
-                  <Text style={{ fontFamily: "HankenGrotesk_600SemiBold" }} className="text-sm text-gray-900">
-                    {selectedRider?.plate_number || selectedRider?.license}
-                  </Text>
-                </View>
-              )}
-              <View className="flex-row justify-between items-center mb-2">
-                <Text style={{ fontFamily: "HankenGrotesk_500Medium" }} className="text-sm text-gray-600">
-                  Distance:
-                </Text>
-                <Text style={{ fontFamily: "HankenGrotesk_600SemiBold" }} className="text-sm text-gray-900">
-                  {selectedRider?.eta.distance || selectedRider?.eta.distance_km + ' km'} away
-                </Text>
-              </View>
-              <View className="flex-row justify-between items-center">
-                <Text style={{ fontFamily: "HankenGrotesk_500Medium" }} className="text-sm text-gray-600">
-                  Delivery Fee:
-                </Text>
-                <Text style={{ fontFamily: "HankenGrotesk_600SemiBold" }} className="text-sm text-gray-900">
-                  {formatPrice(selectedRider?.eta.fare_amount)}
-                </Text>
-              </View>
-            </View>
-
-            <Text style={{ fontFamily: "HankenGrotesk_400Regular" }} className="text-gray-600 text-center mb-6 text-sm">
-              We've sent your request to the rider. Please wait for them to accept your delivery request.
-            </Text>
-
-            <View className="w-full bg-gray-200 rounded-full h-3 mb-4">
-              <Animated.View
-                className="bg-green-600 h-3 rounded-full"
-                style={{
-                  width: progressAnim.interpolate({
-                    inputRange: [0, 1],
-                    outputRange: ["0%", "100%"],
-                  }),
-                }}
-              />
-            </View>
-
-            <View className="flex-row justify-center mb-6">
-              <ActivityIndicator size="small" color="#F75F15" />
-            </View>
-
-            <TouchableOpacity
-              onPress={handleCancelRequest}
-              className="bg-gray-200 py-4 rounded-full w-full"
-            >
-              <Text
-                style={{ fontFamily: "HankenGrotesk_500Medium" }}
-                className="text-gray-700 text-center text-sm font-semibold"
-              >
-                Cancel Request
-              </Text>
-            </TouchableOpacity>
+          )}
+          <View style={{
+            position: 'absolute',
+            top: 0,
+            right: 0,
+            backgroundColor: 'white',
+            borderRadius: 20,
+            justifyContent: 'center',
+            alignItems: 'center',
+            borderWidth: 1,
+            borderColor: 'white'
+          }}>
+            <MaterialIcons name="verified" size={20} color="green" />
           </View>
         </View>
-      </View>
-    </Modal>
-  )
 
-  // Debug log for selectedRider state
-  console.log('Current selectedRiderKey:', selectedRiderKey);
-  console.log('Current selectedRider:', selectedRider);
-  console.log('Riders length:', riders.length);
-  console.log('IsLoading:', isLoading);
+        <Text style={{ 
+          fontFamily: "HankenGrotesk_600SemiBold", 
+          fontSize: 18, 
+          color: '#6b7280', 
+          marginBottom: 12,
+          textAlign: 'center'
+        }}>
+          Waiting for {selectedRider?.riders_name} ...
+        </Text>
+
+        <View style={{ 
+          flexDirection: 'row', 
+          alignItems: 'center', 
+          marginBottom: 12 
+        }}>
+          <View style={{
+            backgroundColor: '#dcfce7',
+            paddingHorizontal: 12,
+            paddingVertical: 4,
+            borderRadius: 20,
+            marginRight: 8
+          }}>
+            <Text style={{ 
+              fontFamily: "HankenGrotesk_500Medium", 
+              fontSize: 12, 
+              color: '#15803d'
+            }}>
+              Verified Rider
+            </Text>
+          </View>
+          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+            {renderStarRating(selectedRider?.rating || 0)}
+            <Text style={{ 
+              fontFamily: "HankenGrotesk_500Medium", 
+              fontSize: 14, 
+              color: '#6b7280', 
+              marginLeft: 4 
+            }}>
+              {selectedRider?.rating}
+            </Text>
+          </View>
+        </View>
+
+        <View style={{
+          backgroundColor: '#f9fafb',
+          borderRadius: 12,
+          padding: 16,
+          width: '100%',
+          marginBottom: 16
+        }}>
+          <View style={{ 
+            flexDirection: 'row', 
+            justifyContent: 'space-between', 
+            alignItems: 'center', 
+            marginBottom: 8 
+          }}>
+            <Text style={{ 
+              fontFamily: "HankenGrotesk_500Medium", 
+              fontSize: 13, 
+              color: '#6b7280' 
+            }}>
+              Vehicle:
+            </Text>
+            <Text style={{ 
+              fontFamily: "HankenGrotesk_600SemiBold", 
+              fontSize: 13, 
+              color: '#111827' 
+            }}>
+              {selectedRider?.vehicle_color} {selectedRider?.vehicle_type}
+            </Text>
+          </View>
+          {(selectedRider?.plate_number || selectedRider?.license) && (
+            <View style={{ 
+              flexDirection: 'row', 
+              justifyContent: 'space-between', 
+              alignItems: 'center', 
+              marginBottom: 8 
+            }}>
+              <Text style={{ 
+                fontFamily: "HankenGrotesk_500Medium", 
+                fontSize: 14, 
+                color: '#6b7280' 
+              }}>
+                Plate Number:
+              </Text>
+              <Text style={{ 
+                fontFamily: "HankenGrotesk_600SemiBold", 
+                fontSize: 13, 
+                color: '#111827' 
+              }}>
+                {selectedRider?.plate_number || selectedRider?.license}
+              </Text>
+            </View>
+          )}
+          <View style={{ 
+            flexDirection: 'row', 
+            justifyContent: 'space-between', 
+            alignItems: 'center', 
+            marginBottom: 8 
+          }}>
+            <Text style={{ 
+              fontFamily: "HankenGrotesk_500Medium", 
+              fontSize: 13, 
+              color: '#6b7280' 
+            }}>
+              Distance:
+            </Text>
+            <Text style={{ 
+              fontFamily: "HankenGrotesk_600SemiBold", 
+              fontSize: 13, 
+              color: '#111827' 
+            }}>
+              {selectedRider?.eta.distance || selectedRider?.eta.distance_km + ' km'} away
+            </Text>
+          </View>
+          <View style={{ 
+            flexDirection: 'row', 
+            justifyContent: 'space-between', 
+            alignItems: 'center' 
+          }}>
+            <Text style={{ 
+              fontFamily: "HankenGrotesk_500Medium", 
+              fontSize: 13, 
+              color: '#6b7280' 
+            }}>
+              Delivery Fee:
+            </Text>
+            <Text style={{ 
+              fontFamily: "HankenGrotesk_600SemiBold", 
+              fontSize: 13, 
+              color: '#111827' 
+            }}>
+              {formatPrice(selectedRider?.eta.fare_amount)}
+            </Text>
+          </View>
+        </View>
+
+        <Text style={{ 
+          fontFamily: "HankenGrotesk_400Regular", 
+          color: '#6b7280', 
+          textAlign: 'center', 
+          marginBottom: 24, 
+          fontSize: 12 
+        }}>
+          We've sent your request to the rider. Please wait for them to accept your delivery request.
+        </Text>
+
+        <View style={{
+          width: '100%',
+          backgroundColor: '#e5e7eb',
+          borderRadius: 20,
+          height: 8,
+          marginBottom: 16
+        }}>
+          <Animated.View
+            style={{
+              backgroundColor: 'green',
+              height: 8,
+              borderRadius: 20,
+              width: progressAnim.interpolate({
+                inputRange: [0, 1],
+                outputRange: ["0%", "100%"],
+              }),
+            }}
+          />
+        </View>
+
+        <View style={{ 
+          flexDirection: 'row', 
+          justifyContent: 'center', 
+          marginBottom: 24 
+        }}>
+          <ActivityIndicator size="large" color="#F75F15" />
+        </View>
+
+        <TouchableOpacity
+          onPress={handleCancelRequest}
+          style={{
+            backgroundColor: '#e5e7eb',
+            paddingVertical: 16,
+            borderRadius: 20,
+            width: '100%'
+          }}
+        >
+          <Text style={{
+            fontFamily: "HankenGrotesk_500Medium",
+            color: '#374151',
+            textAlign: 'center',
+            fontSize: 13,
+            fontWeight: '600'
+          }}>
+            Cancel Request
+          </Text>
+        </TouchableOpacity>
+      </View>
+    </View>
+  )
 
   return (
     <SafeAreaView className="flex-1 bg-gray-50 px-4">
       <StatusBar style="dark" />
+      {/* Show loading overlay only when API request is pending, not when waiting for acceptance */}
+      <LoadingOverlay visible={isPending} />
 
       <View className="flex-row justify-between items-center mb-6">
         <OnboardArrowTextHeader onPressBtn={() => router.back()} />
@@ -518,7 +666,6 @@ const ParcelAvailableRiders = ({ navigation }: { navigation?: any }) => {
         </TouchableOpacity>
       </View>
 
-      {/* Riders List */}
       <ScrollView
         className="flex-1"
         showsVerticalScrollIndicator={false}
@@ -541,21 +688,17 @@ const ParcelAvailableRiders = ({ navigation }: { navigation?: any }) => {
               Select a rider for your parcel delivery
             </Text>
 
-            {riders.map((rider) => {
-              const riderKey = generateRiderKey(rider);
-              return (
-                <RiderCard 
-                  key={riderKey} 
-                  rider={rider} 
-                  isSelected={selectedRiderKey === riderKey} 
-                />
-              );
-            })}
+            {riders.map((rider) => (
+              <RiderCard 
+                key={rider.riders_id} 
+                rider={rider} 
+                isSelected={selectedRiderId === rider.riders_id} 
+              />
+            ))}
           </View>
         )}
       </ScrollView>
 
-      {/* Continue Button */}
       {!isLoading && riders.length > 0 && (
         <View className="py-4 border-t border-gray-100">
           {selectedRider ? (
@@ -569,8 +712,10 @@ const ParcelAvailableRiders = ({ navigation }: { navigation?: any }) => {
         </View>
       )}
 
-      {/* Waiting Modal */}
-      <WaitingModal />
+      {/* Custom Waiting Modal */}
+      <CustomModal visible={isWaitingForAcceptance} onClose={handleCancelRequest}>
+        <WaitingModalContent />
+        </CustomModal>
     </SafeAreaView>
   )
 }

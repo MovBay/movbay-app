@@ -20,10 +20,14 @@ import { Toast } from "react-native-toast-notifications"
 // Package types based on the dropdown shown
 const packageTypes = [
   { label: "Select", value: "" },
-  { label: "Envelope", value: "envelope" },
-  { label: "Parcel", value: "parcel" },
-  { label: "Food", value: "food" },
-  { label: "Fragile", value: "fragile" },
+  { label: "Envelope", value: "Envelope" },
+  { label: "Parcel", value: "Parcel" },
+  { label: "Food", value: "Food" },
+  { label: "Fragile", value: "Fragile" },
+  { label: "Electronics", value: "Electronics" },
+  { label: "Box", value: "Box" },
+  { label: "Crate", value: "Crate" },
+  { label: "Pallet", value: "Pallet" },
   { label: "Others", value: "others" },
 ]
 

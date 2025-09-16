@@ -174,18 +174,19 @@ const getMissingKYCFields = useCallback((kycData: KYCData | null | undefined): s
     setShowVerificationModal(true)
   }, [])
 
-  // Check KYC status when component mounts or KYC data changes
-  useEffect(() => {
-    if (!isKYCLoading && ridersKyc !== undefined) {
-      const kycComplete = isKYCComplete(ridersKyc)
-      if (!kycComplete && isMyAccountVerified) {
-        // Show KYC modal after a short delay to ensure other modals are not conflicting
-        setTimeout(() => {
-          setShowKYCModal(true)
-        }, 1000)
-      }
+ useEffect(() => {
+  if (!isKYCLoading && ridersKyc !== undefined) {
+    const kycComplete = isKYCComplete(ridersKyc)
+    
+    // Show KYC modal immediately if KYC is not complete, regardless of verification status
+    if (!kycComplete) {
+      // Show KYC modal after a short delay to ensure other modals are not conflicting
+      setTimeout(() => {
+        setShowKYCModal(true)
+      }, 1000)
     }
-  }, [ridersKyc, isKYCLoading, isKYCComplete, isMyAccountVerified])
+  }
+}, [ridersKyc, isKYCLoading, isKYCComplete])
 
   // Verification Modal Component
   const renderVerificationModal = () => {
@@ -309,42 +310,34 @@ const getMissingKYCFields = useCallback((kycData: KYCData | null | undefined): s
                 You need to complete your Know Your Customer (KYC) verification to start receiving ride requests and go online.
               </Text>
             </View>
-
-            <View className="mb-6">
-              <Text
-                style={{ fontFamily: "HankenGrotesk_500Medium" }}
-                className="text-base font-semibold text-neutral-800 mb-3"
-              >
-                Missing Information:
-              </Text>
-              <ScrollView className="max-h-40" showsVerticalScrollIndicator={false}>
-                {missingFields.map((field, index) => (
-                  <View key={index} className="flex-row items-center mb-1">
-                    <View className="w-2 h-2 rounded-full bg-[#F75F15] mr-3" />
-                    <Text
-                      style={{ fontFamily: "HankenGrotesk_500Medium" }}
-                      className="text-sm text-neutral-700 flex-1"
-                    >
-                      {field}
-                    </Text>
-                  </View>
-                ))}
-              </ScrollView>
-            </View>
-
-            <View className="">
+            
+            <View className="flex-col gap-2">
               <TouchableOpacity
                 onPress={() => {
                   setShowKYCModal(false)
                   router.push("/(access)/(rider_stacks)/riderKYC")
                 }}
-                className="bg-[#F75F15] py-4 rounded-full items-center"
+                className="bg-[#F75F15] py-3.5 rounded-full items-center"
               >
                 <Text
                   style={{ fontFamily: "HankenGrotesk_500Medium" }}
                   className="text-white font-semibold text-base"
                 >
                   Complete KYC Now
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                onPress={() => {
+                  setShowKYCModal(false)
+                }}
+                className="bg-gray-200 py-3.5 rounded-full items-center"
+              >
+                <Text
+                  style={{ fontFamily: "HankenGrotesk_500Medium" }}
+                  className="text-black font-semibold text-base"
+                >
+                  Cancle
                 </Text>
               </TouchableOpacity>
             </View>
@@ -786,10 +779,10 @@ const getMissingKYCFields = useCallback((kycData: KYCData | null | undefined): s
   const handleStatusTogglePress = (status: boolean) => {
     // Check verification and KYC status before allowing user to go online
     if (status) {
-      if (!isMyAccountVerified) {
-        showVerificationRequiredModal()
-        return
-      }
+      // if (!isMyAccountVerified) {
+      //   showVerificationRequiredModal()
+      //   return
+      // }
       if (!isKYCComplete(ridersKyc)) {
         setShowKYCModal(true)
         return

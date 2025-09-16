@@ -11,13 +11,26 @@ import { StatusBar } from 'expo-status-bar';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { Modal } from 'react-native';
 import { TouchableOpacity } from 'react-native';
 import { SolidLightButton, SolidMainButton } from '@/components/btns/CustomButtoms';
 import { useCart } from "@/context/cart-context"
 import { useFavorites } from '@/context/favorite-context';
 
+// Custom Modal Component
+const CustomModal = ({ visible, onClose, children }:any) => {
+  if (!visible) return null;
 
+  return (
+    <View className='absolute inset-0 flex-1 justify-center items-center bg-black/50 z-50'>
+      <TouchableOpacity 
+        className='absolute inset-0' 
+        onPress={onClose}
+        activeOpacity={1}
+      />
+      {children}
+    </View>
+  );
+};
 
 const Profile = () => {
   const {mutate, isPending} = useLogout();
@@ -202,43 +215,34 @@ const Profile = () => {
           </KeyboardAwareScrollView>
         </View>
 
+        {/* Custom Modal */}
+        <CustomModal visible={showDialog} onClose={closeDialog}>
+          <View className='bg-white rounded-2xl p-8 mx-6 w-[90%]'>
+            <View className='items-center justify-center m-auto rounded-full p-5 bg-neutral-100 w-fit mb-5'>
+              <Ionicons name="log-out-outline" size={30} color={'gray'}/>
+            </View>
+            <Text className='text-xl text-center mb-2' style={{fontFamily: 'HankenGrotesk_600SemiBold'}}>
+              Logout from account
+            </Text>
+            <Text className='text-neutral-500 text-center mb-6 w-[90%] m-auto text-sm' style={{fontFamily: 'HankenGrotesk_500Medium'}}>
+              Are you sure you want to logout from your account? {'\n'} it will clear your cart and saved items, You can always login again later.
+            </Text>
 
-        <Modal
-            visible={showDialog}
-            transparent={true}
-            animationType="fade"
-            onRequestClose={closeDialog}
-          >
-            <View className='flex-1 justify-center items-center bg-black/50'>
-              <View className='bg-white rounded-2xl p-8 mx-6 w-[90%]'>
-                <View className='items-center justify-center m-auto rounded-full p-5 bg-neutral-100 w-fit mb-5'>
-                  <Ionicons name="log-out-outline" size={30} color={'gray'}/>
-                </View>
-                <Text className='text-xl text-center mb-2' style={{fontFamily: 'HankenGrotesk_600SemiBold'}}>
-                  Logout from account
-                </Text>
-                <Text className='text-neutral-500 text-center mb-6 w-[90%] m-auto text-sm' style={{fontFamily: 'HankenGrotesk_500Medium'}}>
-                  Are you sure you want to logout from your account? {'\n'} it will clear your cart and saved items, You can always login again later.
-                </Text>
-  
-                <View className='flex-row items-center justify-between'>
-                  <View className='w-[49%]'>
-                    <SolidLightButton onPress={closeDialog} text='Cancle'/>
-                  </View>
-  
-                  <View className='w-[49%]'>
-                    {isPending? 
-                      <View className='p-3.5 bg-[#F75F15] justify-center items-center rounded-full'>
-                        <ActivityIndicator size={'small'} color={'white'} />
-                      </View> :
-                    <SolidMainButton onPress={handleLogout} text='Logout'/>}
-                  </View>
-                </View>
+            <View className='flex-row items-center justify-between'>
+              <View className='w-[49%]'>
+                <SolidLightButton onPress={closeDialog} text='Cancle'/>
+              </View>
+
+              <View className='w-[49%]'>
+                {isPending? 
+                  <View className='p-3.5 bg-[#F75F15] justify-center items-center rounded-full'>
+                    <ActivityIndicator size={'small'} color={'white'} />
+                  </View> :
+                <SolidMainButton onPress={handleLogout} text='Logout'/>}
               </View>
             </View>
-        </Modal>
-
-
+          </View>
+        </CustomModal>
 
     </SafeAreaView>
   )

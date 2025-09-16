@@ -57,7 +57,7 @@ const RiderKYC = () => {
     const {isRiderVerified, isLoading: isRiderVerifiedLoading} = useGetVerifiedStatus()
     const isMyAccountVerified = isRiderVerified?.data?.verified
 
-    console.log('Riders KYC Data:', riderKYC?.data)
+    // console.log('Riders KYC Data:', riderKYC?.data)
     
     // Image preview states
     const [previewModal, setPreviewModal] = useState({
@@ -123,57 +123,7 @@ const RiderKYC = () => {
             </View>
           </View>
 
-          <View className="flex-row items-center mt-6 ">
-            <Pressable
-              onPress={() => router.push("/(access)/(rider_tabs)/riderProfile")}
-              className="flex w-14 h-14 mr-2 rounded-full justify-center items-center overflow-hidden relative"
-            >
-              {profile?.data?.profile_picture === null ? (
-                <MaterialIcons name="person-4" size={35} color={"gray"} style={{padding: 3}}/>
-              ) : (
-                <Image
-                  source={{ uri: profile?.data?.profile_picture }}
-                  style={{ objectFit: "cover", width: "100%", height: "100%" }}
-                />
-              )}
-            </Pressable>
-            <View className="flex-1">
-              <View className="flex-row items-center">
-                <View>
-                  <View className="flex-row items-center">
-                    <Text
-                      style={{ fontFamily: "HankenGrotesk_500Medium" }}
-                      className="text-black font-semibold text-base"
-                    >
-                      {profile?.data?.fullname}
-                    </Text>
-                    {!isMyAccountVerified && !isRiderVerifiedLoading ? (
-                      <View className="">
-                        <MaterialIcons name="error-outline" size={14} color="red" style={{ marginLeft: 2 }} />
-                      </View>
-                    ): 
-                      <View className="">
-                        <MaterialIcons name="verified" size={14} color="green" style={{ marginLeft: 2 }} />
-                      </View>
-                    }
-                  </View>
-                  <Text
-                    style={{ fontFamily: "HankenGrotesk_400Regular", fontSize: 12 }}
-                    className="text-gray-500 font-semibold mr-2"
-                  >
-                    @{profile?.data?.username}
-                  </Text>
-                </View>
-              </View>
-            </View>
-      
-          </View>
-            
-            {!isMyAccountVerified === true && (
-              <View className='bg-yellow-50 border border-yellow-200 p-3 rounded-lg mt-4'>
-                <Text className='text-sm text-yellow-600 text-center'>Your account has not been verified</Text>
-              </View>
-            )}
+          
               
 
           {!hasKYCData ? (
@@ -201,6 +151,58 @@ const RiderKYC = () => {
           ) : (
             // Existing KYC Data Display
             <>
+            <View className="flex-row items-center mt-6 ">
+              {/* <Pressable
+                onPress={() => router.push("/(access)/(rider_tabs)/riderProfile")}
+                className="flex w-14 h-14 mr-2 rounded-full justify-center items-center overflow-hidden relative"
+              >
+                {profile?.data?.profile_picture === null ? (
+                  <MaterialIcons name="person-4" size={35} color={"gray"} style={{padding: 3}}/>
+                ) : (
+                  <Image
+                    source={{ uri: profile?.data?.profile_picture }}
+                    style={{ objectFit: "cover", width: "100%", height: "100%" }}
+                  />
+                )}
+              </Pressable>
+
+              <View className="flex-1">
+                <View className="flex-row items-center">
+                  <View>
+                    <View className="flex-row items-center">
+                      <Text
+                        style={{ fontFamily: "HankenGrotesk_500Medium" }}
+                        className="text-black font-semibold text-base"
+                      >
+                        {profile?.data?.fullname}
+                      </Text>
+                      {!isMyAccountVerified && !isRiderVerifiedLoading ? (
+                        <View className="">
+                          <MaterialIcons name="error-outline" size={14} color="red" style={{ marginLeft: 2 }} />
+                        </View>
+                      ): 
+                        <View className="">
+                          <MaterialIcons name="verified" size={14} color="green" style={{ marginLeft: 2 }} />
+                        </View>
+                      }
+                    </View>
+                    <Text
+                      style={{ fontFamily: "HankenGrotesk_400Regular", fontSize: 12 }}
+                      className="text-gray-500 font-semibold mr-2"
+                    >
+                      @{profile?.data?.username}
+                    </Text>
+                  </View>
+                </View>
+              </View> */}
+        
+            </View>
+            
+            {!isMyAccountVerified === true && (
+              <View className='bg-yellow-50 border border-yellow-200 p-3 rounded-lg mt-4'>
+                <Text className='text-sm text-yellow-600 text-center'>Your account has not been verified</Text>
+              </View>
+            )}
               {/* KYC Documents Section */}
               <View className="mt-6 space-y-4">
                 {/* Valid ID/NIN */}
