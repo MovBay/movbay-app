@@ -47,7 +47,7 @@ const Profile = () => {
     await AsyncStorage.removeItem("movebay_usertype");
     await AsyncStorage.removeItem("movebay_onboarding");
     await clearCart()
-    await clearFavorites()
+    // await clearFavorites()
     router.replace("/login");
   };
 
@@ -234,11 +234,7 @@ const Profile = () => {
               </View>
 
               <View className='w-[49%]'>
-                {isPending? 
-                  <View className='p-3.5 bg-[#F75F15] justify-center items-center rounded-full'>
-                    <ActivityIndicator size={'small'} color={'white'} />
-                  </View> :
-                <SolidMainButton onPress={handleLogout} text='Logout'/>}
+                <SolidMainButton onPress={handleLogout} text='Logout'/>
               </View>
             </View>
           </View>

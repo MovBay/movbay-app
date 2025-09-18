@@ -23,7 +23,8 @@ module.exports = {
       },
       
       "package": "com.bright210.movbayapp",
-      "googleServicesFile": "./google-services.json"
+      "googleServicesFile": "./google-services.json",
+      "softwareKeyboardLayoutMode": "pan"
     },
     "web": {
       "bundler": "metro",

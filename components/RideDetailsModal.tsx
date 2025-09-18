@@ -21,13 +21,46 @@ const RideDetailsModal: React.FC<RideDetailsModalProps> = ({
   onAccept, 
   onDecline
 }) => {
-  const { mutate: acceptRide, isPending: isAccepting } = useAcceptRide(ride?.order?.order_id)
+  // Use order_id for orders, package_delivery_id for packages
+  const acceptRideId = ride?.delivery_type === "Package" ? ride?.package_delivery?.id : ride?.order?.order_id;
+  const { mutate: acceptRide, isPending: isAccepting } = useAcceptRide(acceptRideId)
   const toast = useToast()
 
-    console.log("Accepted Rides:", ride)
-
+  console.log("Accepted Rides:", ride)
 
   if (!ride) return null
+
+  // Helper function to get display data based on delivery type
+  const getRideDisplayData = (ride: any) => {
+    if (ride.delivery_type === "Package") {
+      return {
+        storeName: ride.package_delivery?.sender?.fullname || "Package Sender",
+        storeUsername: ride.package_delivery?.sender?.username || "",
+        storeImage: ride.package_delivery?.sender?.profile_picture || "https://via.placeholder.com/40",
+        pickupAddress: ride.package_delivery?.pick_address || "Pickup Address",
+        dropoffAddress: ride.package_delivery?.drop_address || "Drop-off Address",
+        recipientName: ride.package_delivery?.recipient_name || "",
+        packageType: ride.package_delivery?.package_type || "",
+        packageDescription: ride.package_delivery?.package_description || "",
+        additionalNotes: ride.package_delivery?.additional_notes || ""
+      }
+    } else {
+      // Order delivery (existing logic)
+      return {
+        storeName: ride.order?.order_items[0]?.product?.store?.name || "Store",
+        storeUsername: ride.order?.order_items[0]?.product?.store?.owner?.username || "",
+        storeImage: ride.order?.order_items[0]?.product?.store?.store_image || "https://via.placeholder.com/40",
+        pickupAddress: ride.order?.order_items[0]?.product?.store?.address1 || "Store Address",
+        dropoffAddress: `${ride.order?.delivery[0]?.delivery_address}, ${ride.order?.delivery[0]?.city}, ${ride.order?.delivery[0]?.state}` || "Delivery Address",
+        recipientName: "",
+        packageType: "",
+        packageDescription: "",
+        additionalNotes: ""
+      }
+    }
+  }
+
+  const displayData = getRideDisplayData(ride);
 
   const handleAcceptRide = () => {
     const acceptData = {}
@@ -51,20 +84,70 @@ const RideDetailsModal: React.FC<RideDetailsModalProps> = ({
       <View className="flex-1 justify-center items-center bg-black/50 px-4">
         <View className="bg-white rounded-3xl p-8 py-8 w-[90%] shadow-xl">
           {/* Header */}
-          <View className="flex-row items-center mb-4">
-            <Image
-              source={{ uri: ride.order?.order_items[0]?.product?.store?.store_image }}
-              className="w-10 h-10 rounded-full mr-3"
-            />
-            <View className="flex-1">
-              <Text style={{ fontFamily: "HankenGrotesk_500Medium" }} className="text-base font-bold text-neutral-900">
-                {ride.order?.order_items[0]?.product?.store?.name}
-              </Text>
-              <Text style={{ fontFamily: "HankenGrotesk_500Medium" }} className="text-xs text-neutral-500">
-                @{ride.order?.order_items[0]?.product?.store?.owner?.username}
-              </Text>
+
+          <View className="flex-row justify-between items-center mb-6">
+            <View className="flex-row items-center">
+              <Image
+                source={{ uri: displayData.storeImage }}
+                className="w-10 h-10 rounded-full mr-3"
+              />
+              <View className="flex-1">
+                <Text style={{ fontFamily: "HankenGrotesk_500Medium" }} className="text-base font-bold text-neutral-900">
+                  {displayData.storeName}
+                </Text>
+                {displayData.storeUsername && (
+                  <Text style={{ fontFamily: "HankenGrotesk_500Medium" }} className="text-xs text-neutral-500">
+                    @{displayData.storeUsername}
+                  </Text>
+                )}
+                {/* Show delivery type badge */}
+              </View>
+                <View className={`mt-1 px-3 py-1 rounded-full self-start ${ride.delivery_type === "Package" ? "bg-green-100" : "bg-green-100"}`}>
+                  <Text className={`text-xs font-semibold ${ride.delivery_type === "Package" ? "text-green-700" : "text-green-700"}`}>
+                    {ride.delivery_type === "Package" ? "Package" : "Order"}
+                  </Text>
+                </View>
             </View>
           </View>
+
+          {/* Package Details (for package deliveries) */}
+          {ride.delivery_type === "Package" && (
+            <View className="mb-4 bg-green-50 p-3 rounded-2xl">
+              <Text style={{ fontFamily: "HankenGrotesk_700Bold" }} className="text-sm font-bold text-green-950 mb-2">
+                Package Info.
+              </Text>
+              {displayData.packageType && (
+                <View className="flex-row justify-between mb-1">
+                  <Text style={{ fontFamily: "HankenGrotesk_500Medium" }} className="text-green-900 text-xs">
+                    Package Type:
+                  </Text>
+                  <Text style={{ fontFamily: "HankenGrotesk_600SemiBold" }} className="text-green-900 text-xs font-bold">
+                    {displayData.packageType}
+                  </Text>
+                </View>
+              )}
+              {displayData.packageDescription && (
+                <View className="flex-row justify-between mb-1">
+                  <Text style={{ fontFamily: "HankenGrotesk_500Medium" }} className="text-green-900 text-xs">
+                    Description:
+                  </Text>
+                  <Text style={{ fontFamily: "HankenGrotesk_600SemiBold" }} className="text-green-900 text-xs font-bold">
+                    {displayData.packageDescription}
+                  </Text>
+                </View>
+              )}
+              {displayData.recipientName && (
+                <View className="flex-row justify-between">
+                  <Text style={{ fontFamily: "HankenGrotesk_500Medium" }} className="text-green-900 text-xs">
+                    Recipient:
+                  </Text>
+                  <Text style={{ fontFamily: "HankenGrotesk_600SemiBold" }} className="text-green-950 text-xs font-bold">
+                    {displayData.recipientName}
+                  </Text>
+                </View>
+              )}
+            </View>
+          )}
 
           {/* Pickup & Drop-off */}
           <View className="mb-4">
@@ -81,7 +164,7 @@ const RideDetailsModal: React.FC<RideDetailsModalProps> = ({
                   Pickup
                 </Text>
                 <Text style={{ fontFamily: "HankenGrotesk_500Medium" }} className="text-xs text-neutral-600 leading-4">
-                  {ride.order?.order_items[0]?.product?.store?.address1}
+                  {displayData.pickupAddress}
                 </Text>
               </View>
             </View>
@@ -97,7 +180,7 @@ const RideDetailsModal: React.FC<RideDetailsModalProps> = ({
                   Drop off Address
                 </Text>
                 <Text style={{ fontFamily: "HankenGrotesk_500Medium" }} className="text-xs text-neutral-600 leading-4">
-                  {ride.order?.delivery[0]?.delivery_address}, {ride.order?.delivery[0]?.city}, {ride.order?.delivery[0]?.state}
+                  {displayData.dropoffAddress}
                 </Text>
               </View>
             </View>
@@ -157,7 +240,10 @@ const RideDetailsModal: React.FC<RideDetailsModalProps> = ({
                 style={{ fontFamily: "HankenGrotesk_500Medium" }}
                 className="text-neutral-900 font-semibold text-sm"
               >
-                {ride.specialNotes || "N/A"}
+                {ride.delivery_type === "Package" 
+                  ? (displayData.additionalNotes || "N/A")
+                  : (ride.specialNotes || "N/A")
+                }
               </Text>
             </View>
           </View>
