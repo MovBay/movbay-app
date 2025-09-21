@@ -20,6 +20,8 @@ import { useToast } from "react-native-toast-notifications"
 import { SolidInactiveButton, SolidMainButton } from "@/components/btns/CustomButtoms"
 import { useGetNearbyRides, useSendRidersRequest } from '@/hooks/mutations/parcelAuth'
 import LoadingOverlay from "@/components/LoadingOverlay"
+import { useNotification } from "@/context/NotificationContext"
+import { Easing } from "react-native-reanimated"
 
 interface Rider {
   riders_id: string
@@ -77,16 +79,89 @@ const CustomModal = ({ visible, children, onClose }: { visible: boolean; childre
   );
 };
 
+const WaveLoader = () => {
+  const wave1 = useRef(new Animated.Value(0)).current;
+  const wave2 = useRef(new Animated.Value(0)).current;
+  const wave3 = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    const createWave = (animValue:any, delay:any) =>
+      Animated.loop(
+        Animated.sequence([
+          Animated.delay(delay),
+          Animated.timing(animValue, {
+            toValue: 1,
+            duration: 1200,
+            useNativeDriver: true,
+            easing: Easing.inOut(Easing.ease),
+          }),
+          Animated.timing(animValue, {
+            toValue: 0,
+            duration: 1200,
+            useNativeDriver: true,
+            easing: Easing.inOut(Easing.ease),
+          }),
+        ])
+      );
+
+    const wave1Anim = createWave(wave1, 0);
+    const wave2Anim = createWave(wave2, 200);
+    const wave3Anim = createWave(wave3, 400);
+
+    wave1Anim.start();
+    wave2Anim.start();
+    wave3Anim.start();
+
+    return () => {
+      wave1Anim.stop();
+      wave2Anim.stop();
+      wave3Anim.stop();
+    };
+  }, []);
+
+  return (
+    <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 16 }}>
+      {[wave1, wave2, wave3].map((wave, index) => (
+        <Animated.View
+          key={index}
+          style={{
+            width: 10,
+            height: 10,
+            borderRadius: 50,
+            backgroundColor: 'green',
+            marginHorizontal: 3,
+            transform: [
+              {
+                scale: wave.interpolate({
+                  inputRange: [0, 0.5, 1],
+                  outputRange: [0.8, 1.5, 0.8],
+                }),
+              },
+            ],
+            opacity: wave.interpolate({
+              inputRange: [0, 0.5, 1],
+              outputRange: [0.5, 1, 0.5],
+            }),
+          }}
+        />
+      ))}
+    </View>
+  );
+};
+
 const ParcelAvailableRiders = ({ navigation }: { navigation?: any }) => {
   const [selectedRiderId, setSelectedRiderId] = useState<string | null>(null)
   const [isWaitingForAcceptance, setIsWaitingForAcceptance] = useState(false)
+  const [rideAccepted, setRideAccepted] = useState(false) // New state for ride acceptance
   const [summaryData, setSummaryData] = useState<SummaryData | null>(null)
   const [riders, setRiders] = useState<Rider[]>([])
   const [refreshing, setRefreshing] = useState(false)
+
+  const { setOnAcceptedRideNotification, shouldRefresh, clearRefreshFlag } = useNotification()
   
   const params = useLocalSearchParams()
   const toast = useToast()
-  const progressAnim = useRef(new Animated.Value(0)).current
+  const progressAnim = useRef(new Animated.Value(1)).current // Start at 1 (full) instead of 0
 
   // Call the hook after summaryData is available
   const {mutate, isPending} = useSendRidersRequest(selectedRiderId)
@@ -116,6 +191,29 @@ const ParcelAvailableRiders = ({ navigation }: { navigation?: any }) => {
     }
   }, [params.summaryData]);
 
+  // Handle ride acceptance notification
+  const handleRideAcceptedNotification = useCallback(() => {
+    console.log("🎉 Ride accepted notification received!");
+    setRideAccepted(true);
+    progressAnim.stopAnimation();
+    toast.show("Great! Your ride has been accepted!", { type: "success" });
+  }, [progressAnim, toast]);
+
+  // Set up notification listener for ride acceptance
+  useEffect(() => {
+    if (setOnAcceptedRideNotification) {
+      setOnAcceptedRideNotification(handleRideAcceptedNotification);
+    }
+  }, [setOnAcceptedRideNotification, handleRideAcceptedNotification]);
+
+  // Handle notification refresh
+  useEffect(() => {
+    if (shouldRefresh && clearRefreshFlag && isWaitingForAcceptance && !rideAccepted) {
+      console.log("🔄 Refreshing due to notification while waiting...");
+      clearRefreshFlag();
+    }
+  }, [shouldRefresh, clearRefreshFlag, isWaitingForAcceptance, rideAccepted]);
+
   // Handle nearby rides data
   useEffect(() => {
     if (nearbyRides?.data) {
@@ -132,18 +230,6 @@ const ParcelAvailableRiders = ({ navigation }: { navigation?: any }) => {
     }
   }, [nearbyRides, isError, toast]);
 
-  const startProgressAnimation = useCallback(() => {
-    progressAnim.setValue(0)
-    Animated.timing(progressAnim, {
-      toValue: 1,
-      duration: 150000,
-      useNativeDriver: false,
-    }).start(() => {
-      setIsWaitingForAcceptance(false)
-      toast.show("No reply yet, Please select another rider.", { type: "error" })
-    })
-  }, [progressAnim, toast])
-
   const handleRiderSelect = useCallback((rider: Rider) => {
     console.log('Rider selected:', rider);
     if (selectedRiderId === rider.riders_id) {
@@ -157,7 +243,6 @@ const ParcelAvailableRiders = ({ navigation }: { navigation?: any }) => {
   const handleContinue = useCallback(() => {
     if (selectedRider && summaryData) {
       console.log('With parcel data:', summaryData)
-
       const payload = {
         recipient_name: summaryData.recipientName,
         pick_address: summaryData.pickupAddress,
@@ -176,18 +261,17 @@ const ParcelAvailableRiders = ({ navigation }: { navigation?: any }) => {
       mutate(payload, {
         onSuccess: (response) => {
           console.log('Request successful:', response.data);
-          // Only show waiting modal on success
+          setRideAccepted(false);
           setIsWaitingForAcceptance(true);
-          startProgressAnimation();
+          // startProgressAnimation();
         },
         onError: (error) => {
           console.error('Request failed:', error);
           toast.show('Failed to send request to rider. Please try again.', { type: 'error' });
-          // Don't show waiting modal on error
         }
       });
     }
-  }, [selectedRider, summaryData, mutate, startProgressAnimation, toast])
+  }, [selectedRider, summaryData, mutate, toast])
 
   const onRefresh = useCallback(() => {
     setRefreshing(true)
@@ -226,7 +310,7 @@ const ParcelAvailableRiders = ({ navigation }: { navigation?: any }) => {
   }, [])
 
   const getVehicleIcon = useCallback((vehicleType: string) => {
-    switch (vehicleType.toLowerCase()) {
+    switch (vehicleType) {
       case "motorcycle":
       case "scooter":
       case "bicycle":
@@ -240,10 +324,23 @@ const ParcelAvailableRiders = ({ navigation }: { navigation?: any }) => {
 
   const handleCancelRequest = useCallback(() => {
     setIsWaitingForAcceptance(false)
+    setRideAccepted(false)
     progressAnim.stopAnimation()
-    progressAnim.setValue(0)
+    progressAnim.setValue(1) // Reset to full
     setSelectedRiderId(null)
   }, [progressAnim])
+
+  const handleProceedToPayment = useCallback(() => {
+    setIsWaitingForAcceptance(false);
+    toast.show("Proceeding to payment...", { type: "success" });
+    router.push({
+      pathname: '/(access)/(user_stacks)/courier/parcel-checkout',
+      params: {
+        riderData: JSON.stringify(selectedRider),
+        summaryData: JSON.stringify(summaryData)
+      }
+    });
+  }, [selectedRider, summaryData, toast]);
 
   const formatPrice = useCallback((fareAmount: string | number | undefined | null) => {
     if (fareAmount === undefined || fareAmount === null || fareAmount === '') {
@@ -444,204 +541,300 @@ const ParcelAvailableRiders = ({ navigation }: { navigation?: any }) => {
             borderWidth: 1,
             borderColor: 'white'
           }}>
-            <MaterialIcons name="verified" size={20} color="green" />
+            <MaterialIcons name="verified" size={30} color="green" />
           </View>
         </View>
 
-        <Text style={{ 
-          fontFamily: "HankenGrotesk_600SemiBold", 
-          fontSize: 18, 
-          color: '#6b7280', 
-          marginBottom: 12,
-          textAlign: 'center'
-        }}>
-          Waiting for {selectedRider?.riders_name} ...
-        </Text>
-
-        <View style={{ 
-          flexDirection: 'row', 
-          alignItems: 'center', 
-          marginBottom: 12 
-        }}>
-          <View style={{
-            backgroundColor: '#dcfce7',
-            paddingHorizontal: 12,
-            paddingVertical: 4,
-            borderRadius: 20,
-            marginRight: 8
-          }}>
+        {rideAccepted ? (
+          // Ride Accepted UI
+          <>
             <Text style={{ 
-              fontFamily: "HankenGrotesk_500Medium", 
-              fontSize: 12, 
-              color: '#15803d'
+              fontFamily: "HankenGrotesk_600SemiBold", 
+              fontSize: 18, 
+              color: '#059669', 
+              marginBottom: 12,
+              textAlign: 'center'
             }}>
-              Verified Rider
+              🎉 Ride Accepted!
             </Text>
-          </View>
-          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-            {renderStarRating(selectedRider?.rating || 0)}
+
             <Text style={{ 
               fontFamily: "HankenGrotesk_500Medium", 
               fontSize: 14, 
               color: '#6b7280', 
-              marginLeft: 4 
+              marginBottom: 16,
+              textAlign: 'center'
             }}>
-              {selectedRider?.rating}
+              {selectedRider?.riders_name} has accepted your delivery request
             </Text>
-          </View>
-        </View>
 
-        <View style={{
-          backgroundColor: '#f9fafb',
-          borderRadius: 12,
-          padding: 16,
-          width: '100%',
-          marginBottom: 16
-        }}>
-          <View style={{ 
-            flexDirection: 'row', 
-            justifyContent: 'space-between', 
-            alignItems: 'center', 
-            marginBottom: 8 
-          }}>
-            <Text style={{ 
-              fontFamily: "HankenGrotesk_500Medium", 
-              fontSize: 13, 
-              color: '#6b7280' 
+            <View style={{
+              backgroundColor: '#dcfce7',
+              borderRadius: 12,
+              padding: 16,
+              width: '100%',
+              marginBottom: 20,
+              borderWidth: 1,
+              borderColor: '#bbf7d0'
             }}>
-              Vehicle:
-            </Text>
-            <Text style={{ 
-              fontFamily: "HankenGrotesk_600SemiBold", 
-              fontSize: 13, 
-              color: '#111827' 
-            }}>
-              {selectedRider?.vehicle_color} {selectedRider?.vehicle_type}
-            </Text>
-          </View>
-          {(selectedRider?.plate_number || selectedRider?.license) && (
+              <View style={{ 
+                flexDirection: 'row', 
+                justifyContent: 'space-between', 
+                alignItems: 'center', 
+                marginBottom: 8 
+              }}>
+                <Text style={{ 
+                  fontFamily: "HankenGrotesk_500Medium", 
+                  fontSize: 12, 
+                  color: '#059669' 
+                }}>
+                  Rider:
+                </Text>
+                <Text style={{ 
+                  fontFamily: "HankenGrotesk_600SemiBold", 
+                  fontSize: 12, 
+                  color: '#047857' 
+                }}>
+                  {selectedRider?.riders_name}
+                </Text>
+              </View>
+              <View style={{ 
+                flexDirection: 'row', 
+                justifyContent: 'space-between', 
+                alignItems: 'center', 
+                marginBottom: 8 
+              }}>
+                <Text style={{ 
+                  fontFamily: "HankenGrotesk_500Medium", 
+                  fontSize: 12, 
+                  color: '#059669' 
+                }}>
+                  Vehicle:
+                </Text>
+                <Text style={{ 
+                  fontFamily: "HankenGrotesk_600SemiBold", 
+                  fontSize: 12, 
+                  color: '#047857' 
+                }}>
+                  {selectedRider?.vehicle_color} {selectedRider?.vehicle_type}
+                </Text>
+              </View>
+              <View style={{ 
+                flexDirection: 'row', 
+                justifyContent: 'space-between', 
+                alignItems: 'center' 
+              }}>
+                <Text style={{ 
+                  fontFamily: "HankenGrotesk_500Medium", 
+                  fontSize: 12, 
+                  color: '#059669' 
+                }}>
+                  Total Cost:
+                </Text>
+                <Text style={{ 
+                  fontFamily: "HankenGrotesk_600SemiBold", 
+                  fontSize: 15, 
+                  color: '#047857' 
+                }}>
+                  {formatPrice(selectedRider?.eta.fare_amount)}
+                </Text>
+              </View>
+            </View>
+
+            {/* Payment and Cancel Buttons */}
             <View style={{ 
               flexDirection: 'row', 
-              justifyContent: 'space-between', 
-              alignItems: 'center', 
-              marginBottom: 8 
+              gap: 12, 
+              width: '100%' 
             }}>
-              <Text style={{ 
-                fontFamily: "HankenGrotesk_500Medium", 
-                fontSize: 14, 
-                color: '#6b7280' 
-              }}>
-                Plate Number:
-              </Text>
-              <Text style={{ 
-                fontFamily: "HankenGrotesk_600SemiBold", 
-                fontSize: 13, 
-                color: '#111827' 
-              }}>
-                {selectedRider?.plate_number || selectedRider?.license}
-              </Text>
+              <TouchableOpacity
+                onPress={handleCancelRequest}
+                style={{
+                  backgroundColor: '#f3f4f6',
+                  paddingVertical: 14,
+                  borderRadius: 100,
+                  flex: 1,
+                  borderWidth: 1,
+                  borderColor: '#e5e7eb'
+                }}
+              >
+                <Text style={{
+                  fontFamily: "HankenGrotesk_500Medium",
+                  color: '#6b7280',
+                  textAlign: 'center',
+                  fontSize: 12,
+                  fontWeight: '600'
+                }}>
+                  Cancel
+                </Text>
+              </TouchableOpacity>
+
+              <View className="" style={{flex: 2}}>
+                <SolidMainButton onPress={handleProceedToPayment} text="Proceed to Payment"/>
+              </View>
             </View>
-          )}
-          <View style={{ 
-            flexDirection: 'row', 
-            justifyContent: 'space-between', 
-            alignItems: 'center', 
-            marginBottom: 8 
-          }}>
-            <Text style={{ 
-              fontFamily: "HankenGrotesk_500Medium", 
-              fontSize: 13, 
-              color: '#6b7280' 
-            }}>
-              Distance:
-            </Text>
+          </>
+        ) : (
+          // Waiting UI
+          <>
             <Text style={{ 
               fontFamily: "HankenGrotesk_600SemiBold", 
-              fontSize: 13, 
-              color: '#111827' 
+              fontSize: 18, 
+              color: '#6b7280', 
+              marginBottom: 12,
+              textAlign: 'center'
             }}>
-              {selectedRider?.eta.distance || selectedRider?.eta.distance_km + ' km'} away
+              Waiting for {selectedRider?.riders_name} ...
             </Text>
-          </View>
-          <View style={{ 
-            flexDirection: 'row', 
-            justifyContent: 'space-between', 
-            alignItems: 'center' 
-          }}>
+
+            <View style={{ 
+              flexDirection: 'row', 
+              alignItems: 'center', 
+              marginBottom: 12 
+            }}>
+              <View style={{
+                backgroundColor: '#dcfce7',
+                paddingHorizontal: 12,
+                paddingVertical: 4,
+                borderRadius: 20,
+                marginRight: 8
+              }}>
+                <Text style={{ 
+                  fontFamily: "HankenGrotesk_500Medium", 
+                  fontSize: 12, 
+                  color: '#15803d'
+                }}>
+                  Verified Rider
+                </Text>
+              </View>
+            </View>
+
+            <View style={{
+              backgroundColor: '#f9fafb',
+              borderRadius: 12,
+              padding: 16,
+              width: '100%',
+              marginBottom: 16
+            }}>
+              <View style={{ 
+                flexDirection: 'row', 
+                justifyContent: 'space-between', 
+                alignItems: 'center', 
+                marginBottom: 8 
+              }}>
+                <Text style={{ 
+                  fontFamily: "HankenGrotesk_500Medium", 
+                  fontSize: 12, 
+                  color: '#6b7280' 
+                }}>
+                  Vehicle:
+                </Text>
+                <Text style={{ 
+                  fontFamily: "HankenGrotesk_600SemiBold", 
+                  fontSize: 12, 
+                  color: '#111827' 
+                }}>
+                  {selectedRider?.vehicle_color} {selectedRider?.vehicle_type}
+                </Text>
+              </View>
+              {(selectedRider?.plate_number || selectedRider?.license) && (
+                <View style={{ 
+                  flexDirection: 'row', 
+                  justifyContent: 'space-between', 
+                  alignItems: 'center', 
+                  marginBottom: 8 
+                }}>
+                  <Text style={{ 
+                    fontFamily: "HankenGrotesk_500Medium", 
+                    fontSize: 14, 
+                    color: '#6b7280' 
+                  }}>
+                    Plate Number:
+                  </Text>
+                  <Text style={{ 
+                    fontFamily: "HankenGrotesk_600SemiBold", 
+                    fontSize: 12, 
+                    color: '#111827' 
+                  }}>
+                    {selectedRider?.plate_number || selectedRider?.license}
+                  </Text>
+                </View>
+              )}
+              <View style={{ 
+                flexDirection: 'row', 
+                justifyContent: 'space-between', 
+                alignItems: 'center', 
+                marginBottom: 8 
+              }}>
+                <Text style={{ 
+                  fontFamily: "HankenGrotesk_500Medium", 
+                  fontSize: 12, 
+                  color: '#6b7280' 
+                }}>
+                  Distance:
+                </Text>
+                <Text style={{ 
+                  fontFamily: "HankenGrotesk_600SemiBold", 
+                  fontSize: 12, 
+                  color: '#111827' 
+                }}>
+                  {selectedRider?.eta.distance || selectedRider?.eta.distance_km + ' km'} away
+                </Text>
+              </View>
+              <View style={{ 
+                flexDirection: 'row', 
+                justifyContent: 'space-between', 
+                alignItems: 'center' 
+              }}>
+                <Text style={{ 
+                  fontFamily: "HankenGrotesk_500Medium", 
+                  fontSize: 12, 
+                  color: '#6b7280' 
+                }}>
+                  Delivery Fee:
+                </Text>
+                <Text style={{ 
+                  fontFamily: "HankenGrotesk_600SemiBold", 
+                  fontSize: 12, 
+                  color: '#111827' 
+                }}>
+                  {formatPrice(selectedRider?.eta.fare_amount)}
+                </Text>
+              </View>
+            </View>
+
             <Text style={{ 
-              fontFamily: "HankenGrotesk_500Medium", 
-              fontSize: 13, 
-              color: '#6b7280' 
+              fontFamily: "HankenGrotesk_400Regular", 
+              color: '#6b7280', 
+              textAlign: 'center', 
+              marginBottom: 24, 
+              fontSize: 12 
             }}>
-              Delivery Fee:
+              We've sent your request to the rider. Please wait for them to accept your delivery request.
             </Text>
-            <Text style={{ 
-              fontFamily: "HankenGrotesk_600SemiBold", 
-              fontSize: 13, 
-              color: '#111827' 
-            }}>
-              {formatPrice(selectedRider?.eta.fare_amount)}
-            </Text>
-          </View>
-        </View>
-
-        <Text style={{ 
-          fontFamily: "HankenGrotesk_400Regular", 
-          color: '#6b7280', 
-          textAlign: 'center', 
-          marginBottom: 24, 
-          fontSize: 12 
-        }}>
-          We've sent your request to the rider. Please wait for them to accept your delivery request.
-        </Text>
-
-        <View style={{
-          width: '100%',
-          backgroundColor: '#e5e7eb',
-          borderRadius: 20,
-          height: 8,
-          marginBottom: 16
-        }}>
-          <Animated.View
-            style={{
-              backgroundColor: 'green',
-              height: 8,
-              borderRadius: 20,
-              width: progressAnim.interpolate({
-                inputRange: [0, 1],
-                outputRange: ["0%", "100%"],
-              }),
-            }}
-          />
-        </View>
-
-        <View style={{ 
-          flexDirection: 'row', 
-          justifyContent: 'center', 
-          marginBottom: 24 
-        }}>
-          <ActivityIndicator size="large" color="#F75F15" />
-        </View>
-
-        <TouchableOpacity
-          onPress={handleCancelRequest}
-          style={{
-            backgroundColor: '#e5e7eb',
-            paddingVertical: 16,
-            borderRadius: 20,
-            width: '100%'
-          }}
-        >
-          <Text style={{
-            fontFamily: "HankenGrotesk_500Medium",
-            color: '#374151',
-            textAlign: 'center',
-            fontSize: 13,
-            fontWeight: '600'
-          }}>
-            Cancel Request
-          </Text>
-        </TouchableOpacity>
+            <WaveLoader />
+            <TouchableOpacity
+              onPress={handleCancelRequest}
+              style={{
+                backgroundColor: '#e5e7eb',
+                paddingVertical: 14,
+                borderRadius: 50,
+                width: '100%',
+                marginTop: 30
+              }}
+            >
+              <Text style={{
+                fontFamily: "HankenGrotesk_500Medium",
+                color: '#374151',
+                textAlign: 'center',
+                fontSize: 12,
+                fontWeight: '600'
+              }}>
+                Cancel Request
+              </Text>
+            </TouchableOpacity>
+          </>
+        )}
       </View>
     </View>
   )
@@ -715,7 +908,7 @@ const ParcelAvailableRiders = ({ navigation }: { navigation?: any }) => {
       {/* Custom Waiting Modal */}
       <CustomModal visible={isWaitingForAcceptance} onClose={handleCancelRequest}>
         <WaitingModalContent />
-        </CustomModal>
+      </CustomModal>
     </SafeAreaView>
   )
 }

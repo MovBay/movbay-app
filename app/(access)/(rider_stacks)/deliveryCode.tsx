@@ -1,7 +1,7 @@
-import React, { useState, useCallback, useEffect } from 'react'
+import React, { useState, useCallback, useEffect, useMemo } from 'react'
 import { View, Text, TouchableOpacity, TextInput, StyleSheet, ActivityIndicator } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
-import { useVerifyDeliveryOrder } from '@/hooks/mutations/ridersAuth'
+import { useVerifyDeliveryOrder, useVerifyDeliveryPackage } from '@/hooks/mutations/ridersAuth'
 import { useToast } from 'react-native-toast-notifications'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { useRouter, useLocalSearchParams } from 'expo-router'
@@ -35,15 +35,52 @@ const DeliveryCode = () => {
   const [isValidating, setIsValidating] = useState(false)
   const toast = useToast()
   const router = useRouter()
-  const { orderId } = useLocalSearchParams()
+  const { orderId, deliveryType, rideData, packageId } = useLocalSearchParams()
   
-  const { mutate: verifyOrder, isPending } = useVerifyDeliveryOrder(orderId)
+  // Parse ride data if available
+  const parsedRideData = useMemo(() => {
+    try {
+      return rideData ? JSON.parse(rideData as string) : null
+    } catch (error) {
+      console.warn("🔍 Error parsing ride data:", error)
+      return null
+    }
+  }, [rideData])
+
+  // Determine delivery type from multiple sources
+  const currentDeliveryType = useMemo(() => {
+    if (deliveryType) return deliveryType as string
+    if (parsedRideData?.delivery_type) return parsedRideData.delivery_type
+    return "Order"
+  }, [deliveryType, parsedRideData])
+
+  // Determine if this is a package delivery
+  const isPackageDelivery = useMemo(() => {
+    return currentDeliveryType === "Package" && (parsedRideData?.package_delivery != null)
+  }, [currentDeliveryType, parsedRideData])
+
+  // Determine if this is an order delivery
+  const isOrderDelivery = useMemo(() => {
+    return currentDeliveryType === "Order" && (parsedRideData?.order != null || !parsedRideData)
+  }, [currentDeliveryType, parsedRideData])
+
+  // Initialize hooks conditionally based on delivery type
+  const { mutate: verifyOrder, isPending: isOrderPending } = useVerifyDeliveryOrder(
+    isOrderDelivery ? orderId as string : undefined
+  )
+  const { mutate: verifyPackage, isPending: isPackagePending } = useVerifyDeliveryPackage(
+    isPackageDelivery ? packageId as string : undefined
+  )
 
   // Debug logging
   useEffect(() => {
     console.log("🔍 DeliveryCode component mounted")
     console.log("🔍 Order ID from params:", orderId)
-  }, [orderId])
+    console.log("🔍 Delivery Type:", currentDeliveryType)
+    console.log("🔍 Parsed Ride Data:", parsedRideData)
+    console.log("🔍 Is Package Delivery:", isPackageDelivery)
+    console.log("🔍 Is Order Delivery:", isOrderDelivery)
+  }, [orderId, currentDeliveryType, parsedRideData, isPackageDelivery, isOrderDelivery])
 
   const handleCodeChange = useCallback((text: string) => {
     // Only allow numbers and limit to 5 digits
@@ -56,6 +93,8 @@ const DeliveryCode = () => {
     console.log("🔍 Starting verification process...")
     console.log("🔍 Current code:", code)
     console.log("🔍 Order ID:", orderId)
+    console.log("🔍 Delivery Type:", currentDeliveryType)
+    console.log("🔍 Is Package Delivery:", isPackageDelivery)
 
     if (!orderId) {
       toast.show('Order ID not found. Please try again.', { type: 'danger' })
@@ -79,48 +118,113 @@ const DeliveryCode = () => {
     const payload = { otp: code }
     console.log("🔍 Sending payload:", payload)
 
-    verifyOrder(payload, {
-      onSuccess: async (data) => {
-        console.log("🔍 Verification successful:", data)
-        setIsValidating(false)
-        
-        // Show success message with data from backend if available
-        let successMessage = 'Delivery verified successfully!'
-        if (data?.data?.message) {
-          successMessage = data.data.message
+    // Choose the correct verification function based on delivery type
+    if (isPackageDelivery) {
+      console.log("🔍 Using package verification hook")
+      verifyPackage(payload, {
+        onSuccess: async (data) => {
+          console.log("🔍 Package verification successful:", data)
+          setIsValidating(false)
+          
+          // Show success message with data from backend if available
+          let successMessage = 'Package delivery verified successfully!'
+          if (data?.data?.message) {
+            successMessage = data.data.message
+          }
+          
+          toast.show(successMessage, { type: 'success' })
+          
+          try {
+            await AsyncStorage.removeItem('accepted_ride_id')
+            console.log("🔍 Removed accepted_ride_id from storage")
+          } catch (error) {
+            console.error("🔍 Error removing ride ID:", error)
+          }
+          
+          setTimeout(() => {
+            router.replace('/(access)/(rider_stacks)/rideVerificationSuccessfull')
+          }, 1000)
+        },
+        onError: (error: any) => {
+          console.error("🔍 Package verification failed:", error)
+          setIsValidating(false)
+          
+          const errorMessage = error.message || 'Package verification failed. Please check the code and try again.'
+          toast.show(errorMessage, { type: 'danger' })
         }
-        
-        toast.show(successMessage, { type: 'success' })
-        
-        try {
-          await AsyncStorage.removeItem('accepted_ride_id')
-          console.log("🔍 Removed accepted_ride_id from storage")
-        } catch (error) {
-          console.error("🔍 Error removing ride ID:", error)
+      })
+    } else if (isOrderDelivery) {
+      console.log("🔍 Using order verification hook")
+      verifyOrder(payload, {
+        onSuccess: async (data) => {
+          console.log("🔍 Order verification successful:", data)
+          setIsValidating(false)
+          
+          // Show success message with data from backend if available
+          let successMessage = 'Order delivery verified successfully!'
+          if (data?.data?.message) {
+            successMessage = data.data.message
+          }
+          
+          toast.show(successMessage, { type: 'success' })
+          
+          try {
+            await AsyncStorage.removeItem('accepted_ride_id')
+            console.log("🔍 Removed accepted_ride_id from storage")
+          } catch (error) {
+            console.error("🔍 Error removing ride ID:", error)
+          }
+          
+          setTimeout(() => {
+            router.replace('/(access)/(rider_stacks)/rideVerificationSuccessfull')
+          }, 1000)
+        },
+        onError: (error: any) => {
+          console.error("🔍 Order verification failed:", error)
+          setIsValidating(false)
+          
+          const errorMessage = error.message || 'Order verification failed. Please check the code and try again.'
+          toast.show(errorMessage, { type: 'danger' })
         }
-        
-        setTimeout(() => {
-          router.replace('/(access)/(rider_stacks)/rideVerificationSuccessfull')
-        }, 1000)
-      },
-      onError: (error: any) => {
-        console.error("🔍 Verification failed:", error)
-        setIsValidating(false)
-        
-        // The error message is already processed in the hook
-        const errorMessage = error.message || 'Verification failed. Please check the code and try again.'
-        toast.show(errorMessage, { type: 'danger' })
-      }
-    })
-  }, [code, orderId, verifyOrder, toast, router])
+      })
+    } else {
+      setIsValidating(false)
+      console.error("🔍 Unknown delivery type or missing data")
+      toast.show('Unable to determine delivery type. Please try again.', { type: 'danger' })
+    }
+  }, [code, orderId, currentDeliveryType, isPackageDelivery, isOrderDelivery, verifyOrder, verifyPackage, toast, router])
 
   const handleResendCode = useCallback(() => {
-    // Add resend code logic here when available
     console.log("🔍 Resend code requested for order:", orderId)
-    toast.show('Contact the recipient for the delivery code', { type: 'info' })
-  }, [toast, orderId])
+    const deliveryTypeText = isPackageDelivery ? 'package sender or recipient' : 'recipient'
+    toast.show(`Contact the ${deliveryTypeText} for the delivery code`, { type: 'info' })
+  }, [toast, orderId, isPackageDelivery])
 
-  const isProcessing = isPending || isValidating
+  // Determine which pending state to use
+  const isProcessing = useMemo(() => {
+    if (isPackageDelivery) {
+      return isPackagePending || isValidating
+    } else {
+      return isOrderPending || isValidating
+    }
+  }, [isPackageDelivery, isPackagePending, isOrderPending, isValidating])
+
+  // Dynamic header text based on delivery type
+  const headerText = useMemo(() => {
+    if (isPackageDelivery) {
+      return 'Package Delivery Confirmation Code'
+    } else {
+      return 'Delivery Confirmation Code'
+    }
+  }, [isPackageDelivery])
+
+  const headerDescription = useMemo(() => {
+    if (isPackageDelivery) {
+      return 'Enter the 5 digit number given to the package recipient to confirm delivery'
+    } else {
+      return 'Enter the 5 digit number given to the recipient to confirm delivery'
+    }
+  }, [isPackageDelivery])
 
   return (
     <SafeAreaView className='flex-1 flex w-full bg-white'>
@@ -130,16 +234,31 @@ const DeliveryCode = () => {
       <KeyboardAwareScrollView>
         <View className='px-7 mt-10'>
           <OnboardHeader 
-            text='Delivery Confirmation Code' 
-            description='Enter the 5 digit number given to the recipient to confirm delivery'
+            text={headerText} 
+            description={headerDescription}
           />
 
-          {/* Debug info - remove in production */}
-          {__DEV__ && (
-            <View className="bg-gray-100 p-3 rounded-lg mb-4">
-              <Text className="text-xs text-gray-600">
-                Debug: Order ID = {String(orderId)}
+          {/* Show delivery info if available */}
+          {parsedRideData && (
+            <View className='mt-6 p-4 bg-gray-50 rounded-lg'>
+              <Text style={{ fontFamily: "HankenGrotesk_500Medium" }} className="text-sm text-gray-700 mb-2">
+                Delivery Information:
               </Text>
+              <Text style={{ fontFamily: "HankenGrotesk_400Regular" }} className="text-xs text-gray-600 mb-1">
+                Type: {currentDeliveryType} {orderId}
+              </Text>
+              {parsedRideData.fare_amount && (
+                <Text style={{ fontFamily: "HankenGrotesk_400Regular" }} className="text-xs text-gray-600 mb-1">
+                  Amount: ₦{parsedRideData.fare_amount}
+                </Text>
+              )}
+
+              {packageId && <Text>ID {packageId}</Text>}
+              {parsedRideData.distance_km && (
+                <Text style={{ fontFamily: "HankenGrotesk_400Regular" }} className="text-xs text-gray-600">
+                  Distance: {parsedRideData.distance_km} k/m
+                </Text>
+              )}
             </View>
           )}
 
@@ -177,7 +296,7 @@ const DeliveryCode = () => {
 
             <View className='flex-col gap-4'>
               <SolidMainButton 
-                text={isProcessing ? 'Verifying...' : 'Verify Delivery'} 
+                text={`Verify ${currentDeliveryType} Delivery`} 
                 onPress={handleVerify}
               />
 

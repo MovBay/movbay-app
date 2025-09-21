@@ -92,7 +92,7 @@ const RiderHome = () => {
   const ridersCompletedCounts = getRidersCompletedCount?.data
   const {isRiderVerified, isLoading: isRiderVerifiedLoading} = useGetVerifiedStatus()
   const isMyAccountVerified = isRiderVerified?.data?.verified
-  console.log("Rider's Earningss:", ridersCompletedCounts)
+  console.log("Rider's Earnings:", ridersCompletedCounts)
   console.log("Rider's Verifications:", isMyAccountVerified)
   const isOnline = isRiderOnline?.data?.online
   const toast = useToast()
@@ -337,7 +337,7 @@ const getMissingKYCFields = useCallback((kycData: KYCData | null | undefined): s
                   style={{ fontFamily: "HankenGrotesk_500Medium" }}
                   className="text-black font-semibold text-base"
                 >
-                  Cancle
+                  Cancel
                 </Text>
               </TouchableOpacity>
             </View>
@@ -403,100 +403,168 @@ const getMissingKYCFields = useCallback((kycData: KYCData | null | undefined): s
     }
   }, [])
 
-  const getDirections = async (origin: any, destination: any) => {
+  // Fixed getDirections function
+  const getDirections = useCallback(async (origin: any, destination: any) => {
     try {
       const GOOGLE_MAPS_API_KEY = process.env.EXPO_PUBLIC_GOOGLE_PLACES_API_KEY
       if (!GOOGLE_MAPS_API_KEY) {
-        throw new Error("Google Maps API key not found")
+        console.error("Google Maps API key not found")
+        toast.show("API key not configured", { type: "warning" })
+        return []
       }
       
+      console.log("Getting directions from:", origin, "to:", destination)
+      
       const response = await fetch(
-        `https://maps.googleapis.com/maps/api/directions/json?origin=${origin.latitude},${origin.longitude}&destination=${destination.latitude},${destination.longitude}&key=${GOOGLE_MAPS_API_KEY}`,
+        `https://maps.googleapis.com/maps/api/directions/json?origin=${origin.latitude},${origin.longitude}&destination=${destination.latitude},${destination.longitude}&key=${GOOGLE_MAPS_API_KEY}&mode=driving`
       )
+      
       const data = await response.json()
+      console.log("Directions API response status:", data.status)
+      
       if (data.status === "OK" && data.routes && data.routes.length > 0) {
         const route = data.routes[0]
         const leg = route.legs?.[0]
+        
         if (leg && route.overview_polyline?.points) {
           const points = decodePolyline(route.overview_polyline.points)
-          setRouteCoordinates(points)
-          setTrackingDistance(leg.distance?.text || "Unknown distance")
-          setTrackingDuration(leg.duration?.text || "Unknown duration")
+          console.log("Decoded polyline points:", points.length, "points")
           
-          return points
+          if (points.length > 0) {
+            setRouteCoordinates(points)
+            setTrackingDistance(leg.distance?.text || "Unknown distance")
+            setTrackingDuration(leg.duration?.text || "Unknown duration")
+            
+            // Fit the map to show the route
+            if (mapRef.current) {
+              const allCoords = [origin, destination, ...points]
+              mapRef.current.fitToCoordinates(allCoords, {
+                edgePadding: { top: 100, right: 50, bottom: 50, left: 50 },
+                animated: true,
+              })
+            }
+            
+            return points
+          }
         }
       } else {
-        throw new Error("No route found")
+        console.error("Directions API error:", data.status, data.error_message)
+        throw new Error(`Directions API error: ${data.status}`)
       }
     } catch (error) {
       console.error("Directions API error:", error)
       toast.show("Failed to get route directions", { type: "warning" })
       return []
     }
-  }
+  }, [toast])
 
+  // Improved polyline decoder
   const decodePolyline = (encoded: string) => {
-    if (!encoded) return []
-    
-    const points = []
-    let index = 0
-    const len = encoded.length
-    let lat = 0
-    let lng = 0
-    while (index < len) {
-      let b,
-        shift = 0,
-        result = 0
-      do {
-        b = encoded.charAt(index++).charCodeAt(0) - 63
-        result |= (b & 0x1f) << shift
-        shift += 5
-      } while (b >= 0x20)
-      const dlat = (result & 1) !== 0 ? ~(result >> 1) : result >> 1
-      lat += dlat
-      shift = 0
-      result = 0
-      do {
-        b = encoded.charAt(index++).charCodeAt(0) - 63
-        result |= (b & 0x1f) << shift
-        shift += 5
-      } while (b >= 0x20)
-      const dlng = (result & 1) !== 0 ? ~(result >> 1) : result >> 1
-      lng += dlng
-      points.push({
-        latitude: lat / 1e5,
-        longitude: lng / 1e5,
-      })
+    if (!encoded) {
+      console.error("Empty polyline string")
+      return []
     }
-    return points
+    
+    try {
+      const points = []
+      let index = 0
+      const len = encoded.length
+      let lat = 0
+      let lng = 0
+      
+      while (index < len) {
+        let b, shift = 0, result = 0
+        do {
+          b = encoded.charAt(index++).charCodeAt(0) - 63
+          result |= (b & 0x1f) << shift
+          shift += 5
+        } while (b >= 0x20)
+        
+        const dlat = (result & 1) !== 0 ? ~(result >> 1) : result >> 1
+        lat += dlat
+        
+        shift = 0
+        result = 0
+        do {
+          b = encoded.charAt(index++).charCodeAt(0) - 63
+          result |= (b & 0x1f) << shift
+          shift += 5
+        } while (b >= 0x20)
+        
+        const dlng = (result & 1) !== 0 ? ~(result >> 1) : result >> 1
+        lng += dlng
+        
+        points.push({
+          latitude: lat / 1e5,
+          longitude: lng / 1e5,
+        })
+      }
+      
+      console.log("Successfully decoded", points.length, "polyline points")
+      return points
+    } catch (error) {
+      console.error("Error decoding polyline:", error)
+      return []
+    }
   }
 
-  // Start tracking function
-  const startTracking = async (rideData: any) => {
+  // Updated startTracking function
+  const startTracking = useCallback(async (rideData: any) => {
     try {
       console.log("🚀 Starting tracking for ride:", rideData)
       
-      const storeAddress = rideData?.order?.order_items?.[0]?.product?.store?.address1
-      const deliveryAddress = rideData?.order?.delivery[0]?.delivery_address
-      const city = rideData?.order?.delivery[0]?.city
-      const state = rideData?.order?.delivery[0]?.state
+      let pickupAddress = ""
+      let dropoffAddress = ""
       
-      if (!storeAddress || !deliveryAddress || !city || !state) {
-        toast.show("Incomplete address information", { type: "warning" })
+      // Check if it's a package delivery
+      if (rideData?.delivery_type === "Package" && rideData?.package_delivery) {
+        // For package deliveries, use addresses from package_delivery object
+        pickupAddress = rideData.package_delivery.pickup_address || rideData.package_delivery.pick_address
+        dropoffAddress = rideData.package_delivery.dropoff_address || rideData.package_delivery.drop_address
+        
+        console.log("📦 Package delivery addresses:")
+        console.log("Pickup:", pickupAddress)
+        console.log("Dropoff:", dropoffAddress)
+      } else {
+        // For regular order deliveries, use existing logic
+        pickupAddress = rideData?.order?.order_items?.[0]?.product?.store?.address1
+        const deliveryAddress = rideData?.order?.delivery[0]?.delivery_address
+        const city = rideData?.order?.delivery[0]?.city
+        const state = rideData?.order?.delivery[0]?.state
+        
+        if (deliveryAddress && city && state) {
+          dropoffAddress = `${deliveryAddress}, ${city}, ${state}`
+        }
+        
+        console.log("🛍️ Order delivery addresses:")
+        console.log("Pickup (Store):", pickupAddress)
+        console.log("Dropoff:", dropoffAddress)
+      }
+      
+      // Validate addresses
+      if (!pickupAddress || !dropoffAddress) {
+        const missingAddresses = []
+        if (!pickupAddress) missingAddresses.push("pickup address")
+        if (!dropoffAddress) missingAddresses.push("dropoff address")
+        
+        toast.show(`Missing ${missingAddresses.join(" and ")} information`, { type: "warning" })
+        console.error("Missing address information:", { pickupAddress, dropoffAddress })
         return
       }
-
-      const fullDeliveryAddress = `${deliveryAddress}, ${city}, ${state}`
       
       // Get coordinates for both addresses
+      console.log("Getting coordinates for addresses...")
       const [pickupCoords, dropoffCoords] = await Promise.all([
-        getCoordinatesFromAddress(storeAddress),
-        getCoordinatesFromAddress(fullDeliveryAddress)
+        getCoordinatesFromAddress(pickupAddress),
+        getCoordinatesFromAddress(dropoffAddress)
       ])
       
+      console.log("Pickup coords:", pickupCoords)
+      console.log("Dropoff coords:", dropoffCoords)
+      
       const trackingData: TrackingInfo = {
-        pickupAddress: storeAddress,
-        dropoffAddress: fullDeliveryAddress,
+        pickupAddress,
+        dropoffAddress,
         pickupCoords,
         dropoffCoords
       }
@@ -505,17 +573,17 @@ const getMissingKYCFields = useCallback((kycData: KYCData | null | undefined): s
       setIsTracking(true)
       
       // Get directions from pickup to dropoff
-      if (location) {
-        await getDirections(pickupCoords, dropoffCoords)
-      }
+      console.log("Getting directions for route...")
+      await getDirections(pickupCoords, dropoffCoords)
       
-      toast.show("Tracking started! Navigate from pickup to delivery location.", { type: "success" })
+      const deliveryType = rideData?.delivery_type === "Package" ? "package" : "order"
+      toast.show(`Tracking started! Navigate from pickup to delivery location for ${deliveryType}.`, { type: "success" })
       
     } catch (error: any) {
       console.error("Error starting tracking:", error)
       toast.show(`Failed to start tracking: ${error.message}`, { type: "danger" })
     }
-  }
+  }, [getCoordinatesFromAddress, getDirections, toast])
 
   const openExternalNavigation = () => {
     if (!trackingInfo) {
@@ -525,7 +593,7 @@ const getMissingKYCFields = useCallback((kycData: KYCData | null | undefined): s
 
     Alert.alert("Open Navigation", "Choose your destination:", [
       {
-        text: "Open Pickup Loaction",
+        text: "Open Pickup Location",
         onPress: () => {
           const coords = trackingInfo.pickupCoords
           const url = `https://www.google.com/maps/dir/?api=1&destination=${coords.latitude},${coords.longitude}&travelmode=driving`
@@ -579,7 +647,7 @@ const getMissingKYCFields = useCallback((kycData: KYCData | null | undefined): s
         startTracking(rideData)
       }
     }
-  }, [myRidersRide?.data, isTracking, canPerformRideActions])
+  }, [myRidersRide?.data, isTracking, canPerformRideActions, startTracking])
 
   const handleNewRideNotification = useCallback(() => {
     if (isOnline && canPerformRideActions()) {
@@ -704,8 +772,9 @@ const getMissingKYCFields = useCallback((kycData: KYCData | null | undefined): s
             lastLocationUpdate.current = now
             setLocation(updatedLocation)
             
-            // Update tracking route if needed
+            // Update tracking route if needed and user is still tracking
             if (isTracking && trackingInfo) {
+              console.log("Updating route due to location change...")
               getDirections(trackingInfo.pickupCoords, trackingInfo.dropoffCoords)
             }
 
@@ -746,7 +815,7 @@ const getMissingKYCFields = useCallback((kycData: KYCData | null | undefined): s
         locationSubscriptionRef.current = null
       }
     }
-  }, [isOnline, isTracking, trackingInfo, canPerformRideActions])
+  }, [isOnline, isTracking, trackingInfo, canPerformRideActions, getDirections])
 
   useEffect(() => {
     if (isOnline && getRides?.data && Array.isArray(getRides.data) && getRides.data.length > 0 && canPerformRideActions()) {
@@ -808,6 +877,10 @@ const getMissingKYCFields = useCallback((kycData: KYCData | null | undefined): s
               setSelectedRide(null)
               await AsyncStorage.removeItem("accepted_ride_id")
               setMyRideId(null)
+              // Clear tracking when going offline
+              setIsTracking(false)
+              setTrackingInfo(null)
+              setRouteCoordinates([])
             }
           },
           onError: (error: any) => {
@@ -1006,7 +1079,7 @@ const getMissingKYCFields = useCallback((kycData: KYCData | null | undefined): s
                   {isTracking && (
                     <View className="ml-2 flex-row items-center">
                       <View className="w-2 h-2 rounded-full bg-green-500 mr-1" />
-                      <Text style={{ fontFamily: "HankenGrotesk_500Medium" }} className="text-white text-xs">
+                      <Text style={{ fontFamily: "HankenGrotesk_500Medium" }} className="text-green-600 text-xs">
                         Tracking
                       </Text>
                     </View>
@@ -1030,13 +1103,15 @@ const getMissingKYCFields = useCallback((kycData: KYCData | null | undefined): s
         </View>
 
         {isTracking && trackingInfo && (
-          <View className="absolute top-16 left-4 right-4 z-10 bg-white rounded-xl p-3 shadow-sm">
+          <View className="absolute top-16 left-4 right-4 z-10 bg-white rounded-xl p-3 shadow-sm border border-blue-100">
             <View className="flex-row items-center justify-between">
-              <View className="flex-row items-center">
-                <Ionicons name="location" size={18} color="#3B82F6" className="mr-2" />
-                <View>
+              <View className="flex-row items-center flex-1">
+                <View className="bg-blue-100 p-2 rounded-full mr-3">
+                  <Ionicons name="location" size={16} color="#3B82F6" />
+                </View>
+                <View className="flex-1">
                   <Text style={{ fontFamily: "HankenGrotesk_500Medium" }} className="text-neutral-800 text-sm font-medium">
-                    Tracking delivery route
+                    Active Delivery Route
                   </Text>
                   {trackingDistance && trackingDuration && (
                     <Text style={{ fontFamily: "HankenGrotesk_500Medium" }} className="text-neutral-600 text-xs mt-1">
@@ -1045,17 +1120,15 @@ const getMissingKYCFields = useCallback((kycData: KYCData | null | undefined): s
                   )}
                 </View>
               </View>
-              <View className="flex-row gap-2">
-                <TouchableOpacity 
-                  onPress={openExternalNavigation} 
-                  className="bg-blue-600 px-3 py-2 rounded-full flex-row items-center"
-                >
-                  <Ionicons name="navigate" size={16} color="white" />
-                  <Text style={{ fontFamily: "HankenGrotesk_500Medium" }} className="text-white text-xs ml-1">
-                    Navigate
-                  </Text>
-                </TouchableOpacity>
-              </View>
+              <TouchableOpacity 
+                onPress={openExternalNavigation} 
+                className="bg-blue-600 px-4 py-2 rounded-full flex-row items-center ml-2"
+              >
+                <Ionicons name="navigate" size={14} color="white" />
+                <Text style={{ fontFamily: "HankenGrotesk_500Medium" }} className="text-white text-xs ml-1 font-medium">
+                  Navigate
+                </Text>
+              </TouchableOpacity>
             </View>
           </View>
         )}
@@ -1090,10 +1163,9 @@ const getMissingKYCFields = useCallback((kycData: KYCData | null | undefined): s
             provider={PROVIDER_GOOGLE}
             region={mapRegion}
             style={{ width: "100%", height: "120%" }}
-            // customMapStyle={darkMapStyle}
             showsUserLocation={true}
             showsMyLocationButton={true}
-            followsUserLocation={true}
+            followsUserLocation={!isTracking} // Don't follow user location when tracking to show full route
             zoomEnabled={true}
             scrollEnabled={true}
             rotateEnabled={true}
@@ -1108,6 +1180,7 @@ const getMissingKYCFields = useCallback((kycData: KYCData | null | undefined): s
               }
             }}
           >
+            {/* User location marker */}
             {location && (
               <Marker
                 coordinate={{
@@ -1118,49 +1191,56 @@ const getMissingKYCFields = useCallback((kycData: KYCData | null | undefined): s
                 description="You are here"
                 anchor={{ x: 0.5, y: 0.5 }}
               >
-                <View className="bg-[#F75F15] p-2 rounded-full items-center justify-center shadow-lg">
-                  <Ionicons name="location" size={20} color="white" />
+                <View className="bg-[#F75F15] p-3 rounded-full items-center justify-center shadow-lg">
+                  <Ionicons name="person" size={16} color="white" />
                 </View>
               </Marker>
             )}
 
+            {/* Tracking markers and route */}
             {isTracking && trackingInfo && canPerformRideActions() && (
               <>
+                {/* Pickup marker */}
                 <Marker
                   coordinate={trackingInfo.pickupCoords}
                   title="Pickup Location"
                   description={trackingInfo.pickupAddress}
                   anchor={{ x: 0.5, y: 1 }}
                 >
-                  <View className="bg-blue-600 p-2 rounded-full items-center justify-center shadow-lg">
-                    <Ionicons name="storefront" size={20} color="white" />
+                  <View className="bg-blue-600 p-3 rounded-full items-center justify-center shadow-lg">
+                    <Ionicons name="storefront" size={18} color="white" />
                   </View>
                 </Marker>
+                
+                {/* Dropoff marker */}
                 <Marker
                   coordinate={trackingInfo.dropoffCoords}
                   title="Drop-off Location"
                   description={trackingInfo.dropoffAddress}
                   anchor={{ x: 0.5, y: 1 }}
                 >
-                  <View className="bg-green-600 p-2 rounded-full items-center justify-center shadow-lg">
-                    <Ionicons name="flag" size={20} color="white" />
+                  <View className="bg-green-600 p-3 rounded-full items-center justify-center shadow-lg">
+                    <Ionicons name="flag" size={18} color="white" />
                   </View>
                 </Marker>
+                
+                {/* Route polyline */}
+                {routeCoordinates && routeCoordinates.length > 1 && (
+                  <Polyline 
+                    coordinates={routeCoordinates} 
+                    strokeColor="#3B82F6" 
+                    strokeWidth={4}
+                    lineCap="round"
+                    lineJoin="round"
+                  />
+                )}
               </>
-            )}
-
-            {isTracking && routeCoordinates && routeCoordinates.length > 0 && canPerformRideActions() && (
-              <Polyline 
-                coordinates={routeCoordinates} 
-                strokeColor="#3B82F6" 
-                strokeWidth={4}
-              />
             )}
           </MapView>
         )}
 
         {(!mapRegion || !location) && !isLoading && (
-          <View className="flex-1 bg-neutral-800 items-center justify-center">
+          <View className="flex-1 bg-neutral-100 items-center justify-center">
             <Ionicons name="location-outline" size={48} color="#6B7280" />
             <Text style={{ fontFamily: "HankenGrotesk_500Medium" }} className="text-neutral-400 mt-2 text-center px-4">
               Unable to load map. Please check your location permissions.
@@ -1288,7 +1368,7 @@ const getMissingKYCFields = useCallback((kycData: KYCData | null | undefined): s
                   Total Earnings
                 </Text>
                 <Text style={{ fontFamily: "HankenGrotesk_500Medium" }} className="text-xl font-bold text-neutral-900">
-                  {ridersLoading ? '00.00' : `₦ ${ridersEarnings?.total_fare}`}
+                  {ridersLoading || ridersEarnings === undefined ? '00.00' : `₦ ${ridersEarnings?.total_fare}`}
                 </Text>
               </View>
               <TouchableOpacity 
@@ -1311,7 +1391,7 @@ const getMissingKYCFields = useCallback((kycData: KYCData | null | undefined): s
               </View>
               <View className="flex-row items-center gap-2">
                 <Text style={{ fontFamily: "HankenGrotesk_500Medium" }} className="text-2xl font-bold text-neutral-900">
-                  {ridersCompletedLoading  ? '0' : `${ridersCompletedCounts?.message}`}
+                  {ridersCompletedLoading || ridersCompletedCounts === undefined  ? '0' : `${ridersCompletedCounts?.message}`}
                 </Text>
                 <View>
                   <Text style={{ fontFamily: "HankenGrotesk_500Medium" }} className="text-green-600 text-xs">

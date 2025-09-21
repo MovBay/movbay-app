@@ -110,22 +110,42 @@ export const useAddBank = () => {
 }
 
 
+
+// https://api.movbay.com/logistics/accept-ride/2/?type=order
 // ====================== ACCEPT RIDE ====================
-export const useAcceptRide = (id: any) => {
+export const useAcceptOrderRide = (id: any) => {
   const queryClient = useQueryClient()
 
-  const acceptRide = useMutation({
+  const acceptOrderRide = useMutation({
     mutationFn: async (data: any) => {
       const token = (await AsyncStorage.getItem("movebay_token")) || ""
-      return post_requests(`/logistics/accept-ride/${id}/`, data, token)
+      return post_requests(`/logistics/accept-ride/${id}/?type=order`, data, token)
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["ride"] })
-      queryClient.invalidateQueries({ queryKey: ["myRide"] })
+      queryClient.invalidateQueries({ queryKey: ["ride1"] })
+      queryClient.invalidateQueries({ queryKey: ["myRide1"] })
     },
   })
 
-  return acceptRide
+  return acceptOrderRide
+}
+
+
+export const useAcceptPackageRide = (id: any) => {
+  const queryClient = useQueryClient()
+
+  const acceptPackageRide = useMutation({
+    mutationFn: async (data: any) => {
+      const token = (await AsyncStorage.getItem("movebay_token")) || ""
+      return post_requests(`/logistics/accept-ride/${id}/?type=package-delivery`, data, token)
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["ride2"] })
+      queryClient.invalidateQueries({ queryKey: ["myRide2"] })
+    },
+  })
+
+  return acceptPackageRide
 }
 
 // ====================== GET RIDER'S SPECIFIC RIDE ====================
@@ -150,14 +170,34 @@ export const useGetRidersRide = (id: any) => {
   };
 };
 
+
+// https://api.movbay.com/mark-as-picked/2/?type=order
 // ====================== MARK AS PICKED UP / DELIVERED ====================
-export const usePickedUp = (id: any) => {
+export const useOrderPickedUp = (id: any) => {
+  const queryClient = useQueryClient()
+
+  const orderPickedUp = useMutation({
+    mutationFn: async (data: any) => {
+      const token = (await AsyncStorage.getItem("movebay_token")) || ""
+      return post_requests(`/logistics/mark-as-picked/${id}/?type=order`, data, token)
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["ride"] })
+      queryClient.invalidateQueries({ queryKey: ["myRide"] })
+    },
+  })
+
+  return orderPickedUp
+}
+
+
+export const usePackagePickedUp = (id: any) => {
   const queryClient = useQueryClient()
 
   const pickedUp = useMutation({
     mutationFn: async (data: any) => {
       const token = (await AsyncStorage.getItem("movebay_token")) || ""
-      return post_requests(`/logistics/mark-as-picked/${id}/`, data, token)
+      return post_requests(`/logistics/mark-as-picked/${id}/?type=package-delivery`, data, token)
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["ride"] })
@@ -168,13 +208,13 @@ export const usePickedUp = (id: any) => {
   return pickedUp
 }
 
-export const useDelivered = (orderID: any) => {
+export const useOrderDelivered = (id: any) => {
   const queryClient = useQueryClient()
 
-  const delivered = useMutation({
+  const orderDelivered = useMutation({
     mutationFn: async (data: any) => {
       const token = (await AsyncStorage.getItem("movebay_token")) || ""
-      return post_requests(`/order/${orderID}/mark-as-delivered`, data, token)
+      return post_requests(`/order/${id}/mark-as-delivered?type=order`, data, token)
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["ride"] })
@@ -182,8 +222,27 @@ export const useDelivered = (orderID: any) => {
     },
   })
 
-  return delivered
+  return orderDelivered
 };
+
+export const usePackageDelivered = (id: any) => {
+  const queryClient = useQueryClient()
+
+  const packageDelivered = useMutation({
+    mutationFn: async (data: any) => {
+      const token = (await AsyncStorage.getItem("movebay_token")) || ""
+      console.log('My URL', `/order/${id}/mark-as-delivered?type=package-delivery`)
+      return post_requests(`/order/${id}/mark-as-delivered?type=package-delivery`, data, token)
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["ride"] })
+      queryClient.invalidateQueries({ queryKey: ["myRide"] })
+    },
+  })
+
+  return packageDelivered
+};
+
 
 // ====================== VERIFY ORDER ====================
 export const useVerifyDeliveryOrder = (orderID: any) => {
@@ -192,7 +251,7 @@ export const useVerifyDeliveryOrder = (orderID: any) => {
   const verifyOrder = useMutation({
     mutationFn: async (data: any) => {
       const token = (await AsyncStorage.getItem("movebay_token")) || ""
-      return post_requests(`/verify-order/${orderID}/`, data, token)
+      return post_requests(`/verify-order/${orderID}/?type=order`, data, token)
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["ride"] })
@@ -203,6 +262,23 @@ export const useVerifyDeliveryOrder = (orderID: any) => {
   return verifyOrder
 };
 
+
+export const useVerifyDeliveryPackage = (id: any) => {
+  const queryClient = useQueryClient()
+
+  const verifyPackage = useMutation({
+    mutationFn: async (data: any) => {
+      const token = (await AsyncStorage.getItem("movebay_token")) || ""
+      return post_requests(`/verify-order/${id}/?type=package-delivery`, data, token)
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["ride"] })
+      queryClient.invalidateQueries({ queryKey: ["myRide"] })
+    },
+  })
+
+  return verifyPackage
+};
 
 
 // ================= Total Earnings =====================
@@ -262,13 +338,3 @@ export const useGetVerifiedStatus = ()=>{
     refetch,
   }
 }
-
-
-
-
-  // https://api.movbay.com/logistics/completed-rides/
-
-
-
-// verify-order/MOVIBGAZ6WS/
-// logistics/MOVIBGAZ6WS/mark-as-delivered/

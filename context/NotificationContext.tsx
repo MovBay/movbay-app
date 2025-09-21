@@ -33,6 +33,7 @@ interface NotificationContextType {
   // Add callback for ride updates
   onNewRideNotification?: () => void;
   setOnNewRideNotification: (callback: () => void) => void;
+  setOnAcceptedRideNotification: (callback: () => void) => void;
 }
 
 const NotificationContext = createContext<NotificationContextType | undefined>(
@@ -97,6 +98,7 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({
   const [tokenSent, setTokenSent] = useState<boolean>(false);
   const [shouldRefresh, setShouldRefresh] = useState<boolean>(false);
   const [onNewRideNotification, setOnNewRideNotificationState] = useState<(() => void) | undefined>(undefined);
+  const [onAcceptedRideNotification, setOnAcceptedRideNotificationState] = useState<(() => void) | undefined>(undefined);
 
   const notificationListener = useRef<Notifications.EventSubscription | undefined>(undefined);
   const responseListener = useRef<Notifications.EventSubscription | undefined>(undefined);
@@ -109,6 +111,10 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({
   const setOnNewRideNotification = (callback: () => void) => {
     setOnNewRideNotificationState(() => callback);
   };
+
+  const setOnAcceptedRideNotification = (callback: () => void) => {
+    setOnAcceptedRideNotificationState(() => callback);
+  }
 
   useEffect(() => {
     const initializeNotifications = async () => {
@@ -165,10 +171,14 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({
           console.log("🔄 Triggering ride refresh for new order...");
           onNewRideNotification();
         }
+
+        if (cleanTitle === "Ride Accepted" && onAcceptedRideNotification) {
+          console.log("🔄 Triggering ride refresh for new order...");
+          onAcceptedRideNotification();
+        }
         
         // Platform-specific handling for better visibility
         if (Platform.OS === 'android') {
-          // Show additional visual feedback for Android
           console.log("📱 Android notification received - should show alert");
         }
       });
@@ -221,7 +231,7 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({
         Notifications.removeNotificationSubscription(responseListener.current);
       }
     };
-  }, [onNewRideNotification]); // Add dependency to re-setup listeners when callback changes
+  }, [onNewRideNotification, onAcceptedRideNotification]); // Add dependency to re-setup listeners when callback changes
 
   return (
     <NotificationContext.Provider
@@ -233,10 +243,45 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({
         shouldRefresh,
         clearRefreshFlag,
         onNewRideNotification,
-        setOnNewRideNotification
+        setOnNewRideNotification,
+        setOnAcceptedRideNotification
       }}
     >
       {children}
     </NotificationContext.Provider>
   );
 };
+
+
+
+    // <View style={{ 
+    //           flexDirection: 'row', 
+    //           gap: 12, 
+    //           width: '100%' 
+    //         }}>
+    //           <TouchableOpacity
+    //             onPress={handleCancelRequest}
+    //             style={{
+    //               backgroundColor: '#f3f4f6',
+    //               paddingVertical: 14,
+    //               borderRadius: 100,
+    //               flex: 1,
+    //               borderWidth: 1,
+    //               borderColor: '#e5e7eb'
+    //             }}
+    //           >
+    //             <Text style={{
+    //               fontFamily: "HankenGrotesk_500Medium",
+    //               color: '#6b7280',
+    //               textAlign: 'center',
+    //               fontSize: 13,
+    //               fontWeight: '600'
+    //             }}>
+    //               Cancel
+    //             </Text>
+    //           </TouchableOpacity>
+
+    //           <View className="" style={{flex: 2}}>
+    //             <SolidMainButton onPress={handleProceedToPayment} text="Proceed to Payment"/>
+    //           </View>
+    // </View>

@@ -1,7 +1,7 @@
 import type React from "react"
 import { View, Text, TouchableOpacity, Modal, Image, Dimensions, ActivityIndicator } from "react-native"
 import { MaterialIcons } from "@expo/vector-icons"
-import { useAcceptRide } from "@/hooks/mutations/ridersAuth"
+import { useAcceptOrderRide, useAcceptPackageRide } from "@/hooks/mutations/ridersAuth"
 import { useToast } from "react-native-toast-notifications"
 
 const { width } = Dimensions.get("window")
@@ -22,8 +22,9 @@ const RideDetailsModal: React.FC<RideDetailsModalProps> = ({
   onDecline
 }) => {
   // Use order_id for orders, package_delivery_id for packages
-  const acceptRideId = ride?.delivery_type === "Package" ? ride?.package_delivery?.id : ride?.order?.order_id;
-  const { mutate: acceptRide, isPending: isAccepting } = useAcceptRide(acceptRideId)
+  const acceptRideId = ride?.delivery_type === "Package" ? ride?.id : ride?.order?.order_id;
+  const { mutate: acceptOrderRide, isPending: isOrderAccepting } = useAcceptOrderRide(acceptRideId)
+  const { mutate: acceptPackageRide, isPending: isPackageAccepting } = useAcceptPackageRide(acceptRideId)
   const toast = useToast()
 
   console.log("Accepted Rides:", ride)
@@ -36,7 +37,7 @@ const RideDetailsModal: React.FC<RideDetailsModalProps> = ({
       return {
         storeName: ride.package_delivery?.sender?.fullname || "Package Sender",
         storeUsername: ride.package_delivery?.sender?.username || "",
-        storeImage: ride.package_delivery?.sender?.profile_picture || "https://via.placeholder.com/40",
+        storeImage: ride.package_delivery?.sender?.profile_picture || "",
         pickupAddress: ride.package_delivery?.pick_address || "Pickup Address",
         dropoffAddress: ride.package_delivery?.drop_address || "Drop-off Address",
         recipientName: ride.package_delivery?.recipient_name || "",
@@ -49,8 +50,8 @@ const RideDetailsModal: React.FC<RideDetailsModalProps> = ({
       return {
         storeName: ride.order?.order_items[0]?.product?.store?.name || "Store",
         storeUsername: ride.order?.order_items[0]?.product?.store?.owner?.username || "",
-        storeImage: ride.order?.order_items[0]?.product?.store?.store_image || "https://via.placeholder.com/40",
-        pickupAddress: ride.order?.order_items[0]?.product?.store?.address1 || "Store Address",
+        storeImage: ride.order?.order_items[0]?.product?.store?.store_image,
+        pickupAddress: ride.order?.order_items[0]?.product?.store?.address1,
         dropoffAddress: `${ride.order?.delivery[0]?.delivery_address}, ${ride.order?.delivery[0]?.city}, ${ride.order?.delivery[0]?.state}` || "Delivery Address",
         recipientName: "",
         packageType: "",
@@ -62,29 +63,55 @@ const RideDetailsModal: React.FC<RideDetailsModalProps> = ({
 
   const displayData = getRideDisplayData(ride);
 
-  const handleAcceptRide = () => {
+  const handleAcceptOrderRide = () => {
     const acceptData = {}
-    acceptRide(acceptData, {
+    acceptOrderRide(acceptData, {
       onSuccess: async (response) => {
-        console.log("Ride accepted successfully:", response)
-        // Pass the ride id to parent component for storage
+        console.log("Order ride accepted successfully:", response)
         onAccept(ride.id)
         onClose()
-        toast.show("Ride accepted successfully!", { type: "success" })
+        toast.show("Order ride accepted successfully!", { type: "success" })
       },
       onError: (error) => {
-        console.error("Failed to accept ride:", error)
-        toast.show(`Failed to accept ride: ${error.message || "Unknown error"}`, { type: "danger" })
+        console.error("Failed to accept order ride:", error)
+        toast.show(`Failed to accept order ride: ${error.message || "Unknown error"}`, { type: "danger" })
       },
     })
   }
 
+  const handleAcceptPackageRide = () => {
+    const acceptData = {}
+    acceptPackageRide(acceptData, {
+      onSuccess: async (response) => {
+        console.log("Package ride accepted successfully:", response)
+        onAccept(ride.id)
+        onClose()
+        toast.show("Package ride accepted successfully!", { type: "success" })
+      },
+      onError: (error) => {
+        console.error("Failed to accept package ride:", error)
+        toast.show(`Failed to accept package ride: ${error.message || "Unknown error"}`, { type: "danger" })
+      },
+    })
+  }
+
+  // Determine which accept function to use based on delivery type
+  const handleAccept = () => {
+    if (ride.delivery_type === "Package") {
+      handleAcceptPackageRide()
+    } else {
+      handleAcceptOrderRide()
+    }
+  }
+
+  // Determine loading state based on delivery type
+  const isAccepting = ride.delivery_type === "Package" ? isPackageAccepting : isOrderAccepting
+
   return (
     <Modal animationType="slide" transparent={true} visible={isVisible} onRequestClose={onClose}>
       <View className="flex-1 justify-center items-center bg-black/50 px-4">
-        <View className="bg-white rounded-3xl p-8 py-8 w-[90%] shadow-xl">
+        <View className="bg-white rounded-3xl p-8 py-8 w-[93%] shadow-xl">
           {/* Header */}
-
           <View className="flex-row justify-between items-center mb-6">
             <View className="flex-row items-center">
               <Image
@@ -102,8 +129,8 @@ const RideDetailsModal: React.FC<RideDetailsModalProps> = ({
                 )}
                 {/* Show delivery type badge */}
               </View>
-                <View className={`mt-1 px-3 py-1 rounded-full self-start ${ride.delivery_type === "Package" ? "bg-green-100" : "bg-green-100"}`}>
-                  <Text className={`text-xs font-semibold ${ride.delivery_type === "Package" ? "text-green-700" : "text-green-700"}`}>
+                <View className={`mt-1 px-3 py-1 rounded-full self-start ${ride.delivery_type === "Package" ? "bg-orange-100" : "bg-green-100"}`}>
+                  <Text className={`text-xs font-semibold ${ride.delivery_type === "Package" ? "text-orange-700" : "text-green-700"}`}>
                     {ride.delivery_type === "Package" ? "Package" : "Order"}
                   </Text>
                 </View>
@@ -260,7 +287,7 @@ const RideDetailsModal: React.FC<RideDetailsModalProps> = ({
               </Text>
             </TouchableOpacity>
             <TouchableOpacity
-              onPress={handleAcceptRide}
+              onPress={handleAccept}
               className="bg-[#F75F15] py-3 rounded-full flex-1 items-center ml-3 flex-row justify-center"
               disabled={isAccepting}
             >
@@ -272,7 +299,7 @@ const RideDetailsModal: React.FC<RideDetailsModalProps> = ({
                 />
               )}
               <Text style={{ fontFamily: "HankenGrotesk_500Medium" }} className="text-white font-semibold text-sm">
-                {isAccepting ? "Accepting..." : "Accept"}
+                {isAccepting ? "" : `Accept ${ride.delivery_type === "Package" ? "Package" : "Order"}`}
               </Text>
             </TouchableOpacity>
           </View>

@@ -30,6 +30,7 @@ const RiderProfile = () => {
     await AsyncStorage.removeItem("movebay_token");
     await AsyncStorage.removeItem("movebay_usertype");
     await AsyncStorage.removeItem("movebay_onboarding");
+    await AsyncStorage.removeItem('accepted_ride_id')
     router.replace("/login");
   };
 
