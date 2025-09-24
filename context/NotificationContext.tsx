@@ -203,6 +203,12 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({
           console.log("🚀 Navigating to order history buyer...");
           router.push('/(access)/(user_stacks)/order_history_buyer');
         } 
+
+        else if (cleanTitle === "New Message") {
+          console.log("🚀 Navigating to order history buyer...");
+          router.push('/(access)/(user_tabs)/message');
+        } 
+
         else if (cleanTitle === "New Order Available") {
           console.log("🚀 Navigating to orders...");
           router.push('/(access)/(user_tabs)/(drawer)/orders');

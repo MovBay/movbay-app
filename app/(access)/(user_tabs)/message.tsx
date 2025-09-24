@@ -22,9 +22,8 @@ const Message = () => {
 
   const { getChats, isLoading: isChatLoading, refetch } = useGetChats()
   const allChats = getChats?.data || []
-  // console.log('all chats', allChats)
+  console.log('all chats', allChats)
 
-  // Get user token and user ID from AsyncStorage
   const getUserData = async () => {
     try {
       const token = await AsyncStorage.getItem("movebay_token")
@@ -84,12 +83,9 @@ const Message = () => {
       appStateRef.current = nextAppState
 
       if (nextAppState === 'active' && isScreenFocused) {
-        // App came to foreground and screen is focused - start refresh
         startAutoRefresh()
-        // Also do an immediate refresh
         silentRefresh()
       } else {
-        // App went to background - stop refresh
         stopAutoRefresh()
       }
     }
@@ -135,7 +131,6 @@ const Message = () => {
       }
     }, [refetch, startAutoRefresh, stopAutoRefresh])
   )
-
 
   // Format time to show like "2:27pm" or relative time for today/yesterday
   const formatTime = (dateString: any) => {
@@ -227,6 +222,12 @@ const Message = () => {
     }
   }
 
+  // Check if the other person in the conversation is online
+  const isOtherPersonOnline = (chat: any) => {
+    // Return the user_online status from the chat object
+    return chat.user_online === true || chat.user_online === 'true'
+  }
+
   // Sort chats by last message timestamp (most recent first)
   const sortedChats = useMemo(() => {
     return [...allChats].sort((a, b) => {
@@ -273,6 +274,7 @@ const Message = () => {
     const truncatedMessage = truncateMessage(lastMessageData.content)
     const formattedTime = formatTime(lastMessageData.timestamp || item.created_at)
     const otherPerson = getOtherPerson(item)
+    const isOnline = isOtherPersonOnline(item)
 
     return (
       <TouchableOpacity
@@ -291,37 +293,74 @@ const Message = () => {
               receiverName: otherPerson.name,
               receiverImage: otherPerson.image,
               receiverId: otherPerson.id,
+              isUserOnline: item.user_online
             },
           })
         }}
       >
-        {/* Avatar */}
-        <View className="w-12 h-12 rounded-full bg-gray-200 items-center overflow-hidden justify-center mr-3">
-          {otherPerson.image ? (
-            <Image
-              source={{ uri: otherPerson.image }}
-              className="object-cover w-full h-full"
-            />
-          ) : (
-            <Ionicons name="person" size={24} color="#9CA3AF" />
-          )}
+        {/* Avatar with online status indicator */}
+        <View className="relative mr-3">
+          <View className="w-12 h-12 rounded-full bg-gray-200 items-center overflow-hidden justify-center">
+            {otherPerson.image ? (
+              <Image
+                source={{ uri: otherPerson.image }}
+                className="object-cover w-full h-full"
+              />
+            ) : (
+              <Ionicons name="person" size={24} color="#9CA3AF" />
+            )}
+          </View>
+          
+          {/* Online status indicator - Enhanced Design */}
+          <View className={`absolute -bottom-0.5 -right-0.5 w-4 h-4 rounded-full border-2 border-white shadow-sm ${isOnline ? 'bg-green-500' : 'bg-gray-400'}`}>
+            {isOnline && (
+              <View className="w-full h-full rounded-full bg-green-500 animate-pulse" />
+            )}
+          </View>
         </View>
 
         {/* Content */}
         <View className="flex-1">
           <View className="flex-row items-center justify-between mb-1">
-            <Text className="text-base font-semibold text-gray-900" numberOfLines={1}>
-              {otherPerson.name || "Unknown"}
+            <View className="flex-row items-center flex-1">
+              <Text className="text-base font-semibold text-gray-900 flex-1" numberOfLines={1} style={{ fontFamily: "HankenGrotesk_600SemiBold" }}>
+                {otherPerson.name || "Unknown"}
+              </Text>
+              
+              {/* <View className="flex-row items-center ml-2">
+                {isOnline ? (
+                  <View className="flex-row items-center bg-green-50 border border-green-200 rounded-full px-2 py-1">
+                    <View className="w-2 h-2 rounded-full bg-green-500 mr-1.5 shadow-sm">
+                      <View className="w-full h-full rounded-full bg-green-400 opacity-70" />
+                    </View>
+                    <Text className="text-xs text-green-700 font-medium" style={{ fontFamily: "HankenGrotesk_500Medium" }}>
+                      Online
+                    </Text>
+                  </View>
+                ) : (
+                  <View className="flex-row items-center bg-gray-50 border border-gray-200 rounded-full px-2 py-1">
+                    <View className="w-2 h-2 rounded-full bg-gray-400 mr-1.5" />
+                    <Text className="text-xs text-gray-500 font-medium" style={{ fontFamily: "HankenGrotesk_500Medium" }}>
+                      Offline
+                    </Text>
+                  </View>
+                )}
+              </View> */}
+            </View>
+            
+            <Text className="text-sm text-gray-500 ml-2" style={{ fontFamily: "HankenGrotesk_400Regular" }}>
+              {formattedTime}
             </Text>
-            <Text className="text-sm text-gray-500">{formattedTime}</Text>
           </View>
 
           <View className="flex-row items-center justify-between">
-            <Text className="text-sm flex-1 mr-2 text-gray-600" numberOfLines={1}>
+            <Text className="text-sm flex-1 mr-2 text-gray-600" numberOfLines={1} style={{ fontFamily: "HankenGrotesk_400Regular" }}>
               {truncatedMessage}
             </Text>
-            {/* Optional: Add unread indicator */}
-            {/* <View className="w-2 h-2 bg-blue-500 rounded-full" /> */}
+            {/* Optional: Add unread message count indicator */}
+            {/* <View className="bg-orange-500 rounded-full min-w-[20px] h-5 items-center justify-center px-1">
+              <Text className="text-white text-xs font-medium">2</Text>
+            </View> */}
           </View>
         </View>
       </TouchableOpacity>
@@ -352,6 +391,7 @@ const Message = () => {
               <TextInput
                 placeholder="Search for products, stores, or categories"
                 className="flex-1 ml-3 text-gray-700"
+                style={{ fontFamily: "HankenGrotesk_400Regular" }}
                 placeholderTextColor="#9CA3AF"
                 value={searchQuery}
                 onChangeText={setSearchQuery}
@@ -363,11 +403,18 @@ const Message = () => {
               ) : null}
             </View>
 
-            {/* Auto-refresh indicator (optional - you can remove this if you don't want to show it) */}
+            {/* Auto-refresh indicator with online users count */}
             {isScreenFocused && refreshIntervalRef.current && (
-              <View className="flex-row items-center justify-center mt-2">
-                <View className="w-2 h-2 bg-green-500 rounded-full mr-2" />
-                <Text className="text-xs text-gray-500">Auto-updating chats</Text>
+              <View className="flex-row items-center justify-end mt-2">
+                {/* Show count of online users */}
+                {allChats.length > 0 && (
+                  <View className="flex-row items-center">
+                    <Text className="text-xs text-gray-500 mr-1" style={{ fontFamily: "HankenGrotesk_400Regular" }}>
+                      {allChats.filter((chat: any) => isOtherPersonOnline(chat)).length} user online
+                    </Text>
+                    <View className="w-2 h-2 bg-green-600 rounded-full" />
+                  </View>
+                )}
               </View>
             )}
           </View>
@@ -381,7 +428,9 @@ const Message = () => {
             {filteredChats.length === 0 && searchQuery ? (
               <View className="flex-1 items-center justify-center py-20">
                 <Ionicons name="search" size={50} color="#9CA3AF" />
-                <Text className="text-sm text-gray-500 pt-2">No conversations found</Text>
+                <Text className="text-sm text-gray-500 pt-2" style={{ fontFamily: "HankenGrotesk_500Medium" }}>
+                  No conversations found
+                </Text>
               </View>
             ) : null}
           </ScrollView>

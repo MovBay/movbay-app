@@ -157,6 +157,8 @@ const ParcelAvailableRiders = ({ navigation }: { navigation?: any }) => {
   const [riders, setRiders] = useState<Rider[]>([])
   const [refreshing, setRefreshing] = useState(false)
 
+  const [packageId, setPackageID] = useState<string | null>(null)
+  const [mutationResponse, setMutationResponse] = useState<any>(null);
   const { setOnAcceptedRideNotification, shouldRefresh, clearRefreshFlag } = useNotification()
   
   const params = useLocalSearchParams()
@@ -252,18 +254,20 @@ const ParcelAvailableRiders = ({ navigation }: { navigation?: any }) => {
         alternative_number: summaryData.alternativeRecipientPhoneNumber || "",
         package_type: summaryData.packageType,
         package_description: summaryData.packageDescription,
-        packageimages: summaryData.packageImages || []
+        packageimages: summaryData.packageImages || [],
+        amount: selectedRider.eta.fare_amount
       };
 
       console.log('Payload to be sent:', payload);
 
       // Send the request
       mutate(payload, {
-        onSuccess: (response) => {
-          console.log('Request successful:', response.data);
+        onSuccess: (response: any) => {
+          const newPackageId = response?.data?.data?.id || response?.data?.id || response?.id;
+          setPackageID(newPackageId);
+          setMutationResponse(response); // Store the full response
           setRideAccepted(false);
           setIsWaitingForAcceptance(true);
-          // startProgressAnimation();
         },
         onError: (error) => {
           console.error('Request failed:', error);
@@ -333,14 +337,20 @@ const ParcelAvailableRiders = ({ navigation }: { navigation?: any }) => {
   const handleProceedToPayment = useCallback(() => {
     setIsWaitingForAcceptance(false);
     toast.show("Proceeding to payment...", { type: "success" });
+    const finalPackageId = packageId || mutationResponse?.data?.data?.id || mutationResponse?.data?.id;
+    if (!finalPackageId) {
+      toast.show("Package ID not available. Please try again.", { type: "error" });
+      return;
+    }
     router.push({
       pathname: '/(access)/(user_stacks)/courier/parcel-checkout',
       params: {
         riderData: JSON.stringify(selectedRider),
-        summaryData: JSON.stringify(summaryData)
+        summaryData: JSON.stringify(summaryData),
+        packageId: finalPackageId
       }
     });
-  }, [selectedRider, summaryData, toast]);
+  }, [selectedRider, summaryData, packageId, mutationResponse, toast]);
 
   const formatPrice = useCallback((fareAmount: string | number | undefined | null) => {
     if (fareAmount === undefined || fareAmount === null || fareAmount === '') {

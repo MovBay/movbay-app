@@ -11,6 +11,8 @@ import {
   StyleSheet,
   Platform,
   Linking,
+  Animated,
+  Keyboard,
 } from "react-native"
 import { useState, useEffect, useRef, useCallback } from "react"
 import { SafeAreaView } from "react-native-safe-area-context"
@@ -73,6 +75,103 @@ interface Message {
   receiver_id?: string
 }
 
+// Loading Dots Component
+const LoadingDots = () => {
+  const dot1Opacity = useRef(new Animated.Value(0.3)).current
+  const dot2Opacity = useRef(new Animated.Value(0.3)).current
+  const dot3Opacity = useRef(new Animated.Value(0.3)).current
+
+  useEffect(() => {
+    const animateDots = () => {
+      const duration = 600
+      const delay = 200
+
+      Animated.sequence([
+        Animated.timing(dot1Opacity, {
+          toValue: 1,
+          duration: duration,
+          useNativeDriver: true,
+        }),
+        Animated.timing(dot1Opacity, {
+          toValue: 0.3,
+          duration: duration,
+          useNativeDriver: true,
+        }),
+      ]).start()
+
+      setTimeout(() => {
+        Animated.sequence([
+          Animated.timing(dot2Opacity, {
+            toValue: 1,
+            duration: duration,
+            useNativeDriver: true,
+          }),
+          Animated.timing(dot2Opacity, {
+            toValue: 0.3,
+            duration: duration,
+            useNativeDriver: true,
+          }),
+        ]).start()
+      }, delay)
+
+      setTimeout(() => {
+        Animated.sequence([
+          Animated.timing(dot3Opacity, {
+            toValue: 1,
+            duration: duration,
+            useNativeDriver: true,
+          }),
+          Animated.timing(dot3Opacity, {
+            toValue: 0.3,
+            duration: duration,
+            useNativeDriver: true,
+          }),
+        ]).start()
+      }, delay * 2)
+    }
+
+    animateDots()
+    const interval = setInterval(animateDots, 2000)
+
+    return () => clearInterval(interval)
+  }, [])
+
+  return (
+    <View className="flex-row items-center justify-center mb-4">
+      <Animated.View 
+        style={{ 
+          opacity: dot1Opacity,
+          width: 12,
+          height: 12,
+          borderRadius: 6,
+          backgroundColor: '#F97316',
+          marginHorizontal: 4
+        }} 
+      />
+      <Animated.View 
+        style={{ 
+          opacity: dot2Opacity,
+          width: 12,
+          height: 12,
+          borderRadius: 6,
+          backgroundColor: '#F97316',
+          marginHorizontal: 4
+        }} 
+      />
+      <Animated.View 
+        style={{ 
+          opacity: dot3Opacity,
+          width: 12,
+          height: 12,
+          borderRadius: 6,
+          backgroundColor: '#F97316',
+          marginHorizontal: 4
+        }} 
+      />
+    </View>
+  )
+}
+
 const ChatDetailScreen = () => {
   // WebSocket states
   const [isConnected, setIsConnected] = useState(false)
@@ -84,7 +183,9 @@ const ChatDetailScreen = () => {
   const [isLoading, setIsLoading] = useState(true)
   const [inputHeight, setInputHeight] = useState(40)
   const [chatPartnerInfo, setChatPartnerInfo] = useState<any>(null)
-  const [isPartnerOnline, setIsPartnerOnline] = useState(false) // New state for partner online status
+  const [isPartnerOnline, setIsPartnerOnline] = useState(false) 
+  const [keyboardHeight, setKeyboardHeight] = useState(0)
+  console.log("This is message:", messages)
 
   const ws = useRef<WebSocket | null>(null)
   const reconnectAttempts = useRef(0)
@@ -94,9 +195,10 @@ const ChatDetailScreen = () => {
   const textInputRef = useRef<TextInput>(null)
 
   // Get route parameters
-  const { roomId, token, receiverName, receiverImage, receiverId } = useLocalSearchParams<{
+  const { roomId, isUserOnline, token, receiverName, receiverImage, receiverId } = useLocalSearchParams<{
     roomId: string
     token: string
+    isUserOnline: string
     receiverName: string
     receiverImage: string
     receiverId: string
@@ -104,6 +206,32 @@ const ChatDetailScreen = () => {
 
   // Continue chat mutation
   const continueChat = useContinueChat(roomId)
+
+  // Keyboard event listeners
+  useEffect(() => {
+    const keyboardWillShowListener = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow',
+      (e) => {
+        setKeyboardHeight(e.endCoordinates.height)
+        // Scroll to bottom when keyboard shows
+        setTimeout(() => {
+          scrollViewRef.current?.scrollToEnd({ animated: true })
+        }, 100)
+      }
+    )
+
+    const keyboardWillHideListener = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide',
+      () => {
+        setKeyboardHeight(0)
+      }
+    )
+
+    return () => {
+      keyboardWillShowListener.remove()
+      keyboardWillHideListener.remove()
+    }
+  }, [])
 
   // Function to detect and parse links and phone numbers
   const parseMessageContent = (content: string, isCurrentUser: boolean) => {
@@ -168,45 +296,18 @@ const ChatDetailScreen = () => {
     }
   }
 
-  // Get the other person in the conversation (not the current user) - same logic as Message screen
-  const getOtherPerson = (chat: Message) => {
-    // If current user is the sender, show receiver data
-    if (chat.sender?.id === currentUserId || chat.sender_id === currentUserId) {
-      return {
-        id: chat.receiver?.id || chat.receiver_id,
-        name: chat.receiver?.name,
-        image: chat.receiver?.store_image_url || chat.receiver?.store_image,
-      }
-    }
-    // If current user is the receiver, show sender data
-    else {
-      return {
-        id: chat.sender?.id || chat.sender_id,
-        name: chat.sender?.user_profile?.fullname,
-        image: chat.sender?.user_profile?.profile_picture,
-      }
-    }
-  }
-
   // Clear messages when screen comes into focus
   useFocusEffect(
     useCallback(() => {
-      console.log("Screen focused - clearing messages and reconnecting")
       setMessages([])
       setIsLoading(true)
-      setIsPartnerOnline(false) // Reset partner online status
-      
-      // Get user data
+      setIsPartnerOnline(isUserOnline === "true")
       getUserData()
-      
-      // Set chat partner info from route params
       setChatPartnerInfo({
         name: receiverName,
         image: receiverImage,
         id: receiverId
       })
-
-      // Reconnect WebSocket
       if (roomId && token) {
         setTimeout(() => {
           connect()
@@ -216,7 +317,7 @@ const ChatDetailScreen = () => {
       return () => {
         disconnect()
       }
-    }, [roomId, token, receiverName, receiverImage, receiverId])
+    }, [roomId, token, receiverName, receiverImage, receiverId, isUserOnline])
   )
 
   // Check if message already exists (more strict checking)
@@ -236,17 +337,12 @@ const ChatDetailScreen = () => {
 
     try {
       const wsUrl = `wss://movbay.com/ws/chat/${roomId}/?token=${token}`
-      console.log("Connecting to WebSocket:", wsUrl)
-
       ws.current = new WebSocket(wsUrl)
-
       ws.current.onopen = () => {
         console.log("WebSocket connected successfully")
         setIsConnected(true)
         setIsConnecting(false)
         reconnectAttempts.current = 0
-        
-        // Send presence notification to check partner's online status
         if (ws.current) {
           ws.current.send(JSON.stringify({
             type: 'user_presence',
@@ -258,20 +354,15 @@ const ChatDetailScreen = () => {
       ws.current.onmessage = (event) => {
         try {
           const data = JSON.parse(event.data)
-          console.log("Received WebSocket data:", data)
-          
-          // Handle different message types
           if (data.type === 'new_message' && data.message) {
             console.log("Processing new message:", data.message)
             handleNewMessage(data.message)
           } else if (data.type === 'user_presence') {
-            // Handle user presence updates
             if (data.user_id !== currentUserId) {
               setIsPartnerOnline(data.status === 'online')
               console.log(`Partner ${data.user_id} is now ${data.status}`)
             }
           } else if (data.type === 'partner_status') {
-            // Handle partner online status
             setIsPartnerOnline(data.is_online)
             console.log("Partner online status:", data.is_online)
           } else if (Array.isArray(data)) {
@@ -324,19 +415,12 @@ const ChatDetailScreen = () => {
 
   // Handle new single message with improved scrolling
   const handleNewMessage = (newMessage: Message) => {
-    console.log("Adding new message to UI:", newMessage.content)
-    
     setMessages(prevMessages => {
-      // Check if message already exists
       if (messageExists(newMessage, prevMessages)) {
         console.log("Message already exists, skipping")
         return prevMessages
       }
-
-      // Add the new message
       const updatedMessages = [...prevMessages, newMessage]
-      
-      // Scroll to bottom after adding message with a longer delay for better UX
       setTimeout(() => {
         scrollViewRef.current?.scrollToEnd({ animated: true })
       }, 150)
@@ -349,10 +433,7 @@ const ChatDetailScreen = () => {
   const handleMessagesArray = (newMessages: Message[]) => {
     console.log("Setting messages array:", newMessages.length, "messages")
     setIsLoading(false)
-    
     setMessages(newMessages)
-    
-    // Scroll to bottom after loading messages
     setTimeout(() => {
       scrollViewRef.current?.scrollToEnd({ animated: false })
     }, 200)
@@ -395,22 +476,16 @@ const ChatDetailScreen = () => {
     if (!messageText.trim() || continueChat.isPending) return
 
     const messageContent = messageText.trim()
-    
-    // Clear input immediately
     setMessageText("")
-    setInputHeight(40) // Reset input height
+    setInputHeight(40)
 
     try {
-      // Send via HTTP API - message will appear via WebSocket once confirmed
       await continueChat.mutateAsync({
         content: messageContent
       })
 
-      console.log("Message sent successfully via HTTP")
-
     } catch (error) {
       console.error("Error sending message:", error)
-      // Restore message text on failure
       setMessageText(messageContent)
     }
   }
@@ -478,7 +553,8 @@ const ChatDetailScreen = () => {
     if (isConnected && ws.current) {
       const historyRequest = {
         type: "get_chat_history",
-        room: roomId
+        room: roomId,
+        isUserOnline: isUserOnline
       }
       console.log("Requesting chat history:", historyRequest)
       ws.current.send(JSON.stringify(historyRequest))
@@ -490,7 +566,7 @@ const ChatDetailScreen = () => {
         }
       }, 3000)
     }
-  }, [isConnected, roomId])
+  }, [isConnected, roomId, isUserOnline])
 
   // Format timestamp
   const formatTime = (timestamp: string) => {
@@ -502,9 +578,20 @@ const ChatDetailScreen = () => {
     })
   }
 
+  // Render delivery status icon based on online status
+  const renderDeliveryStatus = (message: Message, isCurrentUser: boolean) => {
+    if (!isCurrentUser) return null
+
+    // Show double tick (delivered and read) if partner is online, single tick if offline
+    if (isPartnerOnline && isConnected) {
+      return <Ionicons name="checkmark-done" size={14} color="#10B981" />
+    } else {
+      return <Ionicons name="checkmark" size={14} color="#6B7280" />
+    }
+  }
+
   // Render individual message
   const renderMessage = (message: Message, index: number) => {
-    // Check if current user is the sender of this message
     const isCurrentUser = currentUserId && (message.sender?.id === currentUserId || message.sender_id === currentUserId)
     const shouldShowProduct = message.product && message.product.id > 0
 
@@ -516,16 +603,7 @@ const ChatDetailScreen = () => {
       image: message.sender?.user_profile?.profile_picture || chatPartnerInfo?.image || "",
       name: message.sender?.user_profile?.fullname || chatPartnerInfo?.name || "Unknown"
     }
-
-    console.log("Rendering message:", {
-      content: message.content,
-      isCurrentUser,
-      currentUserId,
-      senderId: message.sender?.id,
-      senderIdAlt: message.sender_id,
-      messageProfile
-    })
-
+    
     return (
       <View key={`${message.sender.id}-${message.created_at}-${index}`} className="px-4 mb-4">
         <View className={`flex-row ${isCurrentUser ? "justify-end" : "justify-start"}`}>
@@ -591,7 +669,7 @@ const ChatDetailScreen = () => {
               </Text>
               {isCurrentUser && (
                 <View className="ml-1">
-                  <Ionicons name="checkmark-done" size={14} color="#10B981" />
+                  {renderDeliveryStatus(message, isCurrentUser)}
                 </View>
               )}
             </View>
@@ -612,7 +690,7 @@ const ChatDetailScreen = () => {
   }
 
   return (
-    <SafeAreaView className="flex-1 bg-white">
+      <SafeAreaView style={{ flex: 1, backgroundColor: "white" }}>
       <StatusBar style="dark" />
 
       {/* Header */}
@@ -623,39 +701,64 @@ const ChatDetailScreen = () => {
 
         {chatPartnerInfo ? (
           <View className="flex-row items-center flex-1">
-            {chatPartnerInfo.image ? (
-              <Image source={{ uri: chatPartnerInfo.image }} className="w-10 h-10 rounded-full mr-3" />
-            ) : (
-              <View className="w-10 h-10 rounded-full bg-orange-100 mr-3 items-center justify-center">
-                <Ionicons name="storefront" size={20} color="#F97316" />
-              </View>
-            )}
+            <View className="relative mr-3">
+              {chatPartnerInfo.image ? (
+                <Image
+                  source={{ uri: chatPartnerInfo.image }}
+                  className="w-10 h-10 rounded-full"
+                />
+              ) : (
+                <View className="w-10 h-10 rounded-full bg-orange-100 items-center justify-center">
+                  <Ionicons name="storefront" size={20} color="#F97316" />
+                </View>
+              )}
+              {isPartnerOnline && isConnected && (
+                <View className="absolute bottom-0 -right-2 w-4 h-4 bg-green-600 border-2 border-white rounded-full" />
+              )}
+            </View>
 
             <View className="flex-1">
-              <Text style={{ fontFamily: "HankenGrotesk_600SemiBold" }} className="text-gray-900 text-base mb-1">
+              <Text
+                style={{ fontFamily: "HankenGrotesk_600SemiBold" }}
+                className="text-gray-900 text-base mb-1"
+              >
                 {chatPartnerInfo.name}
               </Text>
-
-              <Text style={{ fontFamily: "HankenGrotesk_500Medium" }} className={`text-xs ${isPartnerOnline && isConnected ? 'text-green-600' : 'text-gray-500'}`}>
-                {isPartnerOnline && isConnected ? 'Online' : 'Offline'}
-              </Text>
+              <View className="flex-row items-center">
+                <Text
+                  style={{ fontFamily: "HankenGrotesk_500Medium" }}
+                  className={`text-xs ${
+                    isPartnerOnline && isConnected
+                      ? "text-green-600"
+                      : "text-gray-500"
+                  }`}
+                >
+                  {isPartnerOnline && isConnected ? "Online" : "Offline"}
+                </Text>
+              </View>
             </View>
           </View>
         ) : (
-          <Text className="text-lg font-medium flex-1" style={{ fontFamily: "HankenGrotesk_500Medium" }}>
+          <Text
+            className="text-lg font-medium flex-1"
+            style={{ fontFamily: "HankenGrotesk_500Medium" }}
+          >
             Chat
           </Text>
         )}
 
         <View className="flex-row items-center relative">
           {!isConnected && !isConnecting && (
-            <TouchableOpacity onPress={retry} className="p-2 mr-1">
+            <TouchableOpacity onPress={() => {
+              reconnectAttempts.current = 0
+              ws.current?.close()
+            }} className="p-2 mr-1">
               <Ionicons name="refresh" size={20} color="#F97316" />
             </TouchableOpacity>
           )}
 
-          <TouchableOpacity 
-            className="p-2" 
+          <TouchableOpacity
+            className="p-2"
             onPress={() => setShowOptionsMenu(!showOptionsMenu)}
           >
             <Ionicons name="ellipsis-vertical" size={22} color="#6B7280" />
@@ -686,52 +789,48 @@ const ChatDetailScreen = () => {
             </View>
           )}
         </View>
+
+        {/* Close options menu overlay */}
+        {showOptionsMenu && (
+          <TouchableOpacity
+            className="absolute inset-0 z-40"
+            onPress={() => setShowOptionsMenu(false)}
+          />
+        )}
       </View>
 
-      {/* Close options menu overlay */}
-      {showOptionsMenu && (
-        <TouchableOpacity
-          className="absolute inset-0 z-40"
-          onPress={() => setShowOptionsMenu(false)}
-        />
-      )}
-
-      {/* Main Container with KeyboardAvoidingView - FIXED for Android */}
+      {/* The KEY CHANGE HERE: Wrap ScrollView and Input Section in a single flex:1 View */}
       <KeyboardAvoidingView
-        className="flex-1"
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 25}
+        style={{ flex: 1 }}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 0}
       >
-        {/* Messages Container */}
-        <View className="flex-1 bg-gray-50">
+        <View style={{ flex: 1 }}>
+          {/* Messages Container */}
           <ScrollView
             ref={scrollViewRef}
             className="flex-1"
             showsVerticalScrollIndicator={false}
-            contentContainerStyle={{ 
-              paddingTop: 16, 
-              paddingBottom: 16,
-              flexGrow: 1
+            contentContainerStyle={{
+              paddingTop: 16,
+              paddingBottom: 4,
+              flexGrow: 1,
+              justifyContent: messages.length === 0 ? "center" : "flex-start", // center if no messages
             }}
             keyboardShouldPersistTaps="handled"
             maintainVisibleContentPosition={{
               minIndexForVisible: 0,
-              autoscrollToTopThreshold: 100
+              autoscrollToTopThreshold: 50,
             }}
           >
             {isLoading ? (
               <View className="flex-1 justify-center items-center px-4 min-h-[400px]">
-                <View className="bg-white rounded-full p-6 shadow-sm mb-4">
-                  <Ionicons name="sync" size={48} color="#F97316" />
-                </View>
+                <LoadingDots />
                 <Text
-                  className="text-lg mb-2 text-gray-700 text-center"
-                  style={{ fontFamily: "HankenGrotesk_500Medium" }}
+                  className="text-sm text-gray-500 text-center"
+                  style={{ fontFamily: "HankenGrotesk_400Regular" }}
                 >
-                  Fetching messages...
-                </Text>
-                <Text className="text-sm text-gray-500 text-center" style={{ fontFamily: "HankenGrotesk_400Regular" }}>
-                  Please wait while we load your conversation
+                  Loading messages...
                 </Text>
               </View>
             ) : messages.length > 0 ? (
@@ -739,7 +838,11 @@ const ChatDetailScreen = () => {
             ) : (
               <View className="flex-1 justify-center items-center px-4 min-h-[400px]">
                 <View className="bg-white rounded-full p-6 shadow-sm mb-4">
-                  <Ionicons name="chatbubbles-outline" size={48} color="#F97316" />
+                  <Ionicons
+                    name="chatbubbles-outline"
+                    size={48}
+                    color="#F97316"
+                  />
                 </View>
                 <Text
                   className="text-lg mb-2 text-gray-700 text-center"
@@ -747,58 +850,80 @@ const ChatDetailScreen = () => {
                 >
                   No messages yet
                 </Text>
-                <Text className="text-sm text-gray-500 text-center" style={{ fontFamily: "HankenGrotesk_400Regular" }}>
+                <Text
+                  className="text-sm text-gray-500 text-center"
+                  style={{ fontFamily: "HankenGrotesk_400Regular" }}
+                >
                   Start a conversation with this store
                 </Text>
               </View>
             )}
           </ScrollView>
-        </View>
 
-        {/* Input Section - Fixed to bottom with better Android keyboard handling */}
-        {!isLoading && (
-          <View className="px-4 py-3 bg-white border-t border-gray-100" style={{ paddingBottom: Platform.OS === 'android' ? 8 : 16 }}>
-            <View className="bg-neutral-200 rounded-3xl flex-row items-end px-2 py-1 shadow-sm">
-              <TextInput
-                ref={textInputRef}
-                placeholder="Send a Message"
-                placeholderTextColor="#9CA3AF"
-                value={messageText}
-                onChangeText={setMessageText}
-                multiline
-                maxLength={1000}
-                style={[styles.whatsappInput, { height: Math.max(40, inputHeight) }]}
-                className="flex-1 px-2"
-                onSubmitEditing={sendMessage}
-                returnKeyType="send"
-                blurOnSubmit={false}
-                onContentSizeChange={handleContentSizeChange}
-                textAlignVertical="center"
-                onFocus={() => {
-                  // Auto scroll to bottom when input is focused
-                  setTimeout(() => {
-                    scrollViewRef.current?.scrollToEnd({ animated: true })
-                  }, 300)
-                }}
-              />
-              <TouchableOpacity
-                onPress={sendMessage}
-                className={`rounded-full p-3 ml-2 transition-transform duration-200 ease-in-out ${
-                  !messageText.trim() || continueChat.isPending
-                    ? "bg-gray-400"
-                    : "bg-[#F75F15]"
-                }`}
-                disabled={!messageText.trim() || continueChat.isPending}
+          {/* Input Section */}
+          {!isLoading && (
+            <View
+              style={{
+                paddingHorizontal: 16,
+                paddingVertical: Platform.OS === "android" ? 8 : 8,
+                borderTopWidth: 1,
+                borderTopColor: "#E5E7EB",
+                backgroundColor: "white",
+              }}
+            >
+              <View
+                className="bg-neutral-200 rounded-full flex-row items-end px-2 py-1 "
+                style={{ flexDirection: "row", alignItems: "flex-end" }}
               >
-                <MaterialIcons 
-                  name={continueChat.isPending ? "hourglass-top" : "send"} 
-                  size={18} 
-                  color="white" 
+                <TextInput
+                  ref={textInputRef}
+                  placeholder="Send a Message"
+                  placeholderTextColor="#9CA3AF"
+                  value={messageText}
+                  onChangeText={setMessageText}
+                  multiline
+                  maxLength={1000}
+                  style={[
+                    styles.whatsappInput,
+                    { height: Math.max(40, inputHeight), flex: 1, paddingHorizontal: 8 },
+                  ]}
+                  onSubmitEditing={sendMessage}
+                  returnKeyType="send"
+                  blurOnSubmit={false}
+                  onContentSizeChange={handleContentSizeChange}
+                  textAlignVertical="center"
+                  onFocus={() => {
+                    setTimeout(() => {
+                      scrollViewRef.current?.scrollToEnd({ animated: true })
+                    }, 300)
+                  }}
+                  scrollEnabled={true}
                 />
-              </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={sendMessage}
+                  style={{
+                    borderRadius: 50,
+                    padding: 12,
+                    marginLeft: 8,
+                    backgroundColor:
+                      !messageText.trim() || continueChat.isPending
+                        ? "gray"
+                        : "#F75F15",
+                    justifyContent: "center",
+                    alignItems: "center",
+                  }}
+                  disabled={!messageText.trim() || continueChat.isPending}
+                >
+                  <MaterialIcons
+                    name={continueChat.isPending ? "hourglass-top" : "send"}
+                    size={18}
+                    color="white"
+                  />
+                </TouchableOpacity>
+              </View>
             </View>
-          </View>
-        )}
+          )}
+        </View>
       </KeyboardAvoidingView>
     </SafeAreaView>
   )

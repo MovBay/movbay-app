@@ -1,4 +1,4 @@
-import { View, Text, TouchableOpacity, Alert, Modal, Animated, Dimensions } from "react-native"
+import { View, Text, TouchableOpacity, Alert, Modal, Animated, Dimensions, Image } from "react-native"
 import { useState, useEffect, useRef } from "react"
 import { SafeAreaView } from "react-native-safe-area-context"
 import { StatusBar } from "expo-status-bar"
@@ -7,7 +7,7 @@ import { OnboardArrowTextHeader } from "@/components/btns/OnboardHeader"
 import { router, useLocalSearchParams } from "expo-router"
 import { useToast } from "react-native-toast-notifications"
 import { StyleSheet } from "react-native"
-import { useCreateOrder } from "@/hooks/mutations/sellerAuth"
+import { usePayForParcel } from "@/hooks/mutations/sellerAuth"
 import { useGetWalletDetails } from "@/hooks/mutations/sellerAuth"
 import { SolidMainButton } from "@/components/btns/CustomButtoms"
 import LoadingOverlay from "@/components/LoadingOverlay"
@@ -31,72 +31,38 @@ Notifications.setNotificationHandler({
 })
 
 // Types
-interface FinalOrderData {
-  delivery: {
-    delivery_method: string
-    full_name: string
-    phone_number: string
-    email: string
-    landmark: string
-    delivery_address: string
-    city: string
-    state: string
-    alternative_address: string
-    alternative_name: string
-    alternative_email: string
-    alternative_phone: string
-    postal_code: number
+interface Rider {
+  riders_id: string
+  riders_name: string
+  riders_picture: string | null
+  rating: number
+  vehicle_type: string
+  vehicle_color: string
+  plate_number?: string
+  license?: string
+  eta: {
+    distance_km: string;
+    duration_minutes: string;
+    fare_amount: string;
+    distance?: string;
   }
-  items: Array<{
-    store?: number
-    product: number
-    amount: number
-    quantity: number
-    product_name?: string
-    delivery_method?: string
-    carrier_name?: string
-    id?: string
-    shiiping_amount?: number
-    pickup_address_id?: string
-    delivery_address_id?: string
-    parcel_id?: string
-  }>
-  total_amount: number
-  cart_summary: {
-    total_items: number
-    subtotal: number
-  }
-  shipRateResponse?: {
-    movbay_delivery?: Array<{
-      store_id: number
-      fare: number
-      delivery_type: string
-    }>
-    shiip_delivery?: Array<{
-      store_id: number
-      delivery_type: string
-      details: {
-        status: string
-        message: string
-        data: {
-          rates: {
-            carrier_name: string
-            amount: number
-            id: string
-            carrier_logo: string
-          }
-          pickup_address_id: string
-          delivery_address_id: string
-          parcel_id: string
-        }
-      }
-    }>
-  }
-  metadata?: {
-    saveForNextTime: boolean
-    processedAt: string
-    screen: string
-  }
+  latitude: number
+  longitude: number
+  ride_count: number
+}
+
+interface SummaryData {
+  pickupAddress: string;
+  dropOffAddress: string;
+  recipientPhoneNumber: string;
+  recipientName: string;
+  alternativeDropOffAddress?: string;
+  alternativeRecipientPhoneNumber?: string;
+  alternativeRecipientName?: string;
+  packageType: string;
+  packageDescription: string;
+  additionalNotes?: string;
+  packageImages: any[];
 }
 
 interface PaymentData {
@@ -104,142 +70,25 @@ interface PaymentData {
   provider_name: string
 }
 
-interface DeliveryItem {
-  productName: string
-  deliveryMethod: string
-  carrierName: string
-  fare: number
-  storeId: number
-  shippingAmount: number
-  id?: string
-  pickupAddressId?: string
-  deliveryAddressId?: string
-  parcelId?: string
-}
-
 const ParcelCheckout = () => {
-  const { finalOrderData } = useLocalSearchParams()
-  const [parsedOrderData, setParsedOrderData] = useState<FinalOrderData | null>(null)
+  const { riderData, summaryData, packageId } = useLocalSearchParams()
+  const [parsedRiderData, setParsedRiderData] = useState<Rider | null>(null)
+  const [parsedSummaryData, setParsedSummaryData] = useState<SummaryData | null>(null)
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState("card")
   const [isProcessing, setIsProcessing] = useState(false)
   const [confirmationModalVisible, setConfirmationModalVisible] = useState(false)
-  const [deliveryItems, setDeliveryItems] = useState<DeliveryItem[]>([])
-  const [totalDeliveryFee, setTotalDeliveryFee] = useState(0)
   const toast = useToast()
-  const [orderDatas, setOrderDatas] = useState([])
+
   
   // Animation refs for bottom sheet
   const slideAnim = useRef(new Animated.Value(SCREEN_HEIGHT)).current
   const backdropOpacity = useRef(new Animated.Value(0)).current
-
-  const {mutate, isPending} = useCreateOrder()
-  
-  // Add wallet data hook
+  const {mutate, isPending} = usePayForParcel(packageId)
   const {walletData, isLoading: isWalletLoading, refetch} = useGetWalletDetails()
 
   const discount = 0
-
-  // Enhanced delivery items calculation to handle both old and new data structures
-  const calculateDeliveryDetails = (orderData: FinalOrderData) => {
-    const items: DeliveryItem[] = []
-    let totalFee = 0
-
-    // First, check if items already have delivery_method and shipping info (new structure)
-    if (orderData.items && orderData.items.length > 0) {
-      const hasDeliveryMethod = orderData.items.some(item => item.delivery_method || item.shiiping_amount)
-      
-      if (hasDeliveryMethod) {
-        // New structure: items contain delivery method info
-        orderData.items.forEach(item => {
-          if (item.shiiping_amount && item.shiiping_amount > 0) {
-            items.push({
-              productName: item.product_name || `Product ${item.product}`,
-              deliveryMethod: item.delivery_method?.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase()) || 'Standard Delivery',
-              carrierName: item.carrier_name || 'Standard Carrier',
-              fare: item.shiiping_amount,
-              storeId: item.store || 0,
-              shippingAmount: item.shiiping_amount,
-              id: item.id || `delivery-${item.store}-${Date.now()}`,
-              pickupAddressId: item.pickup_address_id || "N/A",
-              deliveryAddressId: item.delivery_address_id || "N/A",
-              parcelId: item.parcel_id || "N/A"
-            })
-            totalFee += item.shiiping_amount
-          }
-        })
-        return { items, totalFee }
-      }
-    }
-
-    // Fallback to old structure using shipRateResponse
-    if (!orderData.shipRateResponse || !orderData.items) return { items: [], totalFee: 0 }
-
-    const { movbay_delivery, shiip_delivery } = orderData.shipRateResponse
-
-    // Create a map of store_id to product info
-    const storeProductMap = new Map()
-    orderData.items.forEach(item => {
-      storeProductMap.set(item.store, {
-        product_name: item.product_name,
-        quantity: item.quantity,
-        amount: item.amount
-      })
-    })
-
-    // Process Movbay delivery methods
-    if (movbay_delivery && movbay_delivery.length > 0) {
-      movbay_delivery.forEach((delivery) => {
-        const productInfo = storeProductMap.get(delivery.store_id)
-        if (productInfo) {
-          items.push({
-            productName: productInfo.product_name,
-            deliveryMethod: "Movbay Dispatch",
-            carrierName: "Movbay Dispatch",
-            fare: delivery.fare,
-            storeId: delivery.store_id,
-            shippingAmount: delivery.fare,
-            id: `movbay-${delivery.store_id}-${Date.now()}`,
-            pickupAddressId: "N/A",
-            deliveryAddressId: "N/A",
-            parcelId: "N/A"
-          })
-          totalFee += delivery.fare
-        }
-      })
-    }
-
-    // Process Shiip delivery methods
-    if (shiip_delivery && shiip_delivery.length > 0) {
-      shiip_delivery.forEach((delivery) => {
-        if (delivery.details.status === "success") {
-          const productInfo = storeProductMap.get(delivery.store_id)
-          if (productInfo) {
-            const { rates, pickup_address_id, delivery_address_id, parcel_id } = delivery.details.data
-            items.push({
-              productName: productInfo.product_name,
-              deliveryMethod: delivery.delivery_type.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase()),
-              carrierName: rates.carrier_name,
-              fare: rates.amount,
-              storeId: delivery.store_id,
-              shippingAmount: rates.amount,
-              id: rates.id || `shiip-${delivery.store_id}-${Date.now()}`,
-              pickupAddressId: pickup_address_id || "N/A",
-              deliveryAddressId: delivery_address_id || "N/A",
-              parcelId: parcel_id || "N/A"
-            })
-            totalFee += rates.amount
-          }
-        }
-      })
-    }
-
-    return { items, totalFee }
-  }
-
-  // Calculate final total including delivery
-  const finalTotal = parsedOrderData ? parsedOrderData.total_amount + totalDeliveryFee - discount : 0
-  
-  // Check if wallet has sufficient balance
+  const fareAmount = parsedRiderData?.eta?.fare_amount ? parseFloat(parsedRiderData?.eta?.fare_amount) : 0
+  const finalTotal = fareAmount - discount
   const walletBalance = walletData?.data?.balance || 0
   const isWalletBalanceSufficient = walletBalance >= finalTotal
 
@@ -275,11 +124,11 @@ const ParcelCheckout = () => {
     try {
       await Notifications.scheduleNotificationAsync({
         content: {
-          title: "Order Placed Successfully! 🎉",
-          body: `Your order of ₦${orderData.total_amount.toLocaleString()} has been placed successfully. We'll notify you when it's ready for delivery.`,
+          title: "Payment Successful! 🎉",
+          body: `Your parcel delivery payment of ₦${finalTotal.toLocaleString()} has been processed successfully. Your rider will be notified.`,
           data: {
-            orderId: orderData.id,
-            screen: 'order-success',
+            packageId: packageId,
+            screen: 'parcel-success',
           },
         },
         trigger: null,
@@ -290,36 +139,44 @@ const ParcelCheckout = () => {
   }
 
   useEffect(() => {
-    if (finalOrderData) {
+    if (riderData) {
       try {
-        const parsed = JSON.parse(finalOrderData as string)
-        setParsedOrderData(parsed)
-        console.log("Final Order Data:", parsed)
-        
-        // Calculate delivery details
-        const { items, totalFee } = calculateDeliveryDetails(parsed)
-        setDeliveryItems(items)
-        setTotalDeliveryFee(totalFee)
-        
-        // Set default payment method based on wallet balance
-        const total = parsed.total_amount + totalFee - discount
-        if (walletBalance >= total) {
-          setSelectedPaymentMethod("movbay")
-        } else {
-          setSelectedPaymentMethod("card")
-        }
+        const parsed = JSON.parse(riderData as string)
+        setParsedRiderData(parsed)
+        console.log("Rider Data:", parsed)
       } catch (error) {
-        console.error("Error parsing final order data:", error)
-        toast.show("Error loading order data", {
+        console.error("Error parsing rider data:", error)
+        toast.show("Error loading rider data", {
           type: "error",
           placement: "top",
         })
       }
     }
 
+    if (summaryData) {
+      try {
+        const parsed = JSON.parse(summaryData as string)
+        setParsedSummaryData(parsed)
+        console.log("Summary Data:", parsed)
+      } catch (error) {
+        console.error("Error parsing summary data:", error)
+        toast.show("Error loading summary data", {
+          type: "error",
+          placement: "top",
+        })
+      }
+    }
+
+    // Set default payment method based on wallet balance
+    if (walletBalance >= finalTotal) {
+      setSelectedPaymentMethod("movbay")
+    } else {
+      setSelectedPaymentMethod("card")
+    }
+
     // Register for push notifications on component mount
     registerForPushNotificationsAsync()
-  }, [finalOrderData, walletBalance])
+  }, [riderData, summaryData, walletBalance, finalTotal])
 
   // Animate bottom sheet modal
   useEffect(() => {
@@ -385,15 +242,6 @@ const ParcelCheckout = () => {
     }
     return displays[methodId] || displays["card"]
   }
-
-  // Function to get initials from carrier name
-  const getInitials = (name: string) => {
-    return name
-      .split(' ')
-      .map(word => word.charAt(0).toUpperCase())
-      .join('')
-      .substring(0, 2);
-  };
 
   // Updated PaymentOption component with wallet balance checking
   const PaymentOption = ({ id, title, subtitle, icon, recommended = false }: any) => {
@@ -515,8 +363,8 @@ const ParcelCheckout = () => {
 
   // Show confirmation modal before payment
   const showPaymentConfirmation = () => {
-    if (!parsedOrderData) {
-      toast.show("Order data not available", {
+    if (!parsedRiderData || !parsedSummaryData || !packageId) {
+      toast.show("Required data not available", {
         type: "error",
         placement: "top",
       })
@@ -535,36 +383,12 @@ const ParcelCheckout = () => {
     setConfirmationModalVisible(true)
   }
 
-  // Function to ensure delivery data for each item
-  const enrichItemsWithDeliveryData = (items: any[]) => {
-    return items.map((item, index) => {
-      // Find corresponding delivery item
-      const deliveryItem = deliveryItems.find(d => d.storeId === item.store) || deliveryItems[index] || deliveryItems[0]
-      
-      return {
-        store: Number(item.store),
-        amount: Number(item.amount),
-        product: Number(item.product),
-        quantity: Number(item.quantity),
-        // Ensure required delivery fields are present
-        delivery_method: item.delivery_method || deliveryItem?.deliveryMethod?.toLowerCase().replace(/\s+/g, '_'),
-        carrier_name: item.carrier_name || deliveryItem?.carrierName || 'Standard Carrier',
-        id: item.id || deliveryItem?.id || `delivery-${item.store || index}-${Date.now()}`,
-        shiiping_amount: Number(item.shiiping_amount || deliveryItem?.shippingAmount || 0),
-        // Add the new address and parcel ID fields
-        pickup_address_id: item.pickup_address_id || deliveryItem?.pickupAddressId || "N/A",
-        delivery_address_id: item.delivery_address_id || deliveryItem?.deliveryAddressId || "N/A",
-        parcel_id: item.parcel_id || deliveryItem?.parcelId || "N/A"
-      }
-    })
-  }
-
-  // Proceed with payment after confirmation - UPDATED TO MATCH NEW PAYLOAD STRUCTURE
+  // Simplified proceed with payment - only sends provider_name and payment_method
   const proceedWithPayment = async () => {
     closeConfirmationModal()
     
-    if (!parsedOrderData) {
-      toast.show("Order data not available", {
+    if (!packageId) {
+      toast.show("Package ID not available", {
         type: "error",
         placement: "top",
       })
@@ -575,59 +399,41 @@ const ParcelCheckout = () => {
 
     try {
       const paymentData = getPaymentMethodData(selectedPaymentMethod)
-      const finalTotalInt = Math.round(parsedOrderData.total_amount + totalDeliveryFee - discount)
-      
-      // Enrich items with delivery data
-      const enrichedItems = enrichItemsWithDeliveryData(parsedOrderData.items)
-      
-      // Build API payload according to the required structure
       const apiPayload = {
-        delivery: {
-          fullname: parsedOrderData.delivery.full_name,
-          phone_number: parsedOrderData.delivery.phone_number,
-          email: parsedOrderData.delivery.email,
-          landmark: parsedOrderData.delivery.landmark,
-          delivery_address: parsedOrderData.delivery.delivery_address,
-          city: parsedOrderData.delivery.city,
-          state: parsedOrderData.delivery.state,
-          alternative_address: parsedOrderData.delivery.alternative_address,
-          alternative_name: parsedOrderData.delivery.alternative_name,
-          alternative_email: parsedOrderData.delivery.alternative_email,
-          postal_code: Number(parsedOrderData.delivery.postal_code) || 0
-        },
-        total_amount: finalTotalInt, // Ensure it's an integer
-        items: enrichedItems,
-        payment_method: paymentData.payment_method,
         provider_name: paymentData.provider_name,
+        payment_method: paymentData.payment_method,
       }
 
-      console.log("Final API Payload:", JSON.stringify(apiPayload, null, 2))
+      console.log("Payment Payload:", JSON.stringify(apiPayload, null, 2))
+      console.log("Package ID:", packageId)
 
       mutate(apiPayload, {
         onSuccess: async (response) => {
-          console.log("Order created successfully:", response.data)
-          setOrderDatas(response.data)
+          console.log("Payment successful:", response.data)
           
           await sendLocalNotification({
             ...response,
-            total_amount: finalTotalInt,
+            total_amount: finalTotal,
           })
-          toast.show("Order placed successfully!", {
+          
+          toast.show("Payment successful!", {
             type: "success",
             placement: "top",
           })
           
           router.push({
-            pathname: "/(access)/(user_stacks)/order-success",
+            pathname: "/(access)/(user_stacks)/courier/parcel-success",
             params: {
-              orderData: JSON.stringify(response.data),
-              totalAmount: finalTotalInt.toString(),
+              paymentData: JSON.stringify(response.data),
+              riderData: JSON.stringify(parsedRiderData),
+              summaryData: JSON.stringify(parsedSummaryData),
+              totalAmount: finalTotal.toString(),
               paymentMethod: selectedPaymentMethod
             }
           })
         },
         onError: (error) => {
-          console.error("Order creation error:", error)
+          console.error("Payment error:", error)
           console.error("Full error details:", {
             data: getErrorMessage(error),
           })
@@ -657,9 +463,8 @@ const ParcelCheckout = () => {
 
   // Payment Confirmation Bottom Sheet Modal
   const PaymentConfirmationModal = () => {
-    if (!parsedOrderData) return null
+    if (!parsedRiderData || !parsedSummaryData) return null
     
-    const finalTotal = parsedOrderData.total_amount + totalDeliveryFee - discount
     const paymentDisplay = getPaymentMethodDisplay(selectedPaymentMethod)
     
     return (
@@ -714,7 +519,7 @@ const ParcelCheckout = () => {
                 Confirm Payment
               </Text>
               <Text className="text-base text-gray-600 text-center mb-4 px-5" style={{ fontFamily: "HankenGrotesk_400Regular" }}>
-                Please review your order details before proceeding with payment
+                Please review your parcel delivery details before proceeding with payment
               </Text>
             </View>
 
@@ -723,28 +528,37 @@ const ParcelCheckout = () => {
               showsVerticalScrollIndicator={false}
               contentContainerStyle={{ paddingBottom: 20 }}
             >
-              {/* Order Summary */}
+              {/* Rider Info */}
               <View className="bg-gray-50 p-4 rounded-lg mb-4">
-                <View className="flex-row justify-between items-center mb-2">
-                  <Text className="text-sm text-gray-600" style={{ fontFamily: "HankenGrotesk_400Regular" }}>
-                    Items ({parsedOrderData.cart_summary.total_items})
-                  </Text>
-                  <Text className="text-sm font-semibold text-gray-900" style={{ fontFamily: "HankenGrotesk_600SemiBold" }}>
-                    ₦{parsedOrderData.total_amount.toLocaleString()}
+                <View className="flex-row items-center mb-2">
+                  <Text className="text-lg font-semibold text-gray-900" style={{ fontFamily: "HankenGrotesk_600SemiBold" }}>
+                    Rider: {parsedRiderData.riders_name}
                   </Text>
                 </View>
-                
-                {/* Delivery Items */}
-                {deliveryItems.map((item, index) => (
-                  <View key={`${item.storeId}-${index}`} className="flex-row justify-between items-center mb-2">
-                    <Text className="text-sm text-gray-600" style={{ fontFamily: "HankenGrotesk_400Regular" }}>
-                      {item.carrierName} delivery
-                    </Text>
-                    <Text className="text-sm font-semibold text-gray-900" style={{ fontFamily: "HankenGrotesk_600SemiBold" }}>
-                      ₦{item.fare.toLocaleString()}
-                    </Text>
-                  </View>
-                ))}
+                <View className="flex-row justify-between items-center mb-2">
+                  <Text className="text-sm text-gray-600" style={{ fontFamily: "HankenGrotesk_400Regular" }}>
+                    Vehicle
+                  </Text>
+                  <Text className="text-sm font-semibold text-gray-900" style={{ fontFamily: "HankenGrotesk_600SemiBold" }}>
+                    {parsedRiderData.vehicle_color} {parsedRiderData.vehicle_type}
+                  </Text>
+                </View>
+                <View className="flex-row justify-between items-center mb-2">
+                  <Text className="text-sm text-gray-600" style={{ fontFamily: "HankenGrotesk_400Regular" }}>
+                    Distance
+                  </Text>
+                  <Text className="text-sm font-semibold text-gray-900" style={{ fontFamily: "HankenGrotesk_600SemiBold" }}>
+                    {parsedRiderData.eta.distance_km} km
+                  </Text>
+                </View>
+                <View className="flex-row justify-between items-center mb-2">
+                  <Text className="text-sm text-gray-600" style={{ fontFamily: "HankenGrotesk_400Regular" }}>
+                    Delivery Fee
+                  </Text>
+                  <Text className="text-sm font-semibold text-gray-900" style={{ fontFamily: "HankenGrotesk_600SemiBold" }}>
+                    ₦{fareAmount.toLocaleString()}
+                  </Text>
+                </View>
                 
                 <View className="border-t border-gray-200 pt-2 mt-2">
                   <View className="flex-row justify-between items-center">
@@ -760,14 +574,17 @@ const ParcelCheckout = () => {
 
               {/* Delivery Info */}
               <View className="bg-green-50 p-4 rounded-lg mb-4">
-                <View className="flex-row items-center">
-                  <Ionicons name="location" size={16} color="#10B981" />
-                  <View className="flex-1 ml-2">
-                    <Text className="text-sm font-semibold text-gray-900" style={{ fontFamily: "HankenGrotesk_600SemiBold" }} numberOfLines={2}>
-                      {parsedOrderData.delivery.delivery_address}, {parsedOrderData.delivery.city}
-                    </Text>
-                  </View>
+                <View className="mb-2">
+                  <Text className="text-sm font-semibold text-gray-900 mb-1" style={{ fontFamily: "HankenGrotesk_600SemiBold" }}>
+                    From: {parsedSummaryData.pickupAddress}
+                  </Text>
+                  <Text className="text-sm font-semibold text-gray-900" style={{ fontFamily: "HankenGrotesk_600SemiBold" }}>
+                    To: {parsedSummaryData.dropOffAddress}
+                  </Text>
                 </View>
+                <Text className="text-sm text-gray-600" style={{ fontFamily: "HankenGrotesk_400Regular" }}>
+                  Recipient: {parsedSummaryData.recipientName} ({parsedSummaryData.recipientPhoneNumber})
+                </Text>
               </View>
             </ScrollView>
 
@@ -787,7 +604,7 @@ const ParcelCheckout = () => {
                 disabled={isProcessing}
               >
                 <Text className="text-white font-semibold" style={{ fontFamily: "HankenGrotesk_600SemiBold" }}>
-                  {isProcessing ? "Processing..." : "Confirm & Pay"}
+                  {"Confirm & Pay"}
                 </Text>
               </TouchableOpacity>
             </View>
@@ -797,7 +614,7 @@ const ParcelCheckout = () => {
     )
   }
 
-  if (!parsedOrderData) {
+  if (!parsedRiderData || !parsedSummaryData) {
     return (
       <SafeAreaView className="flex-1 bg-white">
         <StatusBar style="dark" />
@@ -830,8 +647,34 @@ const ParcelCheckout = () => {
           <View className="flex-row items-center gap-2 mb-6">
             <OnboardArrowTextHeader onPressBtn={() => router.back()} />
             <Text className="text-xl text-center m-auto" style={{ fontFamily: "HankenGrotesk_600SemiBold" }}>
-              Checkout
+              Parcel Checkout
             </Text>
+          </View>
+
+          {/* Rider Info Card */}
+          <View className="mb-6 p-4 bg-blue-50 rounded-lg">
+            <Text className="text-lg font-semibold mb-2" style={{ fontFamily: "HankenGrotesk_600SemiBold" }}>
+              Your Rider
+            </Text>
+            <View className="flex-row items-center">
+              <View className="w-12 h-12 bg-gray-200 rounded-full mr-3 overflow-hidden">
+                {parsedRiderData.riders_picture ? (
+                  <Image source={{ uri: parsedRiderData.riders_picture }} className="w-full h-full object-cover" />
+                ) : (
+                  <View className="w-full h-full justify-center items-center">
+                    <MaterialIcons name="person" size={24} color="gray" />
+                  </View>
+                )}
+              </View>
+              <View>
+                <Text className="text-base font-semibold" style={{ fontFamily: "HankenGrotesk_600SemiBold" }}>
+                  {parsedRiderData.riders_name}
+                </Text>
+                <Text className="text-sm text-gray-600" style={{ fontFamily: "HankenGrotesk_400Regular" }}>
+                  {parsedRiderData.vehicle_color} {parsedRiderData.vehicle_type}
+                </Text>
+              </View>
+            </View>
           </View>
 
           {/* Payment Methods */}
@@ -857,38 +700,44 @@ const ParcelCheckout = () => {
             </Text>
           </View>
 
-          {/* Delivery Address */}
+          {/* Delivery Details */}
           <View className="mb-6 p-4 bg-green-50 rounded-lg">
             <Text className="text-lg font-semibold mb-2" style={{ fontFamily: "HankenGrotesk_600SemiBold" }}>
-              Delivery Address
+              Delivery Details
             </Text>
-            <View className="flex-row items-start">
-              <Ionicons name="location" size={16} color="green" className="" />
-              <View className="flex-row ml-1 gap-2">
-                <Text className="text-sm text-gray-600" style={{ fontFamily: "HankenGrotesk_400Regular" }}>
-                  {parsedOrderData.delivery.delivery_address}, {parsedOrderData.delivery.city}, {parsedOrderData.delivery.state}
-                </Text>
-              </View>
+            <View className="mb-2">
+              <Text className="text-sm text-gray-600" style={{ fontFamily: "HankenGrotesk_400Regular" }}>From:</Text>
+              <Text className="text-sm font-medium" style={{ fontFamily: "HankenGrotesk_500Medium" }}>
+                {parsedSummaryData.pickupAddress}
+              </Text>
+            </View>
+            <View className="mb-2">
+              <Text className="text-sm text-gray-600" style={{ fontFamily: "HankenGrotesk_400Regular" }}>To:</Text>
+              <Text className="text-sm font-medium" style={{ fontFamily: "HankenGrotesk_500Medium" }}>
+                {parsedSummaryData.dropOffAddress}
+              </Text>
+            </View>
+            <View>
+              <Text className="text-sm text-gray-600" style={{ fontFamily: "HankenGrotesk_400Regular" }}>Recipient:</Text>
+              <Text className="text-sm font-medium" style={{ fontFamily: "HankenGrotesk_500Medium" }}>
+                {parsedSummaryData.recipientName} ({parsedSummaryData.recipientPhoneNumber})
+              </Text>
             </View>
           </View>
 
           {/* Order Summary */}
           <View className="mb-6 p-4 bg-gray-50 rounded-lg">
             <Text className="text-lg font-semibold mb-2" style={{ fontFamily: "HankenGrotesk_600SemiBold" }}>
-              Order Summary
+              Payment Summary
             </Text>
             <View className="flex-row justify-between mb-2">
-              <Text className="text-sm text-gray-600">Items ({parsedOrderData.cart_summary.total_items})</Text>
-              <Text className="text-sm text-gray-900">₦{parsedOrderData.total_amount.toLocaleString()}</Text>
+              <Text className="text-sm text-gray-600">Delivery Fee</Text>
+              <Text className="text-sm text-gray-900">₦{fareAmount.toLocaleString()}</Text>
             </View>
-            
-            {/* Individual delivery fees */}
-            {deliveryItems.map((item, index) => (
-              <View key={`delivery-${item.storeId}-${index}`} className="flex-row justify-between mb-2">
-                <Text className="text-sm text-gray-600">{item.carrierName} delivery</Text>
-                <Text className="text-sm text-gray-900">₦{item.fare.toLocaleString()}</Text>
-              </View>
-            ))}
+            <View className="flex-row justify-between mb-2">
+              <Text className="text-sm text-gray-600">Distance</Text>
+              <Text className="text-sm text-gray-900">{parsedRiderData.eta.distance_km} km</Text>
+            </View>
             
             {discount > 0 && (
               <View className="flex-row justify-between mb-2">
@@ -921,19 +770,5 @@ const styles = StyleSheet.create({
     fontFamily: "HankenGrotesk_400Regular",
     fontSize: 14,
     color: "#6B7280",
-  },
-  initialsLogo: {
-    width: 30,
-    height: 30,
-    borderRadius: 6,
-    backgroundColor: "#F75F15",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  initialsText: {
-    fontFamily: "HankenGrotesk_600SemiBold",
-    fontSize: 12,
-    color: "#FFFFFF",
-    textAlign: "center",
   },
 })

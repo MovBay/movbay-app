@@ -143,7 +143,17 @@ const Profile = () => {
                     <View className='w-10 h-10 bg-gray-200 rounded-full justify-center items-center'>
                       <Ionicons name='bag-add-outline' size={18} color={'#0F0F0F'}/>
                     </View>
-                    <Text className='text-base' style={{fontFamily: 'HankenGrotesk_600SemiBold'}}>Orders History</Text>
+                    <Text className='text-base' style={{fontFamily: 'HankenGrotesk_600SemiBold'}}>Order History</Text>
+                  </View>
+                  <Ionicons name='chevron-forward-outline' size={15} color={'#0F0F0F'}/>
+                </Pressable>
+
+                <Pressable onPress={() => router.push('/(access)/(user_stacks)/courier/parcel_history_buyer')} className='flex-row items-center justify-between mt-3 bg-neutral-100 rounded-full p-3 px-4'>
+                  <View className='flex-row items-center gap-3 '>
+                    <View className='w-10 h-10 bg-gray-200 rounded-full justify-center items-center'>
+                      <Ionicons name='gift-outline' size={18} color={'#0F0F0F'}/>
+                    </View>
+                    <Text className='text-base' style={{fontFamily: 'HankenGrotesk_600SemiBold'}}>Package Delivery History</Text>
                   </View>
                   <Ionicons name='chevron-forward-outline' size={15} color={'#0F0F0F'}/>
                 </Pressable>
@@ -161,7 +171,7 @@ const Profile = () => {
                 <Pressable onPress={() => router.push('/(access)/(user_stacks)/cart')} className='flex-row items-center justify-between mt-3 bg-neutral-100 rounded-full p-3 px-4'>
                   <View className='flex-row items-center gap-3 '>
                     <View className='w-10 h-10 bg-gray-200 rounded-full justify-center items-center'>
-                      <MaterialIcons name='shopping-basket' size={18} color={'#0F0F0F'}/>
+                      <Ionicons name='basket-outline' size={18} color={'#0F0F0F'}/>
                     </View>
                     <Text className='text-base' style={{fontFamily: 'HankenGrotesk_600SemiBold'}}>Cart</Text>
                   </View>

@@ -1,5 +1,5 @@
-import { View, Text, Image, ActivityIndicator } from "react-native"
-import { useState, useEffect, useCallback } from "react"
+import { View, Text, Image, ActivityIndicator, Keyboard } from "react-native"
+import { useState, useEffect, useCallback, useRef } from "react"
 import { router, useLocalSearchParams } from "expo-router"
 import { Pressable, TouchableOpacity } from "react-native"
 import LoadingOverlay from "@/components/LoadingOverlay"
@@ -19,6 +19,8 @@ import { useProfile } from "@/hooks/mutations/auth"
 import { usePostShipRate } from "@/hooks/mutations/sellerAuth"
 import { deliveryStates } from "@/constants/deliveryStates"
 import { TerminalCity, fetchTerminalCities } from "@/hooks/mutations/termina"
+import { Ionicons } from "@expo/vector-icons"
+import { ScrollView } from "react-native"
 
 // Use environment variable for Google Places API key
 const GOOGLE_PLACES_API_KEY = process.env.EXPO_PUBLIC_GOOGLE_PLACES_API_KEY
@@ -193,6 +195,7 @@ const CustomPhoneInput = ({
 )
 
 // Google Places Address Input Component
+// Updated Google Places Address Input Component
 const GooglePlacesAddressInput = ({
   label,
   name,
@@ -200,6 +203,7 @@ const GooglePlacesAddressInput = ({
   rules,
   errors,
   placeholder,
+  zIndex = 1000,
 }: {
   label: string;
   name: keyof FormData;
@@ -207,9 +211,13 @@ const GooglePlacesAddressInput = ({
   rules?: any;
   errors: any;
   placeholder: string;
+  zIndex?: number;
 }) => {
   const [addressPredictions, setAddressPredictions] = useState<PlacePrediction[]>([])
   const [showAddressPredictions, setShowAddressPredictions] = useState(false)
+  const [isInputFocused, setIsInputFocused] = useState(false)
+  const inputRef = useRef<TextInput>(null)
+  const scrollViewRef = useRef<ScrollView>(null)
 
   // Function to fetch Google Places predictions
   const fetchAddressPredictions = async (input: string) => {
@@ -240,58 +248,100 @@ const GooglePlacesAddressInput = ({
     }
   }
 
+  const handlePredictionSelect = (prediction: PlacePrediction, onChange: (value: string) => void) => {
+    onChange(prediction.description)
+    setShowAddressPredictions(false)
+    setAddressPredictions([])
+    setIsInputFocused(false)
+    Keyboard.dismiss()
+    inputRef.current?.blur()
+  }
+
+  const handleInputFocus = () => {
+    setIsInputFocused(true)
+  }
+
+  const handleInputBlur = () => {
+    // Don't hide predictions immediately when input loses focus
+    // Let the prediction selection handle hiding
+    setTimeout(() => {
+      if (!showAddressPredictions) {
+        setIsInputFocused(false)
+      }
+    }, 100)
+  }
+
+  // Calculate dynamic margin bottom based on predictions visibility
+  const containerStyle = {
+    marginBottom: showAddressPredictions && addressPredictions.length > 0 ? 200 : 20,
+    zIndex: zIndex,
+  }
+
   return (
-    <View className="mb-5">
+    <View style={containerStyle}>
       <Text style={styles.titleStyle}>{label}</Text>
-      <View style={{ position: "relative" }}>
+      <View style={{ position: "relative", zIndex: zIndex }}>
         <Controller
           name={name}
           control={control}
           rules={rules}
           render={({ field: { onChange, onBlur, value } }) => (
             <>
-              <TextInput
-                placeholder={placeholder}
-                placeholderTextColor={"#AFAFAF"}
-                onChangeText={(text) => {
-                  onChange(text)
-                  fetchAddressPredictions(text)
-                }}
-                onBlur={() => {
-                  onBlur()
-                  // Delay hiding predictions to allow for selection
-                  setTimeout(() => setShowAddressPredictions(false), 150)
-                }}
-                value={value || ""}
-                keyboardType="default"
-                style={styles.inputStyle}
-                autoCapitalize="words"
-                autoCorrect={false}
-              />
+              <View style={styles.inputContainer}>
+                <TextInput
+                  ref={inputRef}
+                  placeholder={placeholder}
+                  placeholderTextColor={"#AFAFAF"}
+                  onChangeText={(text) => {
+                    onChange(text)
+                    fetchAddressPredictions(text)
+                  }}
+                  onFocus={handleInputFocus}
+                  onBlur={() => {
+                    onBlur()
+                    handleInputBlur()
+                  }}
+                  value={value || ""}
+                  keyboardType="default"
+                  style={styles.inputStyle}
+                  autoCapitalize="words"
+                  autoCorrect={false}
+                />
+                <View style={styles.searchIconContainer}>
+                  <Ionicons name="search" size={25} color="#AFAFAF" />
+                </View>
+              </View>
               
               {/* Address Predictions List */}
               {showAddressPredictions && addressPredictions.length > 0 && (
-                <View style={styles.predictionsContainer}>
-                  {addressPredictions.map((item) => (
-                    <TouchableOpacity
-                      key={item.place_id}
-                      style={styles.predictionItem}
-                      onPress={() => {
-                        // Handle address selection properly
-                        onChange(item.description)
-                        setShowAddressPredictions(false)
-                        setAddressPredictions([])
-                      }}
-                    >
-                      <MaterialIcons name="location-on" size={20} color="#666" style={{ marginRight: 10 }} />
-                      <View style={{ flex: 1 }}>
-                        <Text style={styles.predictionMainText}>{item.structured_formatting.main_text}</Text>
-                        <Text style={styles.predictionSecondaryText}>
-                          {item.structured_formatting.secondary_text}
-                        </Text>
-                      </View>
-                    </TouchableOpacity>
-                  ))}
+                <View style={[
+                  styles.predictionsContainer,
+                  { zIndex: zIndex + 1 }
+                ]}>
+                  <ScrollView 
+                    ref={scrollViewRef}
+                    nestedScrollEnabled={true}
+                    keyboardShouldPersistTaps="always"
+                    keyboardDismissMode="none"
+                    showsVerticalScrollIndicator={false}
+                  >
+                    {addressPredictions.map((item) => (
+                      <TouchableOpacity
+                        key={item.place_id}
+                        style={styles.predictionItem}
+                        onPress={() => handlePredictionSelect(item, onChange)}
+                        activeOpacity={0.7}
+                      >
+                        <MaterialIcons name="location-on" size={20} color="#666" style={{ marginRight: 10 }} />
+                        <View style={{ flex: 1 }}>
+                          <Text style={styles.predictionMainText}>{item.structured_formatting.main_text}</Text>
+                          <Text style={styles.predictionSecondaryText}>
+                            {item.structured_formatting.secondary_text}
+                          </Text>
+                        </View>
+                      </TouchableOpacity>
+                    ))}
+                  </ScrollView>
                 </View>
               )}
             </>
@@ -964,23 +1014,38 @@ const styles = StyleSheet.create({
     paddingBottom: 8,
     paddingTop: 6,
   },
+
+  inputContainer: {
+    position: 'relative',
+  },
+  searchIconContainer: {
+    position: 'absolute',
+    right: 16,
+    top: 0,
+    bottom: 0,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  // Update predictionsContainer to match parcel form styling
   predictionsContainer: {
     position: "absolute",
     top: "100%",
     left: 0,
     right: 0,
-    zIndex: 1000,
     backgroundColor: "white",
-    borderRadius: 7,
+    borderRadius: 12,
     shadowColor: "#000",
     shadowOffset: {
       width: 0,
-      height: 2,
+      height: 4,
     },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
-    elevation: 5,
+    shadowOpacity: 0.1,
+    shadowRadius: 6,
+    elevation: 8,
     maxHeight: 200,
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+    marginTop: 4,
   },
   predictionItem: {
     flexDirection: "row",
@@ -988,17 +1053,18 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: "#f0f0f0",
+    borderBottomColor: "#F3F4F6",
+    backgroundColor: "white",
   },
   predictionMainText: {
     fontFamily: "HankenGrotesk_500Medium",
     fontSize: 14,
-    color: "#3A3541",
+    color: "#1F2937",
   },
   predictionSecondaryText: {
     fontFamily: "HankenGrotesk_400Regular",
     fontSize: 12,
-    color: "#666",
+    color: "#6B7280",
     marginTop: 2,
   },
 })
@@ -1049,4 +1115,5 @@ const disabledPickerSelectStyles = {
   placeholder: {
     color: "#ccc",
   },
+  
 }

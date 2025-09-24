@@ -376,6 +376,25 @@ export const useGetTransaction = () => {
 
 
 
+export const usePayForParcel = (id:any) => {
+  const queryClient = useQueryClient()
+
+  const createOrder = useMutation({
+    mutationFn: async (data: any) => {
+      const token = (await AsyncStorage.getItem("movebay_token")) || ""
+      return post_requests(`/logistics/payment-delivery/${id}/`, data, token)
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["payment"] })
+    },
+  })
+
+  return createOrder
+}
+
+
+
+
 
 // ==================== CEATING STORY ==================
 export const useCreateStory = () => {
@@ -713,6 +732,48 @@ export const useGetUserOngoingOrders = () => {
     refetch,
   };
 };
+
+
+
+// ================ PARCEL DELIVERY ================
+export const useGetUserOngoingParcelOrders = () => {
+  const { data, isLoading, isError, isFetched, refetch } = useQuery({
+    queryKey: ["userParcelOrdersOngoin"], // Changed from ["order"] to ["userOrders"]
+    queryFn: async () => {
+      const token = (await AsyncStorage.getItem("movebay_token")) || "";
+      return get_requests("/logistics/user-delivery-history/?completed=False", token);
+    },
+  });
+
+  return {
+    newUserOngoinParcelOrdersData: data,
+    isLoading,
+    isError,
+    isFetched,
+    refetch,
+  };
+};
+
+
+
+export const useGetUserCompletedParcelOrders = () => {
+  const { data, isLoading, isError, isFetched, refetch } = useQuery({
+    queryKey: ["userParcelOrdersCompleted"],
+    queryFn: async () => {
+      const token = (await AsyncStorage.getItem("movebay_token")) || "";
+      return get_requests("/logistics/user-delivery-history/?completed=True", token);
+    },
+  });
+
+  return {
+    newUserCompletedParcelOrdersData: data,
+    isLoading,
+    isError,
+    isFetched,
+    refetch,
+  };
+};
+
 
 // ================== TRACK ORDER ===================
 export const useTrackOrders = (orderId: any) => {
