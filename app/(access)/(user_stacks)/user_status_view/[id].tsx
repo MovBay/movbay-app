@@ -10,11 +10,11 @@ import {
   KeyboardAvoidingView,
   Platform,
   ActivityIndicator,
+  TextInput,
 } from "react-native"
 import { SafeAreaView } from "react-native-safe-area-context"
 import { SolidLightButton, SolidMainButton } from "@/components/btns/CustomButtoms"
 import MaterialIcons from "@expo/vector-icons/MaterialIcons"
-import { TextInput } from "react-native-gesture-handler"
 import {
   useFollowStore,
   useGetFollowedStores,
@@ -27,9 +27,12 @@ import { useLocalSearchParams, router } from "expo-router"
 import { useEffect, useRef, useState, useCallback, useMemo } from "react"
 import { Toast } from "react-native-toast-notifications"
 import { Ionicons } from "@expo/vector-icons"
+import { useCreateChat, useCreateStatusChat } from "@/hooks/mutations/chatAuth"
+import { KeyboardAwareScrollView } from "react-native-keyboard-controller"
+import { StatusBar } from "expo-status-bar"
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get("window")
-const STATUS_DURATION = 15000
+const STATUS_DURATION = 20000
 
 interface StatusItem {
   id: number
@@ -86,10 +89,10 @@ const UserStatusView = () => {
     try {
       if (isCurrentStoreFollowed) {
         await unfollowMutate(numericStoreId)
-        // Toast.show("Store unfollowed successfully", { type: "success" })
+        Toast.show("Store unfollowed successfully", { type: "success" })
       } else {
         await mutate(numericStoreId)
-        // Toast.show("Store followed successfully", { type: "success" })
+        Toast.show("Store followed successfully", { type: "success" })
       }
     } catch (error) {
       console.error("Error following/unfollowing store:", error)
@@ -110,6 +113,9 @@ const UserStatusView = () => {
   const timerRef = useRef<NodeJS.Timeout | null>(null)
   const currentAnimationRef = useRef<Animated.CompositeAnimation | null>(null)
   const statusDataRef = useRef<StatusItem[]>([])
+
+  // Chat integration
+  const { mutate: messageMutate, isPending: messagePending } = useCreateStatusChat()
 
   // Memoized status data
   const statusData: StatusItem[] = useMemo(() => {
@@ -197,13 +203,38 @@ const UserStatusView = () => {
     setIsHolding(false)
   }, [])
 
-  // Message handling
-  const handleSendMessage = useCallback(() => {
+  // Message handling with chat integration
+  const handleSendMessage = useCallback(async () => {
     if (messageText.trim()) {
-      console.log("Sending message:", messageText)
-      setMessageText("")
+      if (!currentStatus?.id) {
+        Toast.show("Status ID not found", { type: "error" })
+        return
+      }
+
+      const form_data = {
+        content: messageText,
+        status_id: currentStatus.id,
+      }
+
+      try {
+        messageMutate(form_data, {
+          onSuccess: async (response) => {
+            console.log("Message sent:", response.data)
+            Toast.show("Message sent successfully", { type: "success" })
+            setMessageText("")
+            // router.push('/(access)/(user_tabs)/message')
+          },
+          onError: (error: any) => {
+            console.error("Error sending message:", error)
+            Toast.show("Failed to send message", { type: "error" })
+          },
+        })
+      } catch (error) {
+        console.error("Error:", error)
+        Toast.show("Failed to send message", { type: "error" })
+      }
     }
-  }, [messageText])
+  }, [messageText, currentStatus?.id, messageMutate])
 
   // Image loading handlers
   const handleImageLoad = useCallback((index: number) => {
@@ -234,7 +265,13 @@ const UserStatusView = () => {
 
   return (
     <SafeAreaView className="flex-1 bg-black">
-      <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} className="flex-1">
+      <StatusBar style="light" />
+      <KeyboardAwareScrollView 
+        className="flex-1"
+        contentContainerStyle={{ flexGrow: 1 }}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
         {/* Progress bars */}
         <View className="flex-row items-center pt-4 gap-1.5 px-4">
           {statusData.map((_, index) => (
@@ -393,72 +430,53 @@ const UserStatusView = () => {
               </Text>
             </View>
           )}
-
         </TouchableOpacity>
 
-        {/* Bottom section - only render if store data is loaded */}
-        {storeDataLoading || openStoreLoading  ? (
-          <View className="">
-          </View>
+        {/* Bottom section - Message input (only render if not own status) */}
+        {storeDataLoading || openStoreLoading ? (
+          <View className="" />
         ) : (
           <>
             {!isOwnStatus && (
-              <>
-                {/* <View className="flex-row justify-between mx-4 my-4 gap-3 pointer-events-auto">
-                  <View className="flex-1">
-                    <SolidMainButton text="Buy Now" />
-                  </View>
-                  <View className="flex-1">
-                    <SolidLightButton text="Add to Cart" />
-                  </View>
-                </View> */}
-
-                <View className="px-4 pb-4 w-full">
-                  <View className="flex-row justify-between items-center w-full">
-                    <View className="bg-neutral-900 rounded-full flex-row items-end p-2">
-                      <TextInput
-                        placeholder="Send a message..."
-                        placeholderTextColor="#9CA3AF"
-                        value={messageText}
-                        onChangeText={setMessageText}
-                        multiline
-                        maxLength={200}
-                        className="flex-1 text-white px-4 py-3 text-base leading-5"
-                        style={{
-                          fontFamily: "HankenGrotesk_400Regular",
-                          textAlignVertical: "top",
-                          maxHeight: 100,
-                        }}
-                        returnKeyType="send"
-                        onSubmitEditing={handleSendMessage}
-                      />
-                      <TouchableOpacity
-                        onPress={handleSendMessage}
-                        className="bg-[#F75F15] rounded-full p-3 px-5 ml-2"
-                        style={{ opacity: messageText.trim() ? 1 : 0.5 }}
-                        disabled={!messageText.trim()}
-                        activeOpacity={0.8}
-                      >
-                        <MaterialIcons name="send" size={20} color="white" />
-                      </TouchableOpacity>
-                    </View>
-                  </View>
-
-                  {messageText.length > 0 && (
-                    <Text
-                      className="text-white/70 text-xs mt-2 text-right"
-                      style={{ fontFamily: "HankenGrotesk_400Regular" }}
+              <View className="px-4 pb-4">
+                <View className="bg-neutral-800 rounded-full flex-row items-end p-2 mt-4">
+                  <TextInput
+                    placeholder="Send a message..."
+                    placeholderTextColor="#9CA3AF"
+                    value={messageText}
+                    onChangeText={setMessageText}
+                    multiline
+                    maxLength={200}
+                    style={{
+                      fontFamily: "HankenGrotesk_400Regular",
+                      textAlignVertical: 'top',
+                      lineHeight: 20,
+                      fontSize: 15,
+                    }}
+                    className="flex-1 text-white px-4 py-3"
+                  />
+                  {messagePending ? (
+                    <TouchableOpacity className="bg-[#F75F15] rounded-full p-3 ml-2" disabled>
+                      <ActivityIndicator size="small" color="white" />
+                    </TouchableOpacity>
+                  ) : (
+                    <TouchableOpacity
+                      onPress={handleSendMessage}
+                      className="bg-[#F75F15] rounded-full p-3 ml-2"
+                      disabled={!messageText.trim()}
                     >
-                      {messageText.length}/200
-                    </Text>
+                      <MaterialIcons name="send" size={20} color="white" />
+                    </TouchableOpacity>
                   )}
                 </View>
-              </>
+                <Text className="text-white/70 text-xs mt-2 text-right" style={{ fontFamily: "HankenGrotesk_400Regular" }}>
+                  {messageText.length}/200
+                </Text>
+              </View>
             )}
           </>
         )}
-
-      </KeyboardAvoidingView>
+      </KeyboardAwareScrollView>
     </SafeAreaView>
   )
 }

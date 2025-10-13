@@ -63,6 +63,14 @@ interface Product {
   category: string
 }
 
+interface Status {
+  id: number
+  content: string
+  image: string | null
+  image_url: string
+  store: number
+}
+
 interface Message {
   chatbox: number
   content: string
@@ -70,6 +78,7 @@ interface Message {
   receiver: Receiver
   delivered: boolean
   product: Product | null
+  status: Status | null
   created_at: string
   sender_id?: string
   receiver_id?: string
@@ -594,6 +603,7 @@ const ChatDetailScreen = () => {
   const renderMessage = (message: Message, index: number) => {
     const isCurrentUser = currentUserId && (message.sender?.id === currentUserId || message.sender_id === currentUserId)
     const shouldShowProduct = message.product && message.product.id > 0
+    const shouldShowStatus = message.status && message.status.id > 0
 
     // Get the appropriate profile image and name for the message
     const messageProfile = isCurrentUser ? {
@@ -618,6 +628,7 @@ const ChatDetailScreen = () => {
           )}
 
           <View className={`max-w-[85%] ${isCurrentUser ? "items-end" : "items-start"}`}>
+            {/* Render Product if available */}
             {shouldShowProduct && (
               <View className="bg-white rounded-2xl p-4 shadow-md border border-gray-100 mb-2 w-full max-w-[280px]">
                 <View className="w-full">
@@ -650,6 +661,33 @@ const ChatDetailScreen = () => {
               </View>
             )}
 
+            {/* Render Status if available */}
+            {shouldShowStatus && (
+              <View className="bg-white rounded-2xl p-4 shadow-md border border-gray-100 mb-2 w-full max-w-[280px]">
+                <View className="w-full">
+                  {message.status!.image_url && (
+                    <View className="w-full mb-3">
+                      <Image
+                        source={{ uri: message.status!.image_url }}
+                        className="w-full h-40 rounded-xl"
+                        resizeMode="cover"
+                      />
+                    </View>
+                  )}
+                  {message.status!.content && (
+                    <Text
+                      className="text-gray-900 text-sm font-medium leading-5"
+                      style={{ fontFamily: "HankenGrotesk_500Medium" }}
+                      numberOfLines={3}
+                    >
+                      {message.status!.content}
+                    </Text>
+                  )}
+                </View>
+              </View>
+            )}
+
+            {/* Message bubble */}
             <View
               className={`rounded-2xl px-4 py-3 max-w-[280px] ${
                 isCurrentUser ? "bg-[#F75F15] rounded-tr-sm" : "bg-gray-200 rounded-tl-sm"

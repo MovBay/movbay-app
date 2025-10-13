@@ -4,6 +4,7 @@ import { Image, Pressable, Text, TouchableOpacity } from "react-native";
 interface ButtonProps {
     text: string;
     onPress?: () => void;
+    disabled?: boolean;
 }
 export const SolidMainButton = ({text, onPress, ...props}: ButtonProps)=>{
     return (
@@ -21,13 +22,26 @@ export const SolidInactiveButton = ({text, ...props}: ButtonProps)=>{
     )
 }
 
-export const SolidLightButton = ({text, onPress, ...props}: ButtonProps)=>{
-    return (
-        <TouchableOpacity {...props} onPress={onPress} className="flex items-center gap-4 bg-[#FEEEE6] border border-[#f3d0be] p-4 py-4 w-full rounded-full">
-            <Text className="text-[#F75F15] text-[13px]" style={{fontFamily: 'HankenGrotesk_700Bold'}}>{text}</Text>
-        </TouchableOpacity>
-    )
-}
+// export const SolidLightButton = ({text, onPress, ...props}: ButtonProps)=>{
+//     return (
+//         <TouchableOpacity {...props} onPress={onPress} className="flex items-center gap-4 bg-[#FEEEE6] border border-[#f3d0be] p-4 py-4 w-full rounded-full">
+//             <Text className="text-[#F75F15] text-[13px]" style={{fontFamily: 'HankenGrotesk_700Bold'}}>{text}</Text>
+//         </TouchableOpacity>
+//     )
+// }
+
+export const SolidLightButton = ({ text, onPress, disabled }: ButtonProps) => (
+  <Pressable
+    onPress={onPress}
+    disabled={disabled}
+    className="bg-[#FEEEE6] rounded-full p-4 justify-center items-center"
+  >
+    <Text style={{ fontFamily: 'HankenGrotesk_600SemiBold' }} className="text-[#F75F15]">
+      {text}
+    </Text>
+  </Pressable>
+)
+
 
 
 export const SolidLightGreenButton = ({text, onPress, ...props}: ButtonProps)=>{

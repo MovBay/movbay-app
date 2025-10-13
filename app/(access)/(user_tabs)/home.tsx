@@ -24,6 +24,9 @@ export default function HomeScreen() {
   } = useGetProductsOriginal()
   const { storeStatusData, isLoading: storeStatusLoading, refetch: storeRefetch } = useGetStoreStatus()
 
+  console.log("Location", profile)
+
+
   // Safely handle product data - make sure it's always an array
   const allProducts = useMemo(() => {
     try {
@@ -239,22 +242,37 @@ export default function HomeScreen() {
                   />
                 )}
               </Pressable>
-              <View>
-                <Text
-                  style={{ fontFamily: "HankenGrotesk_600SemiBold" }}
-                  className="text-base"
-                  numberOfLines={1}
-                  ellipsizeMode="tail"
-                >
-                  Hi, {profile?.data?.fullname || "User"}
-                </Text>
+              <Pressable onPress={() => router.push("/profile")}>
+                  {profile?.data?.address.length > 15 ? (
+                    <View>
+                      <Text
+                        style={{ fontFamily: "HankenGrotesk_600SemiBold" }}
+                        className="text-base"
+                        numberOfLines={1}
+                        ellipsizeMode="tail"
+                      >
+                        {profile?.data?.address.slice(0, 15) || "No Location"}...
+                      </Text>
+                    </View>
+                  ) : (
+                    <View>
+                      <Text
+                        style={{ fontFamily: "HankenGrotesk_600SemiBold" }}
+                        className="text-base"
+                        numberOfLines={1}
+                        ellipsizeMode="tail"
+                      >
+                        {profile?.data?.address || "No Location"}
+                      </Text>
+                    </View>
+                  )}
                 <Text
                   style={{ fontFamily: "HankenGrotesk_500Medium" }}
                   className="text-sm text-neutral-500"
                 >
                   @{profile?.data?.username || "username"}
                 </Text>
-              </View>
+              </Pressable>
             </View>
           )}
           <View className="flex-row gap-3 items-center">

@@ -256,7 +256,7 @@ const Product = () => {
 
   const toast = useToast()
 
-  console.log('This is Store', storeData?.data?.owner?.phone_number)
+  // console.log('This is each data', eachData)
 
   const handleCallSeller = useCallback(() => {
       if (senderPhone) {
@@ -583,9 +583,10 @@ const Product = () => {
                       {eachData?.original_price.toLocaleString()}
                     </Text>
                   </View>
-                  <Pressable className="bg-neutral-100 p-2 rounded-full flex justify-center items-center">
-                    <Ionicons name="share-outline" size={20} />
-                  </Pressable>
+                  
+                  <View className="bg-blue-100 p-2 px-4 rounded-full flex justify-center items-center">
+                    <Text className="text-sm text-blue-600" style={{fontFamily: 'HankenGrotesk_500Medium'}}>{eachData?.condition}</Text>
+                  </View>
                 </View>
 
                 <View className="pt-2">
@@ -865,7 +866,7 @@ const Product = () => {
                       {!isOwnProduct && (
                         <View className="flex-row items-center gap-1">
                          <Pressable onPress={()=>router.push(`/(access)/(user_stacks)/viewSellerStore?storeId=${eachData?.store?.id}`)} 
-                         className="bg-[#FEEEE6] rounded-full p-2 px-2.5 flex-row items-center justify-center gap-2">
+                              className="bg-[#FEEEE6] rounded-full p-2 px-2.5 flex-row items-center justify-center gap-2">
                             <Ionicons name="eye" size={22} color={'#F75F15'}/>
                           </Pressable>
 

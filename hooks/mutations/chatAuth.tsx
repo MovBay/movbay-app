@@ -46,6 +46,39 @@ export const useCreateChat = () => {
 }
 
 
+export const useCreateStatusChat = () => {
+  const queryClient = useQueryClient()
+
+  const createChat = useMutation({
+    mutationFn: async (data: any) => {
+      const token = (await AsyncStorage.getItem("movebay_token")) || ""
+      try {
+        const response = await post_requests(`/chats/status-message/`, data, token)
+        console.log("Status chat created successfully:", response)
+        return response
+      } catch (error: any) {
+        console.error("Error creating status chat:", {
+          status: error?.response?.status,
+          statusText: error?.response?.statusText,
+          data: error?.response?.data,
+          message: error?.message,
+          url: error?.config?.url,
+        })
+        throw error
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["chats"] })
+    },
+    onError: (error: any) => {
+      console.error("Mutation error:", error?.response?.data || error?.message)
+    },
+  })
+
+  return createChat
+}
+
+
 
 export const useContinueChat = (roomID: any) => {
   const queryClient = useQueryClient()

@@ -126,13 +126,13 @@ const ViewSellerStore = () => {
       {isOwnStore ? (
         <View className='pt-5'>
           <View className='w-[100%]'>
-            <SolidLightButton text='Share Profile'/>
+            <SolidLightButton text='Shop More' onPress={()=>router.push('/(access)/(user_tabs)/home')}/>
           </View>
         </View>
       ) : (
         <View className='flex-row items-center justify-between pt-5'>
           <View className='w-[49%]'>
-            <SolidLightButton text='Share Profile'/>
+            <SolidLightButton text='Shop More' onPress={()=>router.push('/(access)/(user_tabs)/home')}/>
           </View>
 
           {isFollowLoading ? (

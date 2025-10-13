@@ -123,7 +123,7 @@ const Settings = () => {
                 Delete MovBay
               </Text>
               <Text className='text-neutral-500 text-center mb-6 w-[90%] m-auto text-sm' style={{fontFamily: 'HankenGrotesk_500Medium'}}>
-                Deleting this account means no access to information on this account. ARe you sure you want to delete your account.
+                Deleting this account means no access to information on this account. Are you sure you want to delete your account.
               </Text>
 
               <View className='flex-row items-center justify-between'>
