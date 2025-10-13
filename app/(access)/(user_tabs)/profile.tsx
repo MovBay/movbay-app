@@ -235,7 +235,7 @@ const Profile = () => {
               Logout from account
             </Text>
             <Text className='text-neutral-500 text-center mb-6 w-[90%] m-auto text-sm' style={{fontFamily: 'HankenGrotesk_500Medium'}}>
-              Are you sure you want to logout from your account? {'\n'} it will clear your cart and saved items, You can always login again later.
+              Are you sure you want to logout from your account? {'\n'} You can always login again later.
             </Text>
 
             <View className='flex-row items-center justify-between'>

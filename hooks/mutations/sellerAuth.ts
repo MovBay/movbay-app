@@ -1,5 +1,5 @@
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { get_requests, post_request_with_image, post_requests, put_request_with_image } from "../helpers/axios_helpers";
+import { delete_requests, get_requests, post_request_with_image, post_requests, put_request_with_image } from "../helpers/axios_helpers";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 
@@ -126,6 +126,40 @@ export const useGetSingleUserProducts = (id: any) => {
     refetch,
   };
 };
+
+export const useUpdateUserProduct = (id: any) => {
+  const queryClient = useQueryClient()
+
+  const updateUserProduct = useMutation({
+    mutationFn: async (data: any) => {
+      const token = (await AsyncStorage.getItem("movebay_token")) || ""
+      return put_request_with_image(`/userproduct/${id}`, data, token)
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["user-product"] })
+    },
+  })
+
+  return updateUserProduct
+}
+
+
+export const useDeleteProduct = (id: any) => {
+  const queryClient = useQueryClient()
+  
+  const deleteProduct = useMutation({
+    mutationFn: async () => {
+      const token = (await AsyncStorage.getItem("movebay_token")) || ""
+      // Use DELETE method instead of POST
+      return post_requests(`/userproduct/${id}`, {}, token)
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["user-product"] })
+    },
+  })
+  
+  return deleteProduct
+}
 
 
 

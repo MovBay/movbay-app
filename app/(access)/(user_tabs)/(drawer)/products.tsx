@@ -4,14 +4,16 @@ import { SafeAreaView } from 'react-native-safe-area-context'
 import { StatusBar } from 'expo-status-bar'
 import { DrawerHeader } from '@/components/btns/DrawerHeader'
 import { DrawerActions, useNavigation } from '@react-navigation/native';
-import { useGetUserProducts } from '@/hooks/mutations/sellerAuth'
+import { useDeleteProduct, useGetUserProducts } from '@/hooks/mutations/sellerAuth'
 import { KeyboardAwareScrollView } from 'react-native-keyboard-controller'
-import { SolidMainButton } from '@/components/btns/CustomButtoms'
+import { SolidLightButton, SolidMainButton } from '@/components/btns/CustomButtoms'
 import { router } from 'expo-router'
 import { StyleSheet } from 'react-native'
 import MaterialIcons from '@expo/vector-icons/MaterialIcons'
 import Ionicons from '@expo/vector-icons/Ionicons'
 import AllProductsSkeleton from '@/components/AllProductSkeleton'
+import { Modal } from 'react-native'
+import LoadingOverlay from '@/components/LoadingOverlay'
 
 const Products = () => {
     const [refreshing, setRefreshing] = useState(false)
@@ -68,10 +70,49 @@ const Products = () => {
     const handleViewProduct = (id: string) =>{
       router.push(`/userProduct/${id}` as any)
     }
+
+    const handleEditProduct = (id: string) =>{
+      router.push(`/userProductUpdate/${id}` as any)
+    }
+
+
+      const [showDialog, setShowDialog] = useState(false);
+      const [selectedItem, setSelectedItem] = useState<any | null>(null);
+    
+      const handlePress = () => {
+        setShowDialog(true);
+      };
+    
+      const closeDialog = () => {
+        setShowDialog(false);
+      };
+
+    const { mutate: deleteProduct, isPending } = useDeleteProduct(selectedItem?.id)
+    
+      const handleDeleteProduct = async () => {
+        try {
+          closeDialog()
+          await deleteProduct(selectedItem?.id, {
+            onSuccess: (res) => {
+              setSelectedItem(null)
+              refetch()
+              console.log('Product deleted successfully:', res)
+            },
+
+          onError: (error) => {
+              console.error('Error deleting product:', error)
+            }
+          })
+       
+        } catch (error) {
+          console.error("Error deleting account:", error)
+        }
+      }
   return (
     <SafeAreaView className='flex-1 bg-white px-5'>
         <StatusBar style='dark'/>
         <DrawerHeader onPress={openDrawer}/>
+        <LoadingOverlay visible={isPending} />
 
         <KeyboardAwareScrollView 
             showsVerticalScrollIndicator={false}
@@ -203,12 +244,12 @@ const Products = () => {
 
 
                               <View className='flex-row justify-between pt-5'>
-                                 <Pressable className='justify-center rounded-full w-[48%] flex-row items-center bg-[#FEEEE6]' onPress={()=>router.push('/(access)/(user_stacks)/product-create')}>
+                                 <Pressable className='justify-center rounded-full w-[48%] flex-row items-center bg-[#FEEEE6]' onPress={()=>{setSelectedItem(eachData); handlePress()}}>
                                   <Ionicons name='trash-outline' size={16} color={'#A53F0E'}/>
                                   <Text className='text-[#A53F0E] text-base p-3' style={{fontFamily:'HankenGrotesk_600SemiBold'}}>Delete</Text>
                                 </Pressable>
 
-                                <Pressable className='justify-center rounded-full w-[48%] flex-row items-center bg-[#F75F15]' onPress={()=>router.push('/(access)/(user_stacks)/product-create')}>
+                                <Pressable className='justify-center rounded-full w-[48%] flex-row items-center bg-[#F75F15]' onPress={()=>handleEditProduct(eachData?.id)} key={index}>
                                   <MaterialIcons name='edit' size={16} color={'white'}/>
                                   <Text className='text-white text-base p-3' style={{fontFamily:'HankenGrotesk_600SemiBold'}}>Edit</Text>
                                 </Pressable>
@@ -224,6 +265,37 @@ const Products = () => {
             </>
           }
         </KeyboardAwareScrollView>
+
+          <Modal
+            visible={showDialog}
+            transparent={true}
+            animationType="fade"
+            onRequestClose={closeDialog}
+          >
+            <View className='flex-1 justify-center items-center bg-black/50'>
+              <View className='bg-white rounded-2xl p-8 mx-6 w-[90%]'>
+                <View className='items-center justify-center m-auto rounded-full p-5 bg-neutral-100 w-fit mb-5'>
+                  <Ionicons name="trash-sharp" size={30} color={'gray'}/>
+                </View>
+                <Text className='text-xl text-center mb-2' style={{fontFamily: 'HankenGrotesk_600SemiBold'}}>
+                  Delete Product
+                </Text>
+                <Text className='text-neutral-500 text-center mb-6 w-[90%] m-auto text-sm' style={{fontFamily: 'HankenGrotesk_500Medium'}}>
+                  Deleting this product will remove it permanently from your listings. Are you sure you want to proceed?
+                </Text>
+  
+                <View className='flex-row items-center justify-between'>
+                  <View className='w-[49%]'>
+                    <SolidLightButton onPress={closeDialog} text='No'/>
+                  </View>
+  
+                  <View className='w-[49%]'>
+                    <SolidMainButton onPress={handleDeleteProduct} text='Yes'/>
+                  </View>
+                </View>
+              </View>
+            </View>
+        </Modal>
     </SafeAreaView>
   )
 }

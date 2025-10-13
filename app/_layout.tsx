@@ -75,7 +75,7 @@ export default function RootLayout() {
   }
 
   return (
-    // <NotificationProvider>
+    <NotificationProvider>
       <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
         <CartProvider>
           <FavoritesProvider>
@@ -126,6 +126,6 @@ export default function RootLayout() {
           </FavoritesProvider>
         </CartProvider>
       </ThemeProvider>
-    // </NotificationProvider>
+    </NotificationProvider>
   );
 }

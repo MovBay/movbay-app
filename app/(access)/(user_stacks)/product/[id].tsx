@@ -707,25 +707,34 @@ const Product = () => {
 
                 <View className="pt-2 ">
 
+                
+
+                  {eachData?.video_url && (
+                    <View className="mb-5">
+                      <View className="flex-row justify-between items-center mb-2">
+                        <Text className="text-base" style={{ fontFamily: 'HankenGrotesk_600SemiBold' }}>
+                          Product Video
+                        </Text>
+                      </View>
+                      <Pressable
+                        onPress={openVideoModal}
+                        className="bg-black/80 rounded-lg h-40 justify-center items-center relative"
+                      >
+                        <Ionicons name="play-circle" size={50} color="white" />
+                        <Text className="text-white text-sm mt-2" style={{ fontFamily: 'HankenGrotesk_500Medium' }}>
+                          Tap to preview
+                        </Text>
+                      </Pressable>
+                    </View>
+                  )}
+
+
                   <View className="flex-row justify-between items-center w-full">
-                    <View className="bg-[#FEF2CD] w-[80%] p-3 rounded-xl">
+                    <View className="bg-[#FEF2CD] w-[100%] p-3 rounded-xl">
                       <Text className="text-sm text-[#977102]" style={{ fontFamily: "HankenGrotesk_600SemiBold" }}>
                         Seller's delivery starts within 1–2 working days for out-of-state orders.
                       </Text>
                     </View>
-                    {eachData?.video_url && (
-                      <Pressable
-                        onPress={openVideoModal}
-                        className="bg-[#F75F15] w-[20%]  rounded-full p-3.5 flex-row items-center justify-center gap-2"
-                        style={{borderWidth: 6, borderColor: '#FEE2CD'}}
-                      >
-                        {/* <Ionicons name="videocam" size={30} color="#F75F15" /> */}
-                        <MaterialIcons name="videocam" size={28} color="white" />
-                        {/* <Text className="text-[#F75F15] text-sm" style={{ fontFamily: "HankenGrotesk_600SemiBold" }}>
-                          Watch Product Video
-                        </Text> */}
-                      </Pressable>
-                    )}
                   </View>
 
                   <View className="">
@@ -854,18 +863,15 @@ const Product = () => {
                         </View>
                       </Pressable>
                       {!isOwnProduct && (
-                        <View className="flex-row gap-1">
+                        <View className="flex-row items-center gap-1">
                          <Pressable onPress={()=>router.push(`/(access)/(user_stacks)/viewSellerStore?storeId=${eachData?.store?.id}`)} 
-                         className="bg-[#FEEEE6] p-3 rounded-full px-5 flex-row gap-2">
-                            <Ionicons name="eye" size={15} color={'#F75F15'}/>
-                            <Text style={{ fontFamily: "HankenGrotesk_500Medium" }} className="text-sm text-[#F75F15]">
-                              Store
-                            </Text>
+                         className="bg-[#FEEEE6] rounded-full p-2 px-2.5 flex-row items-center justify-center gap-2">
+                            <Ionicons name="eye" size={22} color={'#F75F15'}/>
                           </Pressable>
 
                           {isPending || unFollowPending ? (
                             <Pressable
-                              className="bg-[#F75F15] p-3 rounded-full px-5 w-20">
+                              className="bg-[#F75F15] p-3 rounded-full px-4 w-20">
                               <ActivityIndicator size="small" color="white" />
                             </Pressable>
                           ): (
@@ -873,7 +879,7 @@ const Product = () => {
                               { isCurrentStoreFollowed ? (
                                 <Pressable
                                   onPress={handleFollowUnfollowStore}
-                                  className="bg-[#F75F15] p-3 rounded-full px-5">
+                                  className="bg-[#F75F15] p-3 rounded-full px-4">
                                   <Text style={{ fontFamily: "HankenGrotesk_500Medium" }} className="text-sm text-white">
                                     Unfollow
                                   </Text>

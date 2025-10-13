@@ -133,15 +133,6 @@ const Products = memo(
                 style={{ width: "100%", height: "100%", objectFit: "cover", borderRadius: 16 }}
               />
               
-              {/* Owner Badge */}
-              {/* {isOwner && (
-                <View className="absolute top-2 right-2 bg-[#4285F4] border-2 border-blue-100 rounded-full px-3 py-1.5">
-                  <Text className="text-white text-xs font-semibold" style={{ fontFamily: "HankenGrotesk_600SemiBold" }}>
-                    Your Product
-                  </Text>
-                </View>
-              )} */}
-              
               {/* Stock Status Badge */}
               {isOutOfStock ? (
                 <View className="absolute bottom-2 right-2 bg-[#F75F15] border-2 border-red-100 rounded-full px-3 py-1.5">
@@ -206,11 +197,11 @@ const Products = memo(
                   </Text>
                 )}
                 <View className="flex-row items-center gap-3">
-                  <Text className={`text-base pt-2 ${isOutOfStock ? 'text-gray-500' : ''}`} style={{ fontFamily: "HankenGrotesk_600SemiBold" }}>
+                  <Text className={`text-sm pt-2 italic line-through text-neutral-500 ${isOutOfStock ? 'text-gray-500' : ''}`} style={{ fontFamily: "HankenGrotesk_600SemiBold" }}>
                     ₦ {original_price.toLocaleString()}
                   </Text>
                   <Text
-                    className={`text-sm pt-2 italic line-through text-neutral-500 ${isOutOfStock ? 'text-gray-400' : ''}`}
+                    className={`text-base pt-2 ${isOutOfStock ? 'text-gray-400' : ''}`}
                     style={{ fontFamily: "HankenGrotesk_500Medium" }}
                   >
                     ₦ {discounted_price.toLocaleString()}

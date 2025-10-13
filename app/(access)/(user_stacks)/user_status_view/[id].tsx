@@ -72,6 +72,11 @@ const UserStatusView = () => {
   const { isPending, mutate } = useFollowStore(numericStoreId)
   const { isPending: unFollowPending, mutate: unfollowMutate } = useUnFollowStore(numericStoreId)
 
+  // Memoized check if this is the user's own status
+  const isOwnStatus = useMemo(() => {
+    return storeData?.data?.id === storeId
+  }, [storeData?.data?.id, storeId])
+
   const handleFollowUnfollowStore = async () => {
     if (!storeId) {
       Toast.show("Store ID not found", { type: "error" })
@@ -284,7 +289,7 @@ const UserStatusView = () => {
             </View>
           )}
 
-          {storeData?.data?.id !== storeId && (
+          {!isOwnStatus && (
             <>
               {isPending || unFollowPending ? (
                 <TouchableOpacity className="bg-[#FEEEE6] px-6 py-2.5 rounded-full" disabled>
@@ -379,9 +384,9 @@ const UserStatusView = () => {
 
           {/* Status content text */}
           {currentStatus.content && (
-            <View className="px-4 py-3">
+            <View className="px-4 py-3 bg-black pb-6">
               <Text
-                className="text-white text-base text-center leading-5"
+                className="text-white text-lg text-center italic leading-normal"
                 style={{ fontFamily: "HankenGrotesk_400Regular" }}
               >
                 {currentStatus.content}
@@ -391,67 +396,67 @@ const UserStatusView = () => {
 
         </TouchableOpacity>
 
-        {storeDataLoading? <>
-          <Text className="text-neutral-500 text-sm" style={{fontFamily: 'HankenGrotesk_500Medium'}}>Loading . . .</Text>
-        </> : <>
-        
-          {storeData?.data?.id !== storeId && (
-            <View className="flex-row justify-between mx-4 my-4 gap-3 pointer-events-auto">
-              <View className="flex-1">
-                <SolidMainButton text="Buy Now" />
-              </View>
-              <View className="flex-1">
-                <SolidLightButton text="Add to Cart" />
-              </View>
-            </View>
-          )}
+        {/* Bottom section - only render if store data is loaded */}
+        {storeDataLoading || openStoreLoading  ? (
+          <View className="">
+          </View>
+        ) : (
+          <>
+            {!isOwnStatus && (
+              <>
+                {/* <View className="flex-row justify-between mx-4 my-4 gap-3 pointer-events-auto">
+                  <View className="flex-1">
+                    <SolidMainButton text="Buy Now" />
+                  </View>
+                  <View className="flex-1">
+                    <SolidLightButton text="Add to Cart" />
+                  </View>
+                </View> */}
 
-          {storeData?.data?.id !== storeId && (
-            <View className="px-4 pb-4 w-full">
+                <View className="px-4 pb-4 w-full">
+                  <View className="flex-row justify-between items-center w-full">
+                    <View className="bg-neutral-900 rounded-full flex-row items-end p-2">
+                      <TextInput
+                        placeholder="Send a message..."
+                        placeholderTextColor="#9CA3AF"
+                        value={messageText}
+                        onChangeText={setMessageText}
+                        multiline
+                        maxLength={200}
+                        className="flex-1 text-white px-4 py-3 text-base leading-5"
+                        style={{
+                          fontFamily: "HankenGrotesk_400Regular",
+                          textAlignVertical: "top",
+                          maxHeight: 100,
+                        }}
+                        returnKeyType="send"
+                        onSubmitEditing={handleSendMessage}
+                      />
+                      <TouchableOpacity
+                        onPress={handleSendMessage}
+                        className="bg-[#F75F15] rounded-full p-3 px-5 ml-2"
+                        style={{ opacity: messageText.trim() ? 1 : 0.5 }}
+                        disabled={!messageText.trim()}
+                        activeOpacity={0.8}
+                      >
+                        <MaterialIcons name="send" size={20} color="white" />
+                      </TouchableOpacity>
+                    </View>
+                  </View>
 
-              <View className="flex-row justify-between items-center w-full">
-
-                <View className="bg-neutral-900 rounded-full flex-row items-end p-2">
-                  <TextInput
-                    placeholder="Send a message..."
-                    placeholderTextColor="#9CA3AF"
-                    value={messageText}
-                    onChangeText={setMessageText}
-                    multiline
-                    maxLength={200}
-                    className="flex-1 text-white px-4 py-3 text-base leading-5"
-                    style={{
-                      fontFamily: "HankenGrotesk_400Regular",
-                      textAlignVertical: "top",
-                      maxHeight: 100,
-                    }}
-                    returnKeyType="send"
-                    onSubmitEditing={handleSendMessage}
-                  />
-                  <TouchableOpacity
-                    onPress={handleSendMessage}
-                    className="bg-[#F75F15] rounded-full p-3 px-5 ml-2"
-                    style={{ opacity: messageText.trim() ? 1 : 0.5 }}
-                    disabled={!messageText.trim()}
-                    activeOpacity={0.8}
-                  >
-                    <MaterialIcons name="send" size={20} color="white" />
-                  </TouchableOpacity>
+                  {messageText.length > 0 && (
+                    <Text
+                      className="text-white/70 text-xs mt-2 text-right"
+                      style={{ fontFamily: "HankenGrotesk_400Regular" }}
+                    >
+                      {messageText.length}/200
+                    </Text>
+                  )}
                 </View>
-              </View>
-
-              {messageText.length > 0 && (
-                <Text
-                  className="text-white/70 text-xs mt-2 text-right"
-                  style={{ fontFamily: "HankenGrotesk_400Regular" }}
-                >
-                  {messageText.length}/200
-                </Text>
-              )}
-            </View>
-          )}
-        </>}
-
+              </>
+            )}
+          </>
+        )}
 
       </KeyboardAvoidingView>
     </SafeAreaView>

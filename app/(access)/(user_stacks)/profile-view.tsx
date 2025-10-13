@@ -1,10 +1,9 @@
-import { View, Text, Image } from 'react-native'
-import React from 'react'
+import { View, Text, Image, Modal, Pressable } from 'react-native'
+import React, { useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query';
 import { useLogout, useProfile } from '@/hooks/mutations/auth';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { router } from 'expo-router';
-import { Pressable } from 'react-native';
 import LoadingOverlay from '@/components/LoadingOverlay';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
@@ -19,6 +18,7 @@ import { SolidMainButton } from '@/components/btns/CustomButtoms';
 const ProfileView = () => {
 
   const {isLoading, profile} = useProfile()
+  const [imagePreviewVisible, setImagePreviewVisible] = useState(false)
   
 
   return (
@@ -36,9 +36,18 @@ const ProfileView = () => {
             </View>
 
               <View className='flex-col justify-center items-center mt-6'>
-                <View className='flex w-24 h-24 rounded-full overflow-hidden bg-gray-300 justify-center items-center mt-4'>
-                  <Image source={{uri: profile?.data?.profile_picture}} style={{objectFit: 'cover', width: '100%', height: '100%'}}/>
-                </View>
+                <Pressable 
+                  onPress={() => setImagePreviewVisible(true)}
+                  className='relative'
+                >
+                  <View className='flex w-24 h-24 rounded-full overflow-hidden bg-gray-100 justify-center items-center mt-4'>
+                    <Image source={{uri: profile?.data?.profile_picture}} style={{objectFit: 'cover', width: '100%', height: '100%'}}/>
+                  </View>
+                  {/* Clickable indicator */}
+                  <View className='absolute bottom-0 right-0 bg-orange-500 rounded-full p-1.5 border-2 border-white'>
+                    <Ionicons name="expand" size={16} color="white" />
+                  </View>
+                </Pressable>
                 <View>
                   <Text className='text-lg mt-2 text-center' style={{fontFamily: 'HankenGrotesk_600SemiBold'}}>{profile?.data?.fullname}</Text>
                   <Text className='text-base text-gray-500 text-center' style={{fontFamily: 'HankenGrotesk_400Regular'}}>@{profile?.data?.username}</Text>
@@ -57,14 +66,13 @@ const ProfileView = () => {
                 </View>
 
                 <View  className='p-4 border border-neutral-200 rounded-lg '>
-                    <Text className='text-sm pb-1 text-neutral-600' style={{fontFamily: 'HankenGrotesk_400Regular'}}>Email Adress</Text>
-                    <Text className='text-lg' style={{fontFamily: 'HankenGrotesk_600SemiBold'}}>kingsleysunday998@gmail.com</Text>
-                </View>
-
-
-                <View  className='p-4 border border-neutral-200 rounded-lg '>
                     <Text className='text-sm pb-1 text-neutral-600' style={{fontFamily: 'HankenGrotesk_400Regular'}}>Phone Number</Text>
                     <Text className='text-lg' style={{fontFamily: 'HankenGrotesk_600SemiBold'}}>{profile?.data?.phone_number}</Text>
+                </View>
+                
+                <View  className='p-4 border border-neutral-200 rounded-lg '>
+                    <Text className='text-sm pb-1 text-neutral-600' style={{fontFamily: 'HankenGrotesk_400Regular'}}>Adress</Text>
+                    <Text className='text-lg' style={{fontFamily: 'HankenGrotesk_600SemiBold'}}>{profile?.data?.address}</Text>
                 </View>
 
               </View>
@@ -79,6 +87,35 @@ const ProfileView = () => {
             />
           </View>
         </View>
+
+        {/* Image Preview Modal */}
+        <Modal
+          visible={imagePreviewVisible}
+          transparent={true}
+          animationType="fade"
+          onRequestClose={() => setImagePreviewVisible(false)}
+        >
+          <View className='flex-1 bg-black/90 justify-center items-center'>
+            <Pressable 
+              className='absolute top-12 right-6 z-10'
+              onPress={() => setImagePreviewVisible(false)}
+            >
+              <View className='bg-white/20 rounded-full p-2'>
+                <Ionicons name="close" size={28} color="white" />
+              </View>
+            </Pressable>
+            
+            <Image 
+              source={{uri: profile?.data?.profile_picture}} 
+              style={{width: '90%', height: '50%'}}
+              resizeMode="contain"
+            />
+            
+            <Text className='text-white text-center mt-4 px-6' style={{fontFamily: 'HankenGrotesk_500Medium'}}>
+              {profile?.data?.fullname}
+            </Text>
+          </View>
+        </Modal>
     </SafeAreaView>
   )
 }
