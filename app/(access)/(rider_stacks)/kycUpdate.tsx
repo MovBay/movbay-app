@@ -385,13 +385,13 @@ const KycUpdate = () => {
 
                             {/* Vehicle License/Plate Number */}
                             <View className='mb-6'>
-                                <Text style={styles.titleStyle}>Vehicle License</Text>
+                                <Text style={styles.titleStyle}>Vehicle Plate Number</Text>
                                 <Controller
                                     name="plate_number"
                                     control={control}
                                     render={({ field: { onChange, onBlur, value } }) => (
                                         <TextInput 
-                                            placeholder='Enter Vehicle License'
+                                            placeholder='Enter Plate Number'
                                             placeholderTextColor={"#AFAFAF"}
                                             onChangeText={onChange}
                                             onBlur={onBlur}
@@ -417,17 +417,22 @@ const KycUpdate = () => {
                                                 onValueChange={(itemValue) => onChange(itemValue)}
                                                 value={value}
                                                 items={[
-                                                    { label: "White", value: "white" },
-                                                    { label: "Black", value: "black" },
-                                                    { label: "Silver", value: "silver" },
-                                                    { label: "Red", value: "red" },
-                                                    { label: "Blue", value: "blue" },
-                                                    { label: "Green", value: "green" },
-                                                    { label: "Yellow", value: "yellow" },
-                                                    { label: "Orange", value: "orange" },
-                                                    { label: "Brown", value: "brown" },
-                                                    { label: "Gray", value: "gray" },
-                                                    { label: "Other", value: "other" },
+                                                    { label: "White", value: "White" },
+                                                    { label: "Black", value: "Black" },
+                                                    { label: "Silver", value: "Silver" },
+                                                    { label: "Red", value: "Red" },
+                                                    { label: "Blue", value: "Blue" },
+                                                    { label: "Green", value: "Green" },
+                                                    { label: "Yellow", value: "Yellow" },
+                                                    { label: "Orange", value: "Orange" },
+                                                    { label: "Brown", value: "Brown" },
+                                                    { label: "Gray", value: "Gray" },
+                                                    { label: "Pink", value: "Pink" },
+                                                    { label: "Purple", value: "Purple" },
+                                                    { label: "Dark Red", value: "Dark Red" },
+                                                    { label: "Dark Grren", value: "Dark Grren" },
+                                                    { label: "Navy Blue", value: "Navy Blue" },
+                                                    { label: "Other", value: "Other" },
                                                 ]}
                                                 placeholder={{
                                                     label: "Select",

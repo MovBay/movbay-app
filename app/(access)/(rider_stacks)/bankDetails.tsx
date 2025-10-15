@@ -9,11 +9,21 @@ import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import { SolidMainButton } from '@/components/btns/CustomButtoms';
 import { useGetRiderBank } from '@/hooks/mutations/ridersAuth';
 import LoadingOverlay from '@/components/LoadingOverlay';
+import * as Clipboard from 'expo-clipboard';
+import { useToast } from 'react-native-toast-notifications';
 
 // Bank Details Display Screen (when bank exists)
 const BankDetailsDisplay = ({ bankDetails, isLoading }:any) => {
-  const copyAccountNumber = () => {
-    console.log('Account number copied');
+  const toast = useToast();
+
+  const copyAccountNumber = async () => {
+    try {
+      await Clipboard.setStringAsync(bankDetails?.account_number || '');
+      toast.show('Account number copied!', { type: 'success' });
+    } catch (error) {
+      console.error('Failed to copy:', error);
+      toast.show('Failed to copy account number', { type: 'danger' });
+    }
   };
 
 
@@ -53,7 +63,7 @@ const BankDetailsDisplay = ({ bankDetails, isLoading }:any) => {
                   <Text className='text-lg text-black' style={{fontFamily: 'HankenGrotesk_600SemiBold'}}>
                     {bankDetails?.account_number || 'N/A'}
                   </Text>
-                  <TouchableOpacity onPress={copyAccountNumber} className='ml-2'>
+                  <TouchableOpacity onPress={copyAccountNumber} className='ml-2' activeOpacity={0.7}>
                     <Ionicons name="copy-outline" size={20} color="#666" />
                   </TouchableOpacity>
                 </View>

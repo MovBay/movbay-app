@@ -108,13 +108,13 @@ const BankDetailsEdit: React.FC = () => {
   const getBankData = (response: any): BankDetailsResponse | null => {
     if (!response) return null
     let bankData: BankDetailsResponse | null = null
-    
+
     if (response.data) {
       bankData = response.data
     } else {
       bankData = response
     }
-    
+
     if (bankData?.data) {
       bankData = bankData.data
     }
@@ -143,7 +143,8 @@ const BankDetailsEdit: React.FC = () => {
           selectedBank: bankData.bank_name || "",
         })
 
-        if (bankData.account_name) {
+        // If existing data has account_name, mark as verified
+        if (bankData.account_name && bankData.account_number && bankData.bank_name) {
           setAccountName(bankData.account_name)
           setIsAccountVerified(true)
         } else {
@@ -154,29 +155,34 @@ const BankDetailsEdit: React.FC = () => {
     }
   }, [getRidersBank, isLoading, reset])
 
-  // Verify account when both account number and bank are available
   useEffect(() => {
-    if (accountNumber && accountNumber.length === 10 && selectedBankCode) {
-      // Only verify if it's different from existing data or if not already verified
-      const bankData = getBankData(getRidersBank)
-      const isDifferentAccount = 
-        bankData?.account_number !== accountNumber || 
-        bankData?.bank_name !== selectedBankName
-      
-      if (isDifferentAccount || !isAccountVerified) {
-        verifyAccountNumber(accountNumber, selectedBankCode)
-      }
-    } else {
-      // Only clear if we're changing from existing data
-      const bankData = getBankData(getRidersBank)
-      if (
-        bankData?.account_number !== accountNumber || 
-        bankData?.bank_name !== selectedBankName
-      ) {
+    // Only proceed if we have both account number and bank code
+    if (!accountNumber || accountNumber.length !== 10 || !selectedBankCode) {
+      // Clear verification only if account number is incomplete or bank not selected
+      if (accountNumber.length > 0 && accountNumber.length < 10) {
         setAccountName("")
         setIsAccountVerified(false)
       }
+      return
     }
+
+    const bankData = getBankData(getRidersBank)
+
+    // Check if current form data matches existing saved data
+    const matchesExistingData =
+      bankData?.account_number === accountNumber && bankData?.bank_name === selectedBankName && bankData?.account_name
+
+    // If it matches existing verified data, keep it verified
+    if (matchesExistingData) {
+      if (!isAccountVerified) {
+        setAccountName(bankData.account_name!)
+        setIsAccountVerified(true)
+      }
+      return
+    }
+
+    // If data is different from existing, verify the new account
+    verifyAccountNumber(accountNumber, selectedBankCode)
   }, [accountNumber, selectedBankCode, selectedBankName])
 
   // Handle mutation success/error with useEffect
@@ -236,8 +242,8 @@ const BankDetailsEdit: React.FC = () => {
         setAccountName(data.data.account_name)
         setIsAccountVerified(true)
       } else {
-        toast.show("Please check your account details properly.", { type: "danger" })
         setIsAccountVerified(false)
+        toast.show("Could not verify account. Please check your details.", { type: "warning" })
       }
     } catch (error) {
       console.error("Error verifying account:", error)
@@ -284,12 +290,11 @@ const BankDetailsEdit: React.FC = () => {
     hideBankModalWithAnimation()
   }
 
-  // Handle bank selection
   const handleBankSelect = (bank: Bank) => {
     setValue("selectedBank", bank.name)
     handleCloseBankModal()
-    
-    // Only clear verification if it's a different bank
+
+    // Clear verification when bank changes
     const bankData = getBankData(getRidersBank)
     if (bankData?.bank_name !== bank.name) {
       setAccountName("")
@@ -297,12 +302,11 @@ const BankDetailsEdit: React.FC = () => {
     }
   }
 
-  // Handle account number change
   const handleAccountNumberChange = (onChange: (value: string) => void) => (text: string) => {
     const numericText = text.replace(/[^0-9]/g, "").slice(0, 10)
     onChange(numericText)
-    
-    // Only clear verification if it's a different account number
+
+    // Clear verification when account number changes
     const bankData = getBankData(getRidersBank)
     if (bankData?.account_number !== numericText) {
       setAccountName("")
@@ -446,10 +450,7 @@ const BankDetailsEdit: React.FC = () => {
 
             {/* Account Name Verification */}
             {(isVerifying || accountName) && (
-              <View
-                className="mb-6 px-4 py-3 rounded-lg"
-                style={{ backgroundColor: isAccountVerified ? "#E8F5E8" : "#FFF3E0" }}
-              >
+              <View className="mb-6 px-4 py-3 rounded-lg">
                 <View className="flex-row items-center justify-between">
                   {isVerifying ? (
                     <View className="flex-row items-center">
@@ -460,7 +461,7 @@ const BankDetailsEdit: React.FC = () => {
                     </View>
                   ) : accountName ? (
                     <View className="flex-row items-center justify-between flex-1">
-                      <Text className="text-base text-[#4CAF50]" style={{ fontFamily: "HankenGrotesk_500Medium" }}>
+                      <Text className="text-base text-green-600" style={{ fontFamily: "HankenGrotesk_500Medium" }}>
                         {accountName}
                       </Text>
                       {isAccountVerified && (

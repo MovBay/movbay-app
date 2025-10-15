@@ -47,7 +47,7 @@ module.exports = {
           "image": "./assets/images/splash-icon.png",
           "imageWidth": 200,
           "resizeMode": "contain",
-          "backgroundColor": "#F75F15"
+          "backgroundColor": "white"
         }
       ],
 
@@ -57,7 +57,7 @@ module.exports = {
           "appId": "abc123",
           "androidApiKey": "android_sdk-abc123",
           "iosApiKey": "ios_sdk-abc123",
-          "intercomRegion": "EU" // Europe
+          "intercomRegion": "EU"
         }
       ]
     ],
