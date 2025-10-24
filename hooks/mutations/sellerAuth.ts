@@ -133,7 +133,7 @@ export const useUpdateUserProduct = (id: any) => {
   const updateUserProduct = useMutation({
     mutationFn: async (data: any) => {
       const token = (await AsyncStorage.getItem("movebay_token")) || ""
-      return put_request_with_image(`/userproduct/${id}`, data, token)
+      return put_request_with_image(`/update-product/${id}/`, data, token)
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["user-product"] })
@@ -150,14 +150,12 @@ export const useDeleteProduct = (id: any) => {
   const deleteProduct = useMutation({
     mutationFn: async () => {
       const token = (await AsyncStorage.getItem("movebay_token")) || ""
-      // Use DELETE method instead of POST
-      return post_requests(`/userproduct/${id}`, {}, token)
+      return delete_requests(`/delete-product/${id}/`, token)
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["user-product"] })
     },
   })
-  
   return deleteProduct
 }
 
@@ -931,7 +929,6 @@ export const useGetFollowedStores = () => {
 };
 
 
-
 export const useGetFollowers = () => {
   const { data, isLoading, isError, isFetched, refetch } = useQuery({
     queryKey: ["follow"],
@@ -951,9 +948,6 @@ export const useGetFollowers = () => {
 };
 
 
-
-// get-shipment-rate/<str:product_id>/
-
 export const usePostShipRate = () => {
   const queryClient = useQueryClient()
 
@@ -971,8 +965,6 @@ export const usePostShipRate = () => {
 }
 
 
-
-// users/delete-account
 export const useDeleteAccount = () => {
   const queryClient = useQueryClient()
 
@@ -991,7 +983,6 @@ export const useDeleteAccount = () => {
 }
 
 
-
 export const usePostDeliveryTypesIds = () => {
   const queryClient = useQueryClient()
 
@@ -1007,3 +998,24 @@ export const usePostDeliveryTypesIds = () => {
 
   return postDeliveryTypesIds
 }
+
+
+
+// ================== NOTIFICATION ==================
+export const useGetNotification = () => {
+  const { data, isLoading, isError, isFetched, refetch } = useQuery({
+    queryKey: ["notification"],
+    queryFn: async () => {
+      const token = (await AsyncStorage.getItem("movebay_token")) || "";
+      return get_requests(`/notification/`, token);
+    },
+  });
+
+  return {
+    getNotification: data,
+    isLoading,
+    isError,
+    isFetched,
+    refetch,
+  };
+};

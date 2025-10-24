@@ -13,6 +13,8 @@ import {
   Linking,
   Animated,
   Keyboard,
+  Modal,
+  Dimensions,
 } from "react-native"
 import { useState, useEffect, useRef, useCallback } from "react"
 import { SafeAreaView } from "react-native-safe-area-context"
@@ -23,6 +25,8 @@ import { router, useLocalSearchParams, useFocusEffect } from "expo-router"
 import { useContinueChat } from "@/hooks/mutations/chatAuth"
 import { KeyboardAvoidingView } from "react-native"
 import AsyncStorage from "@react-native-async-storage/async-storage"
+
+const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window")
 
 // Define the required interfaces
 interface UserProfile {
@@ -82,6 +86,86 @@ interface Message {
   created_at: string
   sender_id?: string
   receiver_id?: string
+}
+
+// Image Preview Modal Component
+const ImagePreviewModal = ({ visible, imageUri, onClose }: { visible: boolean; imageUri: string; onClose: () => void }) => {
+  const scale = useRef(new Animated.Value(0)).current
+  const opacity = useRef(new Animated.Value(0)).current
+
+  useEffect(() => {
+    if (visible) {
+      Animated.parallel([
+        Animated.spring(scale, {
+          toValue: 1,
+          useNativeDriver: true,
+          friction: 8,
+        }),
+        Animated.timing(opacity, {
+          toValue: 1,
+          duration: 200,
+          useNativeDriver: true,
+        }),
+      ]).start()
+    } else {
+      scale.setValue(0)
+      opacity.setValue(0)
+    }
+  }, [visible])
+
+  const handleClose = () => {
+    Animated.parallel([
+      Animated.timing(scale, {
+        toValue: 0,
+        duration: 200,
+        useNativeDriver: true,
+      }),
+      Animated.timing(opacity, {
+        toValue: 0,
+        duration: 200,
+        useNativeDriver: true,
+      }),
+    ]).start(() => {
+      onClose()
+    })
+  }
+
+  return (
+    <Modal
+      visible={visible}
+      transparent
+      animationType="none"
+      onRequestClose={handleClose}
+      statusBarTranslucent
+    >
+      <View style={styles.modalContainer}>
+        <Animated.View style={[styles.modalBackground, { opacity }]}>
+          <TouchableOpacity
+            style={styles.closeButton}
+            onPress={handleClose}
+            activeOpacity={0.8}
+          >
+            <Ionicons name="close" size={32} color="white" />
+          </TouchableOpacity>
+
+          <Animated.View
+            style={[
+              styles.imageContainer,
+              {
+                transform: [{ scale }],
+              },
+            ]}
+          >
+            <Image
+              source={{ uri: imageUri }}
+              style={styles.fullscreenImage}
+              resizeMode="contain"
+            />
+          </Animated.View>
+        </Animated.View>
+      </View>
+    </Modal>
+  )
 }
 
 // Loading Dots Component
@@ -192,8 +276,13 @@ const ChatDetailScreen = () => {
   const [isLoading, setIsLoading] = useState(true)
   const [inputHeight, setInputHeight] = useState(40)
   const [chatPartnerInfo, setChatPartnerInfo] = useState<any>(null)
-  const [isPartnerOnline, setIsPartnerOnline] = useState(false) 
+  const [isPartnerOnline, setIsPartnerOnline] = useState(false)
   const [keyboardHeight, setKeyboardHeight] = useState(0)
+  
+  // Image preview states
+  const [imagePreviewVisible, setImagePreviewVisible] = useState(false)
+  const [selectedImageUri, setSelectedImageUri] = useState("")
+
   console.log("This is message:", messages)
 
   const ws = useRef<WebSocket | null>(null)
@@ -216,13 +305,18 @@ const ChatDetailScreen = () => {
   // Continue chat mutation
   const continueChat = useContinueChat(roomId)
 
+  // Handle image press
+  const handleImagePress = (imageUri: string) => {
+    setSelectedImageUri(imageUri)
+    setImagePreviewVisible(true)
+  }
+
   // Keyboard event listeners
   useEffect(() => {
     const keyboardWillShowListener = Keyboard.addListener(
       Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow',
       (e) => {
         setKeyboardHeight(e.endCoordinates.height)
-        // Scroll to bottom when keyboard shows
         setTimeout(() => {
           scrollViewRef.current?.scrollToEnd({ animated: true })
         }, 100)
@@ -244,18 +338,15 @@ const ChatDetailScreen = () => {
 
   // Function to detect and parse links and phone numbers
   const parseMessageContent = (content: string, isCurrentUser: boolean) => {
-    // Regex patterns
     const urlRegex = /(https?:\/\/[^\s]+|www\.[^\s]+|[^\s]+\.[a-z]{2,}(?:\/[^\s]*)?)/gi
     const phoneRegex = /(\+?[\d\s\-\(\)]{7,})/g
     
-    // Split content by both patterns
     const parts = content.split(/(https?:\/\/[^\s]+|www\.[^\s]+|[^\s]+\.[a-z]{2,}(?:\/[^\s]*)?|\+?[\d\s\-\(\)]{7,})/gi)
     
     return parts.map((part, index) => {
       const isUrl = urlRegex.test(part)
       const isPhone = phoneRegex.test(part) && part.trim().length >= 7
       
-      // Reset regex lastIndex to avoid issues with global flag
       urlRegex.lastIndex = 0
       phoneRegex.lastIndex = 0
       
@@ -329,7 +420,7 @@ const ChatDetailScreen = () => {
     }, [roomId, token, receiverName, receiverImage, receiverId, isUserOnline])
   )
 
-  // Check if message already exists (more strict checking)
+  // Check if message already exists
   const messageExists = (newMessage: Message, existingMessages: Message[]) => {
     return existingMessages.some(msg => 
       msg.content === newMessage.content && 
@@ -398,7 +489,7 @@ const ChatDetailScreen = () => {
         console.log("WebSocket closed:", event.code, event.reason)
         setIsConnected(false)
         setIsConnecting(false)
-        setIsPartnerOnline(false) // Partner goes offline when WebSocket disconnects
+        setIsPartnerOnline(false)
 
         if (event.code !== 1000 && reconnectAttempts.current < maxReconnectAttempts) {
           const delay = Math.min(1000 * Math.pow(2, reconnectAttempts.current), 30000)
@@ -438,7 +529,7 @@ const ChatDetailScreen = () => {
     })
   }
 
-  // Handle array of messages (initial load or batch update)
+  // Handle array of messages
   const handleMessagesArray = (newMessages: Message[]) => {
     console.log("Setting messages array:", newMessages.length, "messages")
     setIsLoading(false)
@@ -455,7 +546,6 @@ const ChatDetailScreen = () => {
     }
 
     if (ws.current) {
-      // Send offline status before closing
       try {
         ws.current.send(JSON.stringify({
           type: 'user_presence',
@@ -480,7 +570,7 @@ const ChatDetailScreen = () => {
     connect()
   }
 
-  // Send message function with improved UX
+  // Send message function
   const sendMessage = async () => {
     if (!messageText.trim() || continueChat.isPending) return
 
@@ -499,7 +589,7 @@ const ChatDetailScreen = () => {
     }
   }
 
-  // Handle input content size change (for multiline)
+  // Handle input content size change
   const handleContentSizeChange = (event: any) => {
     const newHeight = Math.min(Math.max(40, event.nativeEvent.contentSize.height), 100)
     setInputHeight(newHeight)
@@ -568,7 +658,6 @@ const ChatDetailScreen = () => {
       console.log("Requesting chat history:", historyRequest)
       ws.current.send(JSON.stringify(historyRequest))
       
-      // Set a timeout to hide loading after 3 seconds if no messages received
       setTimeout(() => {
         if (messages.length === 0) {
           setIsLoading(false)
@@ -587,11 +676,10 @@ const ChatDetailScreen = () => {
     })
   }
 
-  // Render delivery status icon based on online status
+  // Render delivery status icon
   const renderDeliveryStatus = (message: Message, isCurrentUser: boolean) => {
     if (!isCurrentUser) return null
 
-    // Show double tick (delivered and read) if partner is online, single tick if offline
     if (isPartnerOnline && isConnected) {
       return <Ionicons name="checkmark-done" size={14} color="#10B981" />
     } else {
@@ -605,7 +693,6 @@ const ChatDetailScreen = () => {
     const shouldShowProduct = message.product && message.product.id > 0
     const shouldShowStatus = message.status && message.status.id > 0
 
-    // Get the appropriate profile image and name for the message
     const messageProfile = isCurrentUser ? {
       image: message.sender?.user_profile?.profile_picture || "",
       name: message.sender?.user_profile?.fullname || "You"
@@ -633,13 +720,17 @@ const ChatDetailScreen = () => {
               <View className="bg-white rounded-2xl p-4 shadow-md border border-gray-100 mb-2 w-full max-w-[280px]">
                 <View className="w-full">
                   {message.product!.product_images.length > 0 && (
-                    <View className="w-full mb-3">
+                    <TouchableOpacity
+                      onPress={() => handleImagePress(message.product!.product_images[0].image_url)}
+                      activeOpacity={0.9}
+                      className="w-full mb-3"
+                    >
                       <Image
                         source={{ uri: message.product!.product_images[0].image_url }}
                         className="w-full h-40 rounded-xl"
                         resizeMode="cover"
                       />
-                    </View>
+                    </TouchableOpacity>
                   )}
                   <Text
                     className="text-gray-900 text-sm font-medium leading-5"
@@ -666,13 +757,17 @@ const ChatDetailScreen = () => {
               <View className="bg-white rounded-2xl p-4 shadow-md border border-gray-100 mb-2 w-full max-w-[280px]">
                 <View className="w-full">
                   {message.status!.image_url && (
-                    <View className="w-full mb-3">
+                    <TouchableOpacity
+                      onPress={() => handleImagePress(message.status!.image_url)}
+                      activeOpacity={0.9}
+                      className="w-full mb-3"
+                    >
                       <Image
                         source={{ uri: message.status!.image_url }}
                         className="w-full h-40 rounded-xl"
                         resizeMode="cover"
                       />
-                    </View>
+                    </TouchableOpacity>
                   )}
                   {message.status!.content && (
                     <Text
@@ -728,8 +823,15 @@ const ChatDetailScreen = () => {
   }
 
   return (
-      <SafeAreaView style={{ flex: 1, backgroundColor: "white" }}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: "white" }}>
       <StatusBar style="dark" />
+
+      {/* Image Preview Modal */}
+      <ImagePreviewModal
+        visible={imagePreviewVisible}
+        imageUri={selectedImageUri}
+        onClose={() => setImagePreviewVisible(false)}
+      />
 
       {/* Header */}
       <View className="flex-row items-center px-4 py-4 bg-white border-b border-gray-100">
@@ -837,7 +939,7 @@ const ChatDetailScreen = () => {
         )}
       </View>
 
-      {/* The KEY CHANGE HERE: Wrap ScrollView and Input Section in a single flex:1 View */}
+      {/* Main Content Area */}
       <KeyboardAvoidingView
         style={{ flex: 1 }}
         behavior={Platform.OS === "ios" ? "padding" : "height"}
@@ -853,7 +955,7 @@ const ChatDetailScreen = () => {
               paddingTop: 16,
               paddingBottom: 4,
               flexGrow: 1,
-              justifyContent: messages.length === 0 ? "center" : "flex-start", // center if no messages
+              justifyContent: messages.length === 0 ? "center" : "flex-start",
             }}
             keyboardShouldPersistTaps="handled"
             maintainVisibleContentPosition={{
@@ -910,7 +1012,7 @@ const ChatDetailScreen = () => {
               }}
             >
               <View
-                className="bg-neutral-200 rounded-full flex-row items-end px-2 py-1 "
+                className="bg-neutral-200 rounded-full flex-row items-end px-2 py-1"
                 style={{ flexDirection: "row", alignItems: "flex-end" }}
               >
                 <TextInput
@@ -978,5 +1080,33 @@ const styles = StyleSheet.create({
     minHeight: 40,
     maxHeight: 100,
     color: '#374151',
+  },
+  modalContainer: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.95)',
+  },
+  modalBackground: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  closeButton: {
+    position: 'absolute',
+    top: 50,
+    right: 20,
+    zIndex: 10,
+    padding: 10,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    borderRadius: 25,
+  },
+  imageContainer: {
+    width: SCREEN_WIDTH,
+    height: SCREEN_HEIGHT,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  fullscreenImage: {
+    width: SCREEN_WIDTH,
+    height: SCREEN_HEIGHT * 0.8,
   },
 })

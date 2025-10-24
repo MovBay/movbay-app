@@ -14,6 +14,7 @@ import Ionicons from '@expo/vector-icons/Ionicons'
 import AllProductsSkeleton from '@/components/AllProductSkeleton'
 import { Modal } from 'react-native'
 import LoadingOverlay from '@/components/LoadingOverlay'
+import { Toast } from 'react-native-toast-notifications'
 
 const Products = () => {
     const [refreshing, setRefreshing] = useState(false)
@@ -95,6 +96,8 @@ const Products = () => {
           await deleteProduct(selectedItem?.id, {
             onSuccess: (res) => {
               setSelectedItem(null)
+              Toast.show('Product Deleted Successfully', {type: 'success'})
+              
               refetch()
               console.log('Product deleted successfully:', res)
             },

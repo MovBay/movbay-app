@@ -14,6 +14,7 @@ import { ActivityIndicator, FlatList, RefreshControl } from "react-native"
 import { Image, Pressable, StyleSheet, Text, TextInput, View } from "react-native"
 import Animated, { FadeInDown } from "react-native-reanimated"
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context"
+import { useFilters } from "@/hooks/useFilter"
 
 export default function HomeScreen() {
   const { profile, isLoading, refetch: refetchProfile } = useProfile()
@@ -23,9 +24,6 @@ export default function HomeScreen() {
     refetch: refetchProducts,
   } = useGetProductsOriginal()
   const { storeStatusData, isLoading: storeStatusLoading, refetch: storeRefetch } = useGetStoreStatus()
-
-  console.log("Location", profile)
-
 
   // Safely handle product data - make sure it's always an array
   const allProducts = useMemo(() => {
@@ -49,6 +47,8 @@ export default function HomeScreen() {
   const isMountedRef = useRef(true)
   const isRefetchingRef = useRef(false)
 
+  const { filterSettings, isLoading: isLoadingFilters, hasActiveFilters, applyFilters, refreshFilters } = useFilters()
+
   const ItemSeparator = () => <View style={{ height: 15 }} />
   const insets = useSafeAreaInsets()
 
@@ -56,106 +56,160 @@ export default function HomeScreen() {
     return name.replace(/_/g, " ")
   }, [])
 
-  // Silent background refetch when screen focused
+  // Track mount state - CRITICAL: Must run first
+  useEffect(() => {
+    isMountedRef.current = true
+    
+    const timer = setTimeout(() => {
+      if (isMountedRef.current) {
+        setHasInitiallyLoaded(true)
+      }
+    }, 100)
+
+    return () => {
+      isMountedRef.current = false
+      isRefetchingRef.current = false
+      clearTimeout(timer)
+    }
+  }, [])
+
+  // Silent background refetch when screen focused - FIXED VERSION
   useFocusEffect(
     useCallback(() => {
-      let timeoutId: NodeJS.Timeout
+      let timeoutId: NodeJS.Timeout | null = null
       let isCancelled = false
 
       const silentRefetch = async () => {
-        if (isRefetchingRef.current || !isMountedRef.current) return
+        // Check if already refetching or unmounted
+        if (isRefetchingRef.current || !isMountedRef.current) {
+          return
+        }
 
         timeoutId = setTimeout(async () => {
           if (isCancelled || !isMountedRef.current) return
 
           isRefetchingRef.current = true
+
           try {
-            if (!isCancelled && typeof refetchProfile === "function") {
+            // Refetch profile with error handling
+            if (!isCancelled && isMountedRef.current && typeof refetchProfile === "function") {
               try {
                 await refetchProfile()
               } catch (err: any) {
-                console.log("Background profile refetch failed (silent):", err?.message)
+                if (isMountedRef.current) {
+                  console.log("Background profile refetch failed:", err?.message)
+                }
               }
             }
 
+            // Small delay between requests
             await new Promise((resolve) => setTimeout(resolve, 100))
-            if (isCancelled) return
+            if (isCancelled || !isMountedRef.current) return
 
-            if (!isCancelled && typeof refetchProducts === "function") {
+            // Refetch products with error handling
+            if (!isCancelled && isMountedRef.current && typeof refetchProducts === "function") {
               try {
                 await refetchProducts()
               } catch (err: any) {
-                console.log("Background products refetch failed (silent):", err?.message)
+                if (isMountedRef.current) {
+                  console.log("Background products refetch failed:", err?.message)
+                }
               }
             }
 
+            // Small delay between requests
             await new Promise((resolve) => setTimeout(resolve, 100))
-            if (isCancelled) return
+            if (isCancelled || !isMountedRef.current) return
 
-            if (!isCancelled && typeof storeRefetch === "function") {
+            // Refetch store status with error handling
+            if (!isCancelled && isMountedRef.current && typeof storeRefetch === "function") {
               try {
                 await storeRefetch()
               } catch (err: any) {
-                console.log("Background store status refetch failed (silent):", err?.message)
+                if (isMountedRef.current) {
+                  console.log("Background store status refetch failed:", err?.message)
+                }
               }
             }
           } catch (error) {
-            console.log("Silent background refetch error:", error)
+            if (isMountedRef.current) {
+              console.log("Silent background refetch error:", error)
+            }
           } finally {
-            if (!isCancelled) {
+            if (isMountedRef.current) {
               isRefetchingRef.current = false
             }
           }
         }, 500)
       }
 
+      // Start the refetch
       silentRefetch()
 
+      // Cleanup function
       return () => {
         isCancelled = true
         if (timeoutId) {
           clearTimeout(timeoutId)
         }
-        isRefetchingRef.current = false
+        // Don't reset isRefetchingRef here to prevent race conditions
       }
-    }, [])
+    }, [refetchProfile, refetchProducts, storeRefetch]) // Add dependencies
   )
 
-  // Track mount state
-  useEffect(() => {
-    isMountedRef.current = true
-
-    const timer = setTimeout(() => {
-      if (isMountedRef.current) setHasInitiallyLoaded(true)
-    }, 100)
-
-    return () => {
-      isMountedRef.current = false
-      clearTimeout(timer)
+  // Pull to refresh manually by user - FIXED VERSION
+  const refetchByUser = useCallback(async () => {
+    if (!isMountedRef.current || isRefetchingRef.current) {
+      return
     }
-  }, [])
-
-  // Pull to refresh manually by user
-  async function refetchByUser() {
-    if (!isMountedRef.current || isRefetchingRef.current) return
 
     isRefetchingRef.current = true
-    setIsRefetchingByUser(true)
+    
+    if (isMountedRef.current) {
+      setIsRefetchingByUser(true)
+    }
 
     try {
       const promises = []
-      if (typeof refetchProfile === "function") promises.push(refetchProfile())
-      if (typeof refetchProducts === "function") promises.push(refetchProducts())
-      if (typeof storeRefetch === "function") promises.push(storeRefetch())
+      
+      if (isMountedRef.current && typeof refetchProfile === "function") {
+        promises.push(
+          refetchProfile().catch((err) => {
+            console.log("Manual profile refetch failed:", err?.message)
+          })
+        )
+      }
+      
+      if (isMountedRef.current && typeof refetchProducts === "function") {
+        promises.push(
+          refetchProducts().catch((err) => {
+            console.log("Manual products refetch failed:", err?.message)
+          })
+        )
+      }
+      
+      if (isMountedRef.current && typeof storeRefetch === "function") {
+        promises.push(
+          storeRefetch().catch((err) => {
+            console.log("Manual store refetch failed:", err?.message)
+          })
+        )
+      }
 
       await Promise.allSettled(promises)
     } catch (error) {
-      console.error("Error refreshing data:", error)
+      if (isMountedRef.current) {
+        console.error("Error refreshing data:", error)
+      }
     } finally {
-      if (isMountedRef.current) setIsRefetchingByUser(false)
+      if (isMountedRef.current) {
+        setIsRefetchingByUser(false)
+      }
       isRefetchingRef.current = false
     }
-  }
+  }, [refetchProfile, refetchProducts, storeRefetch])
+
+
 
   // Filter and sort products safely
   const filteredProducts = useMemo(() => {
@@ -167,15 +221,20 @@ export default function HomeScreen() {
       const query = searchQuery.toLowerCase().trim()
       filtered = filtered.filter((product: any) => {
         if (!product) return false
-        return (
-          product.title?.toLowerCase().includes(query) ||
-          product.category?.toLowerCase().includes(query) ||
-          product.condition?.toLowerCase().includes(query) ||
-          product.description?.toLowerCase().includes(query) ||
-          product.brand?.toLowerCase().includes(query) ||
-          product.store?.name?.toLowerCase().includes(query) ||
-          product.store?.store_name?.toLowerCase().includes(query)
-        )
+        try {
+          return (
+            product.title?.toLowerCase().includes(query) ||
+            product.category?.toLowerCase().includes(query) ||
+            product.condition?.toLowerCase().includes(query) ||
+            product.description?.toLowerCase().includes(query) ||
+            product.brand?.toLowerCase().includes(query) ||
+            product.store?.name?.toLowerCase().includes(query) ||
+            product.store?.store_name?.toLowerCase().includes(query)
+          )
+        } catch (err) {
+          console.error("Error filtering product:", err)
+          return false
+        }
       })
     } else if (activeCategoryId) {
       const selectedCategory = shopCategory.find((cat) => cat.id === activeCategoryId)
@@ -184,6 +243,71 @@ export default function HomeScreen() {
           (product: any) =>
             product?.category?.toLowerCase() === selectedCategory.name.toLowerCase()
         )
+      }
+    }
+
+
+    if (hasActiveFilters && !isLoadingFilters) {
+      // Filter by condition
+      if (filterSettings.selectedConditions.length > 0) {
+        filtered = filtered.filter((product: any) =>
+          filterSettings.selectedConditions.some(
+            (condition) => product?.condition?.toLowerCase() === condition.toLowerCase()
+          )
+        )
+      }
+
+      // Filter by brand
+      if (filterSettings.selectedBrands.length > 0) {
+        filtered = filtered.filter((product: any) =>
+          filterSettings.selectedBrands.some(
+            (brand) => product?.brand?.toLowerCase() === brand.toLowerCase()
+          )
+        )
+      }
+
+      // Filter by state
+      if (filterSettings.selectedStates.length > 0) {
+        filtered = filtered.filter((product: any) =>
+          filterSettings.selectedStates.some(
+            (state) => product?.store?.state?.toLowerCase() === state.toLowerCase()
+          )
+        )
+      }
+
+      // Filter by category (from filter settings)
+      if (filterSettings.selectedCategories.length > 0) {
+        filtered = filtered.filter((product: any) =>
+          filterSettings.selectedCategories.some(
+            (category) => product?.category?.toLowerCase() === category.toLowerCase()
+          )
+        )
+      }
+
+      // Filter by price range
+      const minPrice = parseFloat(filterSettings.minPrice.replace(/,/g, ''))
+      const maxPrice = parseFloat(filterSettings.maxPrice.replace(/,/g, ''))
+      
+      filtered = filtered.filter((product: any) => {
+        const itemPrice = parseFloat(
+          (product?.discounted_price || product?.original_price || 0).toString().replace(/,/g, '')
+        )
+        return itemPrice >= minPrice && itemPrice <= maxPrice
+      })
+
+      // Filter by verified sellers only
+      if (filterSettings.filters.verifiedSellersOnly) {
+        filtered = filtered.filter((product: any) => product?.store?.is_verified === true)
+      }
+
+      // Filter by pickup only
+      if (filterSettings.filters.pickupOnly) {
+        filtered = filtered.filter((product: any) => product?.pickup_available === true)
+      }
+
+      // Filter by delivery only
+      if (filterSettings.filters.deliveryOnly) {
+        filtered = filtered.filter((product: any) => product?.delivery_available === true)
       }
     }
 
@@ -213,11 +337,11 @@ export default function HomeScreen() {
     setActiveCategoryId(categoryId)
   }, [])
 
-  const handleViewStatus = (id: string) => {
-    if (id) {
+  const handleViewStatus = useCallback((id: string) => {
+    if (id && isMountedRef.current) {
       router.push(`/user_status_view/${id}` as any)
     }
-  }
+  }, [])
 
   const MemoizedFixedHeader = useMemo(
     () => (
@@ -275,33 +399,33 @@ export default function HomeScreen() {
               </Pressable>
             </View>
           )}
-          <View className="flex-row gap-3 items-center">
+          <View className="flex-row gap-2 items-center">
             <Pressable
               onPress={() => router.push("/(access)/(user_stacks)/notification")}
-              className="bg-neutral-100 w-fit relative flex justify-center items-center rounded-full p-2.5"
+              className="bg-neutral-100 w-fit relative flex justify-center items-center rounded-full p-2"
             >
-              <Ionicons name="notifications-outline" color={"#0F0F0F"} size={22} />
+              <Ionicons name="notifications-outline" color={"#0F0F0F"} size={20} />
               <View className="absolute top-[-4px] right-[-2px]">
                 <Text
                   style={{ fontFamily: "HankenGrotesk_500Medium" }}
-                  className="text-xs text-red-500"
+                  className="text-xs text-red-600"
                 >
-                  <MaterialIcons name="circle" size={10} />
+                  <MaterialIcons name="circle" size={8} />
                 </Text>
               </View>
             </Pressable>
             <Pressable
-              className="bg-neutral-100 w-fit flex justify-center relative items-center rounded-full p-2.5"
+              className="bg-neutral-100 w-fit flex justify-center relative items-center rounded-full p-2"
               onPress={() => router.push("/(access)/(user_stacks)/saved-product")}
             >
-              <MaterialIcons name="favorite-outline" color={"#0F0F0F"} size={22} />
-              <View className="absolute top-[-4px] right-[-2px] bg-red-200 justify-center items-center rounded-full p-2 py-0.5">
+              <MaterialIcons name="favorite-outline" color={"#0F0F0F"} size={20} />
+              <View className="absolute top-[-8px] right-[-2px] bg-red-100 border-2 border-white justify-center items-center rounded-full p-1.5 py-0.5">
                 {favoritesUpdating ? (
                   <ActivityIndicator size="small" color="#ef4444" />
                 ) : (
                   <Text
                     style={{ fontFamily: "HankenGrotesk_500Medium" }}
-                    className="text-xs text-red-500"
+                    className="text-[10px] text-red-600"
                   >
                     {favoritesLength || 0}
                   </Text>
@@ -309,17 +433,17 @@ export default function HomeScreen() {
               </View>
             </Pressable>
             <Pressable
-              className="bg-neutral-100 w-fit flex justify-center relative items-center rounded-full p-2.5"
+              className="bg-neutral-100 w-fit flex justify-center relative items-center rounded-full p-2"
               onPress={() => router.push("/(access)/(user_stacks)/cart")}
             >
-              <Ionicons name="cart-outline" color={"#0F0F0F"} size={22} />
-              <View className="absolute top-[-4px] right-[-2px] bg-red-200 justify-center items-center rounded-full p-2 py-0.5">
+              <Ionicons name="cart-outline" color={"#0F0F0F"} size={20} />
+              <View className="absolute top-[-8px] right-[-2px] bg-red-100 border-2 border-white justify-center items-center rounded-full p-1.5 py-0.5">
                 {isUpdating ? (
                   <ActivityIndicator size="small" color="#ef4444" />
                 ) : (
                   <Text
                     style={{ fontFamily: "HankenGrotesk_500Medium" }}
-                    className="text-xs text-red-500"
+                    className="text-[10px] text-red-600"
                   >
                     {cartLength || 0}
                   </Text>
@@ -534,6 +658,8 @@ export default function HomeScreen() {
     storeStatusData,
     storeStatusLoading,
     formatCategoryName,
+    handleViewStatus,
+    handleCategoryPress,
   ])
 
   const renderProduct = useCallback(

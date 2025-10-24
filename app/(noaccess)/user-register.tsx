@@ -51,7 +51,7 @@ const UserRegister = () => {
             fullname: data.fullname,
             username: data.username,
             email: data.email,
-            phone_number: formatPhoneNumber(data.phone_number), // Format phone number here
+            phone_number: formatPhoneNumber(data.phone_number),
             password: data.password,
             password2: data.password2,
             user_type: "User",
@@ -91,17 +91,6 @@ const UserRegister = () => {
                         type: "danger",
                     });
                 } 
-
-                
-                // if (error.request) {
-                //     Toast.show("Network error, please try again later.", {
-                //         type: "danger",
-                //     });
-                // } else {
-                //     Toast.show("An unexpected error occurred.", {
-                //         type: "danger",
-                //     });
-                // }
             },
         });
         }catch(error){

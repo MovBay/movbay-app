@@ -1,10 +1,15 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, TextInput } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { SolidMainButton } from '@/components/btns/CustomButtoms';
 import { router } from 'expo-router';
+import { useProfile } from '@/hooks/mutations/auth';
+
+// Storage key for filters
+const FILTER_STORAGE_KEY = '@marketplace_filters';
 
 // Define interfaces for better type safety
 interface FiltersState {
@@ -13,6 +18,16 @@ interface FiltersState {
   pickupOnly: boolean;
   deliveryOnly: boolean;
   stateLocationOnly: boolean;
+}
+
+export interface FilterSettings {
+  filters: FiltersState;
+  selectedConditions: string[];
+  selectedBrands: string[];
+  selectedStates: string[];
+  selectedCategories: string[];
+  minPrice: string;
+  maxPrice: string;
 }
 
 interface ToggleSwitchProps {
@@ -34,6 +49,9 @@ const FilterOptions = () => {
     stateLocationOnly: false,
   });
 
+  const { profile, isLoading } = useProfile();
+  const address = profile?.data?.address as any;
+
   const [conditionExpanded, setConditionExpanded] = useState<boolean>(false);
   const [brandExpanded, setBrandExpanded] = useState<boolean>(false);
   const [stateExpanded, setStateExpanded] = useState<boolean>(false);
@@ -46,6 +64,7 @@ const FilterOptions = () => {
 
   const [minPrice, setMinPrice] = useState<string>('5,000');
   const [maxPrice, setMaxPrice] = useState<string>('50,000');
+  const [isLoadingFilters, setIsLoadingFilters] = useState<boolean>(true);
 
   const conditions: string[] = ['New', 'Used', 'Refurbished'];
   const brands: string[] = [
@@ -64,6 +83,50 @@ const FilterOptions = () => {
     'Music & Movies', 'Jewelry & Accessories', 'Baby & Kids',
     'Pet Supplies', 'Office & Industrial', 'Real Estate',
   ];
+
+  // Load saved filters on component mount
+  useEffect(() => {
+    loadSavedFilters();
+  }, []);
+
+  const loadSavedFilters = async () => {
+    try {
+      const savedFilters = await AsyncStorage.getItem(FILTER_STORAGE_KEY);
+      if (savedFilters) {
+        const parsedFilters: FilterSettings = JSON.parse(savedFilters);
+        setFilters(parsedFilters.filters);
+        setSelectedConditions(parsedFilters.selectedConditions);
+        setSelectedBrands(parsedFilters.selectedBrands);
+        setSelectedStates(parsedFilters.selectedStates);
+        setSelectedCategories(parsedFilters.selectedCategories);
+        setMinPrice(parsedFilters.minPrice);
+        setMaxPrice(parsedFilters.maxPrice);
+      }
+    } catch (error) {
+      console.error('Error loading filters:', error);
+    } finally {
+      setIsLoadingFilters(false);
+    }
+  };
+
+  const saveFilters = async () => {
+    try {
+      const filterSettings: FilterSettings = {
+        filters,
+        selectedConditions,
+        selectedBrands,
+        selectedStates,
+        selectedCategories,
+        minPrice,
+        maxPrice,
+      };
+      await AsyncStorage.setItem(FILTER_STORAGE_KEY, JSON.stringify(filterSettings));
+      return filterSettings;
+    } catch (error) {
+      console.error('Error saving filters:', error);
+      return null;
+    }
+  };
 
   const toggleFilter = (filterName: keyof FiltersState) => {
     setFilters(prev => ({
@@ -104,7 +167,7 @@ const FilterOptions = () => {
     );
   };
 
-  const resetFilters = () => {
+  const resetFilters = async () => {
     setFilters({
       sellersNearMe: false,
       verifiedSellersOnly: false,
@@ -122,6 +185,21 @@ const FilterOptions = () => {
     setBrandExpanded(false);
     setStateExpanded(false);
     setCategoryExpanded(false);
+
+    // Clear saved filters
+    try {
+      await AsyncStorage.removeItem(FILTER_STORAGE_KEY);
+    } catch (error) {
+      console.error('Error clearing filters:', error);
+    }
+  };
+
+  const handleApplyFilter = async () => {
+    const savedSettings = await saveFilters();
+    if (savedSettings) {
+      console.log('Filters applied and saved:', savedSettings);
+      router.back();
+    }
   };
 
   const ToggleSwitch: React.FC<ToggleSwitchProps> = ({ value, onToggle }) => (
@@ -144,6 +222,14 @@ const FilterOptions = () => {
       </View>
     </TouchableOpacity>
   );
+
+  if (isLoadingFilters) {
+    return (
+      <SafeAreaView className="flex-1 bg-white items-center justify-center">
+        <Text style={{ fontFamily: "HankenGrotesk_500Medium" }}>Loading filters...</Text>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView className="flex-1 bg-white">
@@ -266,6 +352,7 @@ const FilterOptions = () => {
                 onChangeText={(text) => setMinPrice(text.replace('₦ ', ''))}
                 className="bg-gray-50 p-3 rounded-lg text-base"
                 keyboardType="numeric"
+                style={{fontFamily: 'HankenGrotesk_500Medium'}}
               />
             </View>
             <View className="flex-1">
@@ -275,6 +362,7 @@ const FilterOptions = () => {
                 onChangeText={(text) => setMaxPrice(text.replace('₦ ', ''))}
                 className="bg-gray-50 p-3 rounded-lg text-base"
                 keyboardType="numeric"
+                style={{fontFamily: 'HankenGrotesk_500Medium'}}
               />
             </View>
           </View>
@@ -344,7 +432,9 @@ const FilterOptions = () => {
       </ScrollView>
       {/* Apply Filter Button */}
       <View className="px-4 pb-6 pt-4 bg-white border-t border-gray-100">
-        <SolidMainButton text='Apply Filter'/>
+        <TouchableOpacity onPress={handleApplyFilter}>
+          <SolidMainButton text='Apply Filter'/>
+        </TouchableOpacity>
       </View>
     </SafeAreaView>
   );

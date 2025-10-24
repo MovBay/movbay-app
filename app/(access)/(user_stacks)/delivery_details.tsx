@@ -17,8 +17,7 @@ import RNPickerSelect from "react-native-picker-select"
 import { useToast } from "react-native-toast-notifications"
 import { useProfile } from "@/hooks/mutations/auth"
 import { usePostShipRate } from "@/hooks/mutations/sellerAuth"
-import { deliveryStates } from "@/constants/deliveryStates"
-import { TerminalCity, fetchTerminalCities } from "@/hooks/mutations/termina"
+import { nigeriaStates } from "@/constants/state-city"
 import { Ionicons } from "@expo/vector-icons"
 import { ScrollView } from "react-native"
 
@@ -63,6 +62,8 @@ interface CartData {
     product: number;
     amount: number;
     quantity: number;
+    product_name?: string;
+    description?: string;
   }>;
   total_amount: number;
   cart_summary: {
@@ -195,7 +196,6 @@ const CustomPhoneInput = ({
 )
 
 // Google Places Address Input Component
-// Updated Google Places Address Input Component
 const GooglePlacesAddressInput = ({
   label,
   name,
@@ -262,8 +262,6 @@ const GooglePlacesAddressInput = ({
   }
 
   const handleInputBlur = () => {
-    // Don't hide predictions immediately when input loses focus
-    // Let the prediction selection handle hiding
     setTimeout(() => {
       if (!showAddressPredictions) {
         setIsInputFocused(false)
@@ -366,7 +364,6 @@ const CustomPicker = ({
   items,
   placeholder,
   disabled = false,
-  loading = false,
   errors,
 }: {
   label: string;
@@ -376,7 +373,6 @@ const CustomPicker = ({
   items: Array<{ label: string; value: string }>;
   placeholder: string;
   disabled?: boolean;
-  loading?: boolean;
   errors: any;
 }) => (
   <View className="mb-5">
@@ -392,18 +388,18 @@ const CustomPicker = ({
             value={value}
             items={items}
             placeholder={{ 
-              label: loading ? "Loading..." : placeholder, 
+              label: placeholder, 
               value: "" 
             }}
             style={disabled ? disabledPickerSelectStyles : pickerSelectStyles}
             useNativeAndroidPickerStyle={false}
-            disabled={disabled || loading}
+            disabled={disabled}
           />
           <View className="absolute right-6 top-4">
             <MaterialIcons 
-              name={loading ? "refresh" : "arrow-drop-down"} 
+              name="arrow-drop-down" 
               size={25} 
-              color={disabled || loading ? "#ccc" : "gray"} 
+              color={disabled ? "#ccc" : "gray"} 
             />
           </View>
         </View>
@@ -422,8 +418,7 @@ const DeliveryDetails = () => {
   const [parsedCartData, setParsedCartData] = useState<CartData | null>(null)
   const [useAddressBook, setUseAddressBook] = useState(false)
   const [selectedAddressId, setSelectedAddressId] = useState("")
-  const [availableCities, setAvailableCities] = useState<TerminalCity[]>([])
-  const [isCitiesLoading, setIsCitiesLoading] = useState(false)
+  const [availableCities, setAvailableCities] = useState<Array<{ label: string; value: string }>>([])
   const [addressBookData, setAddressBookData] = useState<AddressBookItem[]>([])
   const [hasProfileAddress, setHasProfileAddress] = useState(false)
   const [isAddressLoading, setIsAddressLoading] = useState(true)
@@ -432,6 +427,7 @@ const DeliveryDetails = () => {
 
   const { profile, isLoading } = useProfile()
   const { mutate: postShipRate, isPending: isShipRatePending } = usePostShipRate()
+
   
   // Helper function to truncate address for label
   const truncateAddress = (address: string, maxLength: number = 50) => {
@@ -445,26 +441,23 @@ const DeliveryDetails = () => {
     
     if (profile?.data?.address) {
       try {
-        // Handle different address formats
         let processedAddresses: AddressBookItem[] = []
         
         if (typeof profile.data.address === 'string') {
-          // If address is a string, create a single address book item using the actual address as label
           processedAddresses = [{
             id: 'profile-address-1',
-            label: truncateAddress(profile.data.address), // Use actual address as label
+            label: truncateAddress(profile.data.address),
             streetAddress: profile.data.address,
             landmark: '',
             city: '',
             state: ''
           }]
         } else if (Array.isArray(profile.data.address)) {
-          // If address is an array, process each address
           processedAddresses = profile.data.address.map((addr: any, index: number) => {
             const streetAddress = addr.streetAddress || addr.address || addr.street_address || ''
             return {
               id: addr.id || `address-${index}`,
-              label: addr.label || truncateAddress(streetAddress) || `Address ${index + 1}`, // Use actual address if no label
+              label: addr.label || truncateAddress(streetAddress) || `Address ${index + 1}`,
               streetAddress: streetAddress,
               landmark: addr.landmark || '',
               city: addr.city || '',
@@ -472,12 +465,11 @@ const DeliveryDetails = () => {
             }
           })
         } else if (typeof profile.data.address === 'object') {
-          // If address is an object, create a single address book item
           const addr = profile.data.address
           const streetAddress = addr.streetAddress || addr.address || addr.street_address || ''
           processedAddresses = [{
             id: addr.id || 'profile-address-1',
-            label: addr.label || truncateAddress(streetAddress) || 'Address', // Use actual address if no label
+            label: addr.label || truncateAddress(streetAddress) || 'Address',
             streetAddress: streetAddress,
             landmark: addr.landmark || '',
             city: addr.city || '',
@@ -485,7 +477,6 @@ const DeliveryDetails = () => {
           }]
         }
 
-        // Filter out addresses that don't have at least a street address
         processedAddresses = processedAddresses.filter(addr => 
           addr.streetAddress && addr.streetAddress.trim() !== ''
         )
@@ -555,44 +546,25 @@ const DeliveryDetails = () => {
 
   const selectedState = watch("state")
 
-  // Load cities when state changes using Terminal Africa API
+  // Load cities when state changes using Nigeria states data
   useEffect(() => {
     if (selectedState) {
-      setIsCitiesLoading(true)
-      setAvailableCities([])
-      setValue("city", "") // Clear selected city when state changes
-      
-      const loadCities = async () => {
-        try {
-          const cities = await fetchTerminalCities("NG", selectedState)
-          if (cities && cities.length > 0) {
-            setAvailableCities(cities)
-          } else {
-            toast.show("No cities found for selected state", {
-              type: "warning",
-              placement: "top",
-            })
-            setAvailableCities([])
-          }
-        } catch (error) {
-          console.error('Error loading cities:', error)
-          toast.show("Failed to load cities for selected state", {
-            type: "error",
-            placement: "top",
-          })
-          setAvailableCities([])
-        } finally {
-          setIsCitiesLoading(false)
-        }
+      const state = nigeriaStates.find(s => s.id === selectedState)
+      if (state && state.cities) {
+        const cityOptions = state.cities.map(city => ({
+          label: city.name,
+          value: city.id
+        }))
+        setAvailableCities(cityOptions)
+      } else {
+        setAvailableCities([])
       }
-
-      loadCities()
+      setValue("city", "") // Clear selected city when state changes
     } else {
       setAvailableCities([])
       setValue("city", "")
-      setIsCitiesLoading(false)
     }
-  }, [selectedState, setValue, toast])
+  }, [selectedState, setValue])
 
   // Address book selection handler
   const handleAddressBookSelection = useCallback((addressId: string) => {
@@ -603,9 +575,6 @@ const DeliveryDetails = () => {
       if (selectedAddress) {
         setValue("streetAddress", selectedAddress.streetAddress)
         setValue("landmark", selectedAddress.landmark || "")
-        
-        // Try to match state and city from the address string or use empty values
-        // This allows users to still fill in state and city manually
         setValue("city", selectedAddress.city || "")
         setValue("state", selectedAddress.state || "")
       }
@@ -617,7 +586,7 @@ const DeliveryDetails = () => {
 
   // Handle address book toggle
   const handleAddressBookToggle = useCallback((value: boolean) => {
-    if (!hasProfileAddress) return // Prevent toggling if no address
+    if (!hasProfileAddress) return
     
     setUseAddressBook(value)
     if (!value) {
@@ -627,7 +596,7 @@ const DeliveryDetails = () => {
     }
   }, [setValue, hasProfileAddress])
 
-  // Phone number validation - updated to expect exactly 10 digits (without leading zero)
+  // Phone number validation
   const phoneValidation = {
     required: "Phone Number is required",
     pattern: {
@@ -635,7 +604,6 @@ const DeliveryDetails = () => {
       message: "Please enter a valid 10-digit Nigerian phone number (without leading 0)"
     },
     validate: (value: string) => {
-      // Additional validation to ensure it's exactly 10 digits and doesn't start with 0
       const cleanValue = value.replace(/\D/g, '');
       if (cleanValue.length !== 10) {
         return "Phone number must be exactly 10 digits";
@@ -647,7 +615,7 @@ const DeliveryDetails = () => {
     }
   }
 
-  // Email validation - now required
+  // Email validation
   const emailValidation = {
     required: "Email Address is required",
     pattern: {
@@ -658,14 +626,18 @@ const DeliveryDetails = () => {
 
   // Helper function to get state name from ID
   const getStateName = (stateId: string) => {
-    const state = deliveryStates.find(s => s.id === stateId)
+    const state = nigeriaStates.find(s => s.id === stateId)
     return state ? state.name : stateId
   }
 
   // Helper function to get city name from ID
   const getCityName = (cityId: string) => {
-    const city = availableCities.find(c => c.id === cityId)
-    return city ? city.name : cityId
+    const state = nigeriaStates.find(s => s.id === selectedState)
+    if (state) {
+      const city = state.cities.find(c => c.id === cityId)
+      return city ? city.name : cityId
+    }
+    return cityId
   }
 
   const onSubmit = (data: FormData) => {
@@ -678,9 +650,9 @@ const DeliveryDetails = () => {
         return
       }
 
-      // Structure delivery data according to API format
+      // Structure delivery data
       const deliveryData = {
-        full_name: data.recipientFullName,
+        fullname: data.recipientFullName,
         phone_number: formatPhoneNumber(data.recipientPhone),
         email: data.recipientEmail,
         landmark: data.landmark,
@@ -693,27 +665,29 @@ const DeliveryDetails = () => {
         alternative_email: data.alternativeEmail,
       }
 
-      // Prepare the payload for the ship rate API
+      // Prepare the payload for the ship rate API with correct format
       const shipRatePayload = {
         delivery_details: {
-          fullname: deliveryData.full_name,
+          fullname: deliveryData.fullname,
           phone_number: deliveryData.phone_number,
-          email_address: deliveryData.email || "",
-          country: "NG", // Assuming Nigeria based on your example
+          email_address: deliveryData.email,
+          country: "NG",
           city: deliveryData.city,
           state: deliveryData.state,
           delivery_address: deliveryData.delivery_address,
-          alternative_address: deliveryData.alternative_address || ""
+          alternative_address: deliveryData.alternative_address
         },
         items: parsedCartData.items.map(item => ({
+          name: item.product_name,
+          description: item.description,
           amount: item.amount,
-          product: Number(item.product),
+          product: item.product,
           store: item.store,
           quantity: item.quantity
         }))
       }
 
-      console.log("Ship Rate Payload:", shipRatePayload)
+      // console.log("Ship Rate Payload:", shipRatePayload)
 
       // Make the API call
       postShipRate(shipRatePayload, {
@@ -726,7 +700,7 @@ const DeliveryDetails = () => {
             items: parsedCartData.items,
             total_amount: parsedCartData.total_amount,
             cart_summary: parsedCartData.cart_summary,
-            shipRateResponse: response?.data, // Include the API response
+            stores_couriers: response?.data,
             metadata: {
               saveForNextTime,
               processedAt: new Date().toISOString(),
@@ -741,7 +715,30 @@ const DeliveryDetails = () => {
           })
         },
         onError: (error) => {
-          console.error('Ship rate error:', error)
+          const err: any = error
+          console.error('Ship rate error:', err?.message ?? err)
+          const errorInfo = {
+          message: err?.message || 'Unknown error',
+          status: err?.status || err?.response?.status || 'N/A',
+          statusText: err?.statusText || err?.response?.statusText || '',
+          data: err?.data || err?.response?.data || {},
+          code: err?.code || err?.response?.code || '',
+          url: err?.config?.url || err?.response?.config?.url || '',
+          method: err?.config?.method || err?.response?.config?.method || '',
+          headers: err?.response?.headers || err?.headers || {},
+          fullError: err,
+        };
+
+        // Log everything to console for debugging
+        console.error('🚨 Ship rate error details:', {
+          message: errorInfo.message,
+          status: errorInfo.status,
+          statusText: errorInfo.statusText,
+          code: errorInfo.code,
+          data: errorInfo.data,
+          url: errorInfo.url,
+          method: errorInfo.method,
+        });
           toast.show("Failed to get shipping rates. Please try again.", {
             type: "error",
             placement: "top",
@@ -818,7 +815,7 @@ const DeliveryDetails = () => {
                 errors={errors}
               />
 
-              {/* Alternative Recipient Information - Now Required */}
+              {/* Alternative Recipient Information */}
               <Text className="text-lg pb-3 mt-2 pt-6 border-t border-neutral-200" style={{ fontFamily: "HankenGrotesk_600SemiBold" }}>
                 Alternative Recipient Information
               </Text>
@@ -905,7 +902,7 @@ const DeliveryDetails = () => {
                 </View>
               ) : null}
 
-              {/* Address Fields - Always show but pre-populate if address book is used */}
+              {/* Address Fields */}
               <GooglePlacesAddressInput
                 label="Street Address"
                 name="streetAddress"
@@ -930,7 +927,7 @@ const DeliveryDetails = () => {
                 name="state"
                 control={control}
                 rules={{ required: "State is required" }}
-                items={deliveryStates.map((state) => ({
+                items={nigeriaStates.map((state) => ({
                   label: state.name,
                   value: state.id,
                 }))}
@@ -943,28 +940,14 @@ const DeliveryDetails = () => {
                 name="city"
                 control={control}
                 rules={{ required: "City is required" }}
-                items={availableCities.map((city) => ({
-                  label: city.name,
-                  value: city.id,
-                }))}
+                items={availableCities}
                 placeholder={selectedState ? "Select a city" : "Select state first"}
-                disabled={!selectedState}
-                loading={isCitiesLoading}
+                disabled={!selectedState || availableCities.length === 0}
                 errors={errors}
               />
 
-              {/* Loading indicator for cities */}
-              {isCitiesLoading && selectedState && (
-                <View className="mb-4 p-3 flex-row gap-2 bg-green-50 rounded-lg border border-green-200">
-                  <ActivityIndicator size="small" color="green" className="" />
-                  <Text className="text-gray-700 text-sm" style={{ fontFamily: "HankenGrotesk_400Regular" }}>
-                    Loading cities for {getStateName(selectedState)}...
-                  </Text>
-                </View>
-              )}
-
               {/* No cities found message */}
-              {!isCitiesLoading && selectedState && availableCities.length === 0 && (
+              {selectedState && availableCities.length === 0 && (
                 <View className="mb-4 p-3 bg-yellow-50 rounded-lg border border-yellow-200">
                   <Text className="text-yellow-700 text-sm" style={{ fontFamily: "HankenGrotesk_400Regular" }}>
                     No cities found for {getStateName(selectedState)}. Please select a different state.
@@ -1026,7 +1009,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  // Update predictionsContainer to match parcel form styling
   predictionsContainer: {
     position: "absolute",
     top: "100%",
@@ -1115,5 +1097,4 @@ const disabledPickerSelectStyles = {
   placeholder: {
     color: "#ccc",
   },
-  
 }

@@ -19,34 +19,11 @@ export interface Address {
   isDefault: boolean
 }
 
-// Dummy address data - you can replace this with actual data from your store/API
-const dummyAddresses: Address[] = [
-  {
-    id: "1",
-    label: "Home",
-    fullAddress: "15 Aba Road, Port Harcourt",
-    city: "Port Harcourt",
-    state: "Rivers State",
-    country: "Nigeria",
-    isDefault: true,
-  },
-  {
-    id: "2", 
-    label: "Office",
-    fullAddress: "Plot 234, Trans Amadi Industrial Layout",
-    city: "Port Harcourt",
-    state: "Rivers State", 
-    country: "Nigeria",
-    isDefault: false,
-  },
-]
 
 const AddressBook = () => {
-  const [addresses] = useState<Address[]>(dummyAddresses)
-
   const {profile, isLoading} = useProfile()
   const address = profile?.data?.address as any
-  console.log('address data', address)
+
 
   const EmptyAddressComponent = () => (
     <View className="items-center justify-center py-16 px-8">

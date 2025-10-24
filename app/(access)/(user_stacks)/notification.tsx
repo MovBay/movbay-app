@@ -3,6 +3,7 @@ import React, { useState } from 'react'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { StatusBar } from 'expo-status-bar'
 import { Ionicons, MaterialIcons } from '@expo/vector-icons'
+import { useGetNotification } from '@/hooks/mutations/sellerAuth'
 
 // Mock notification data
 const mockNotifications = [
@@ -56,6 +57,10 @@ const mockNotifications = [
 const Notification = () => {
   const [notifications, setNotifications] = useState(mockNotifications)
   const [refreshing, setRefreshing] = useState(false)
+
+  const {getNotification, isLoading} = useGetNotification()
+  const myNotification = getNotification?.data.data
+  console.log('Notification', myNotification)
 
   const getNotificationIcon = (type: string) => {
     switch (type) {

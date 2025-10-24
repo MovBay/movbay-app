@@ -481,66 +481,10 @@ const UserProductUpdate = () => {
                           style={{ width: '100%', height: '100%' }}
                           resizeMode="cover"
                         />
-                        <Pressable
-                          onPress={() => removeExistingImage(index)}
-                          className="absolute top-1 right-1 bg-red-500 rounded-full p-1"
-                        >
-                          <Ionicons name="close" size={12} color="white" />
-                        </Pressable>
                       </View>
                     ))}
                   </View>
                 </View>
-
-                {/* New Images Section */}
-                {newImages.length > 0 && (
-                  <View className="mb-5">
-                    <Text className="text-base mb-3" style={{ fontFamily: 'HankenGrotesk_600SemiBold' }}>
-                      New Images ({newImages.length})
-                    </Text>
-                    <View className="flex-row flex-wrap gap-2">
-                      {newImages.map((image: any, index: number) => (
-                        <View
-                          key={`new-${index}`}
-                          style={{
-                            width: (screenWidth - 50) / 3 - 5,
-                            height: 100,
-                            marginBottom: 8,
-                          }}
-                          className="overflow-hidden rounded-md bg-gray-50 border border-green-300 relative"
-                        >
-                          <Image
-                            source={{ uri: image.uri }}
-                            style={{ width: '100%', height: '100%' }}
-                            resizeMode="cover"
-                          />
-                          <View className="absolute top-1 left-1 bg-green-500 rounded-full px-2 py-0.5">
-                            <Text className="text-white text-xs" style={{ fontFamily: 'HankenGrotesk_600SemiBold' }}>
-                              NEW
-                            </Text>
-                          </View>
-                          <Pressable
-                            onPress={() => removeNewImage(index)}
-                            className="absolute top-1 right-1 bg-red-500 rounded-full p-1"
-                          >
-                            <Ionicons name="close" size={12} color="white" />
-                          </Pressable>
-                        </View>
-                      ))}
-                    </View>
-                  </View>
-                )}
-
-                {/* Add Images Button */}
-                <Pressable
-                  onPress={pickImages}
-                  className="bg-[#FEEEE6] p-4 rounded-lg mb-5 flex-row items-center justify-center gap-2"
-                >
-                  <Ionicons name="camera" size={20} color="#F75F15" />
-                  <Text className="text-[#F75F15] text-base" style={{ fontFamily: 'HankenGrotesk_600SemiBold' }}>
-                    Add More Images
-                  </Text>
-                </Pressable>
 
                 {/* Video Section */}
                 {videoUri && (
@@ -549,12 +493,6 @@ const UserProductUpdate = () => {
                       <Text className="text-base" style={{ fontFamily: 'HankenGrotesk_600SemiBold' }}>
                         Product Video
                       </Text>
-                      <Pressable onPress={removeVideo} className="flex-row items-center gap-1">
-                        <Ionicons name="trash" size={16} color="#EF4444" />
-                        <Text className="text-red-500 text-sm" style={{ fontFamily: 'HankenGrotesk_500Medium' }}>
-                          Remove
-                        </Text>
-                      </Pressable>
                     </View>
                     <Pressable
                       onPress={openVideoModal}
@@ -568,19 +506,9 @@ const UserProductUpdate = () => {
                   </View>
                 )}
 
-                {/* Add/Change Video Button */}
-                <Pressable
-                  onPress={pickVideo}
-                  className="bg-[#FEEEE6] p-4 rounded-lg mb-5 flex-row items-center justify-center gap-2"
-                >
-                  <Ionicons name="videocam" size={20} color="#F75F15" />
-                  <Text className="text-[#F75F15] text-base" style={{ fontFamily: 'HankenGrotesk_600SemiBold' }}>
-                    {videoUri ? 'Change Video' : 'Add Video'}
-                  </Text>
-                </Pressable>
 
                 {/* Form Fields */}
-                <View className="space-y-4">
+                <View className="space-y-4 pt-4">
                   {/* Title */}
                   <View className="mb-4">
                     <Text className="text-sm mb-2" style={{ fontFamily: 'HankenGrotesk_600SemiBold' }}>
