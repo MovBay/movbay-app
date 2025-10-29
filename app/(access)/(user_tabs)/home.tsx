@@ -73,7 +73,15 @@ export default function HomeScreen() {
     }
   }, [])
 
-  // Silent background refetch when screen focused - FIXED VERSION
+  // Refresh filters when screen comes into focus
+  useFocusEffect(
+    useCallback(() => {
+      // Refresh filters from storage when returning to this screen
+      refreshFilters()
+    }, [refreshFilters])
+  )
+
+  // Silent background refetch when screen focused
   useFocusEffect(
     useCallback(() => {
       let timeoutId: NodeJS.Timeout | null = null
@@ -152,12 +160,11 @@ export default function HomeScreen() {
         if (timeoutId) {
           clearTimeout(timeoutId)
         }
-        // Don't reset isRefetchingRef here to prevent race conditions
       }
-    }, [refetchProfile, refetchProducts, storeRefetch]) // Add dependencies
+    }, [refetchProfile, refetchProducts, storeRefetch])
   )
 
-  // Pull to refresh manually by user - FIXED VERSION
+  // Pull to refresh manually by user
   const refetchByUser = useCallback(async () => {
     if (!isMountedRef.current || isRefetchingRef.current) {
       return
@@ -196,6 +203,15 @@ export default function HomeScreen() {
         )
       }
 
+      // Also refresh filters
+      if (isMountedRef.current && typeof refreshFilters === "function") {
+        promises.push(
+          refreshFilters().catch((err) => {
+            console.log("Manual filters refresh failed:", err?.message)
+          })
+        )
+      }
+
       await Promise.allSettled(promises)
     } catch (error) {
       if (isMountedRef.current) {
@@ -207,16 +223,17 @@ export default function HomeScreen() {
       }
       isRefetchingRef.current = false
     }
-  }, [refetchProfile, refetchProducts, storeRefetch])
+  }, [refetchProfile, refetchProducts, storeRefetch, refreshFilters])
 
-
-
-  // Filter and sort products safely
+  // Filter and sort products with all filters applied
   const filteredProducts = useMemo(() => {
-    if (!Array.isArray(allProducts)) return []
+    if (!Array.isArray(allProducts) || allProducts.length === 0) {
+      return []
+    }
 
     let filtered = [...allProducts]
 
+    // 1. Apply search query first
     if (searchQuery.trim().length > 0) {
       const query = searchQuery.toLowerCase().trim()
       filtered = filtered.filter((product: any) => {
@@ -236,7 +253,9 @@ export default function HomeScreen() {
           return false
         }
       })
-    } else if (activeCategoryId) {
+    } 
+    // 2. Apply category filter if no search query
+    else if (activeCategoryId) {
       const selectedCategory = shopCategory.find((cat) => cat.id === activeCategoryId)
       if (selectedCategory && selectedCategory.name.toLowerCase() !== "all") {
         filtered = filtered.filter(
@@ -246,83 +265,109 @@ export default function HomeScreen() {
       }
     }
 
-
+    // 3. Apply saved filters from filter settings
     if (hasActiveFilters && !isLoadingFilters) {
-      // Filter by condition
-      if (filterSettings.selectedConditions.length > 0) {
-        filtered = filtered.filter((product: any) =>
-          filterSettings.selectedConditions.some(
-            (condition) => product?.condition?.toLowerCase() === condition.toLowerCase()
+      try {
+        // Filter by condition
+        if (filterSettings.selectedConditions.length > 0) {
+          filtered = filtered.filter((product: any) =>
+            filterSettings.selectedConditions.some(
+              (condition) => product?.condition?.toLowerCase() === condition.toLowerCase()
+            )
           )
-        )
-      }
+        }
 
-      // Filter by brand
-      if (filterSettings.selectedBrands.length > 0) {
-        filtered = filtered.filter((product: any) =>
-          filterSettings.selectedBrands.some(
-            (brand) => product?.brand?.toLowerCase() === brand.toLowerCase()
+        // Filter by brand
+        if (filterSettings.selectedBrands.length > 0) {
+          filtered = filtered.filter((product: any) =>
+            filterSettings.selectedBrands.some(
+              (brand) => product?.brand?.toLowerCase() === brand.toLowerCase()
+            )
           )
-        )
-      }
+        }
 
-      // Filter by state
-      if (filterSettings.selectedStates.length > 0) {
-        filtered = filtered.filter((product: any) =>
-          filterSettings.selectedStates.some(
-            (state) => product?.store?.state?.toLowerCase() === state.toLowerCase()
+        // Filter by state
+        if (filterSettings.selectedStates.length > 0) {
+          filtered = filtered.filter((product: any) =>
+            filterSettings.selectedStates.some(
+              (state) => product?.store?.state?.toLowerCase() === state.toLowerCase()
+            )
           )
-        )
-      }
+        }
 
-      // Filter by category (from filter settings)
-      if (filterSettings.selectedCategories.length > 0) {
-        filtered = filtered.filter((product: any) =>
-          filterSettings.selectedCategories.some(
-            (category) => product?.category?.toLowerCase() === category.toLowerCase()
+        // Filter by category (from filter settings, combined with category tabs)
+        if (filterSettings.selectedCategories.length > 0) {
+          filtered = filtered.filter((product: any) =>
+            filterSettings.selectedCategories.some(
+              (category) => product?.category?.toLowerCase() === category.toLowerCase()
+            )
           )
-        )
-      }
+        }
 
-      // Filter by price range
-      const minPrice = parseFloat(filterSettings.minPrice.replace(/,/g, ''))
-      const maxPrice = parseFloat(filterSettings.maxPrice.replace(/,/g, ''))
-      
-      filtered = filtered.filter((product: any) => {
-        const itemPrice = parseFloat(
-          (product?.discounted_price || product?.original_price || 0).toString().replace(/,/g, '')
-        )
-        return itemPrice >= minPrice && itemPrice <= maxPrice
-      })
+        // Filter by price range
+        const minPrice = parseFloat(filterSettings.minPrice.replace(/,/g, '')) || 0
+        const maxPrice = parseFloat(filterSettings.maxPrice.replace(/,/g, '')) || Infinity
+        
+        filtered = filtered.filter((product: any) => {
+          const itemPrice = parseFloat(
+            (product?.discounted_price || product?.original_price || 0)
+              .toString()
+              .replace(/,/g, '')
+          ) || 0
+          return itemPrice >= minPrice && itemPrice <= maxPrice
+        })
 
-      // Filter by verified sellers only
-      if (filterSettings.filters.verifiedSellersOnly) {
-        filtered = filtered.filter((product: any) => product?.store?.is_verified === true)
-      }
+        // Filter by verified sellers only
+        if (filterSettings.filters.verifiedSellersOnly) {
+          filtered = filtered.filter((product: any) => 
+            product?.store?.is_verified === true
+          )
+        }
 
-      // Filter by pickup only
-      if (filterSettings.filters.pickupOnly) {
-        filtered = filtered.filter((product: any) => product?.pickup_available === true)
-      }
+        // Filter by pickup only
+        if (filterSettings.filters.pickupOnly) {
+          filtered = filtered.filter((product: any) => 
+            product?.pickup_available === true
+          )
+        }
 
-      // Filter by delivery only
-      if (filterSettings.filters.deliveryOnly) {
-        filtered = filtered.filter((product: any) => product?.delivery_available === true)
+        // Filter by delivery only
+        if (filterSettings.filters.deliveryOnly) {
+          filtered = filtered.filter((product: any) => 
+            product?.delivery_available === true
+          )
+        }
+
+        // Note: sellers near me would require location implementation
+        if (filterSettings.filters.sellersNearMe) {
+          console.log('Sellers near me filter active - requires location implementation')
+        }
+      } catch (error) {
+        console.error('Error applying filters:', error)
       }
     }
 
-    // Sort: in-stock first
+    // 4. Sort: in-stock first, then by relevance
     filtered.sort((a: any, b: any) => {
       const aInStock = (a?.stock_available ?? 0) > 0
       const bInStock = (b?.stock_available ?? 0) > 0
 
       if (aInStock && !bInStock) return -1
       if (!aInStock && bInStock) return 1
+      
+      // If both in stock or both out of stock, maintain order
       return 0
     })
 
     return filtered
-  }, [allProducts, searchQuery, activeCategoryId])
+  }, [
+    allProducts, 
+    searchQuery, 
+    activeCategoryId, 
+    hasActiveFilters, 
+    filterSettings, 
+    isLoadingFilters
+  ])
 
   const handleSearchChange = useCallback((text: string) => {
     setSearchQuery(text)
@@ -367,7 +412,7 @@ export default function HomeScreen() {
                 )}
               </Pressable>
               <Pressable onPress={() => router.push("/profile")}>
-                  {profile?.data?.address.length > 15 ? (
+                  {profile?.data?.address && profile.data.address.length > 15 ? (
                     <View>
                       <Text
                         style={{ fontFamily: "HankenGrotesk_600SemiBold" }}
@@ -375,7 +420,7 @@ export default function HomeScreen() {
                         numberOfLines={1}
                         ellipsizeMode="tail"
                       >
-                        {profile?.data?.address.slice(0, 15) || "No Location"}...
+                        {profile.data.address.slice(0, 15)}...
                       </Text>
                     </View>
                   ) : (
@@ -467,6 +512,7 @@ export default function HomeScreen() {
               placeholder="Search for products, stores..."
               placeholderTextColor={"gray"}
               style={styles.inputStyle}
+              className="text-base"
               value={searchQuery}
               onChangeText={handleSearchChange}
               returnKeyType="search"
@@ -485,9 +531,12 @@ export default function HomeScreen() {
           </View>
           <Pressable
             onPress={() => router.push("/(access)/(user_stacks)/filterOptions")}
-            className="bg-[#F6F6F6] justify-center items-center flex-col rounded-full p-3.5"
+            className="bg-[#F6F6F6] justify-center items-center flex-col rounded-full p-3.5 relative"
           >
             <Ionicons name="filter" size={20} color={"gray"} />
+            {hasActiveFilters && (
+              <View className="absolute top-1 right-1 bg-orange-500 rounded-full w-2 h-2" />
+            )}
           </Pressable>
         </View>
         {searchQuery.length > 0 && (
@@ -501,9 +550,19 @@ export default function HomeScreen() {
             </Text>
           </View>
         )}
+        {hasActiveFilters && searchQuery.length === 0 && (
+          <View className="pt-3">
+            <Text
+              style={{ fontFamily: "HankenGrotesk_500Medium" }}
+              className="text-sm text-green-700"
+            >
+              Filters active • {filteredProducts.length} result{filteredProducts.length !== 1 ? "s" : ""}
+            </Text>
+          </View>
+        )}
       </View>
     ),
-    [searchQuery, filteredProducts.length, handleSearchChange, clearSearch]
+    [searchQuery, filteredProducts.length, hasActiveFilters, handleSearchChange, clearSearch]
   )
 
   const ContentHeader = useCallback(() => {
@@ -683,30 +742,52 @@ export default function HomeScreen() {
 
   const EmptyComponent = useCallback(
     () => (
-      <View className="h-[30vh] w-full items-center justify-center">
+      <View className="h-[30vh] w-full items-center justify-center px-6">
+        <MaterialIcons name="search-off" size={48} color="#d1d5db" />
+        <Text
+          style={{
+            fontFamily: "HankenGrotesk_600SemiBold",
+          }}
+          className="text-lg text-gray-700 mt-4 text-center"
+        >
+          {searchQuery.length > 0 
+            ? "No products found" 
+            : hasActiveFilters 
+            ? "No products match your filters"
+            : "No products available"
+          }
+        </Text>
         <Text
           style={{
             fontFamily: "HankenGrotesk_500Medium",
           }}
-          className="text-base text-gray-600"
+          className="text-sm text-gray-500 mt-2 text-center"
         >
-          {searchQuery.length > 0 ? `No results found for "${searchQuery}"` : "No item found"}
+          {searchQuery.length > 0 
+            ? `Try searching for something else`
+            : hasActiveFilters
+            ? "Try adjusting your filters"
+            : "Check back later for new products"
+          }
         </Text>
-        {searchQuery.length > 0 && (
-          <Pressable onPress={clearSearch} className="mt-2">
+        {(searchQuery.length > 0 || hasActiveFilters) && (
+          <Pressable 
+            onPress={searchQuery.length > 0 ? clearSearch : () => router.push("/(access)/(user_stacks)/filterOptions")} 
+            className="mt-4"
+          >
             <Text
               style={{
                 fontFamily: "HankenGrotesk_500Medium",
               }}
-              className="text-sm text-orange-600 bg-orange-50 p-2.5 px-5 rounded-full"
+              className="text-sm text-green-700 bg-orange-50 p-2.5 px-5 rounded-full"
             >
-              Clear search
+              {searchQuery.length > 0 ? "Clear search" : "Adjust filters"}
             </Text>
           </Pressable>
         )}
       </View>
     ),
-    [searchQuery, clearSearch]
+    [searchQuery, hasActiveFilters, clearSearch]
   )
 
   return (
@@ -714,7 +795,7 @@ export default function HomeScreen() {
       <StatusBar style="dark" />
       {MemoizedFixedHeader}
       {MemoizedSearchHeader}
-      {productLoading ? (
+      {productLoading && !hasInitiallyLoaded ? (
         <AllProductSkeleton2 />
       ) : (
         <FlatList
@@ -753,8 +834,8 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
   inputStyle: {
     borderRadius: 100,
-    paddingHorizontal: 16,
-    paddingVertical: 16,
+    paddingHorizontal: 14,
+    paddingVertical: 14,
     fontFamily: "HankenGrotesk_400Regular",
     width: "100%",
   },

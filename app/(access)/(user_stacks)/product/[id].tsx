@@ -343,13 +343,11 @@ const Product = () => {
   // Updated handleAddToCart with stock validation
   const handleAddToCart = async () => {
     if (eachData) {
-      // Check if product is out of stock
       if (isOutOfStock) {
         Toast.show("This product is currently out of stock", { type: "warning" })
         return
       }
 
-      // Check if item is at stock limit
       if (isAtStockLimit) {
         Toast.show(`Only ${eachData.stock_available} ${eachData.stock_available === 1 ? 'item' : 'items'} available in stock`, { 
           type: "warning" 
@@ -415,9 +413,7 @@ const Product = () => {
     },
   ]
 
-  // Filter to show only available delivery types
   const availableDeliveryTypes = deliveryTypes.filter(type => type.isAvailable)
-
   // ================= MESSAGE ================
   const {mutate: messageMutate, isPending: messagePending} = useCreateChat() 
 
@@ -476,10 +472,9 @@ const Product = () => {
     <SafeAreaView className="bg-white flex-1">
       <LoadingOverlay visible={isUpdating} />
       
-      {/* Main Content - Using ScrollView instead of KeyboardAwareScrollView to avoid nesting issues */}
       <ScrollView 
         className=""
-        contentContainerStyle={{ paddingBottom: 100 }} // Add padding to prevent content from being hidden behind fixed buttons
+        contentContainerStyle={{ paddingBottom: 100 }}
         showsVerticalScrollIndicator={false}
       >
         {isLoading || eachData === undefined ? (
@@ -497,7 +492,10 @@ const Product = () => {
               >
                 <MaterialIcons name="chevron-left" size={20} color={"black"} />
               </Pressable>
-              <Pressable className="absolute top-4 right-5  bg-white/80 p-2.5 rounded-full justify-center items-center flex">
+
+              <Pressable 
+                onPress={()=>router.push('/(access)/(user_stacks)/faq')} 
+                className="absolute top-4 right-5  bg-white/80 p-2.5 rounded-full justify-center items-center flex">
                 <MaterialIcons name="question-mark" size={20} color={"black"} />
               </Pressable>
               

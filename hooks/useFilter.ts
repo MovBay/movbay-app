@@ -51,7 +51,8 @@ export const useFilters = () => {
     try {
       const savedFilters = await AsyncStorage.getItem(FILTER_STORAGE_KEY);
       if (savedFilters) {
-        setFilterSettings(JSON.parse(savedFilters));
+        const parsed = JSON.parse(savedFilters);
+        setFilterSettings(parsed);
       }
     } catch (error) {
       console.error('Error loading filters:', error);
@@ -66,7 +67,15 @@ export const useFilters = () => {
 
   // Check if any filters are active
   const hasActiveFilters = useCallback(() => {
-    const { filters, selectedConditions, selectedBrands, selectedStates, selectedCategories } = filterSettings;
+    const { 
+      filters, 
+      selectedConditions, 
+      selectedBrands, 
+      selectedStates, 
+      selectedCategories,
+      minPrice,
+      maxPrice 
+    } = filterSettings;
     
     return (
       filters.sellersNearMe ||
@@ -78,71 +87,115 @@ export const useFilters = () => {
       selectedBrands.length > 0 ||
       selectedStates.length > 0 ||
       selectedCategories.length > 0 ||
-      filterSettings.minPrice !== '5,000' ||
-      filterSettings.maxPrice !== '50,000'
+      minPrice !== defaultFilters.minPrice ||
+      maxPrice !== defaultFilters.maxPrice
     );
   }, [filterSettings]);
 
-  // Filter data based on current filter settings
+  // Apply filters to product data
   const applyFilters = useCallback((data: any[]) => {
+    if (!Array.isArray(data) || data.length === 0) {
+      return [];
+    }
+
     let filteredData = [...data];
 
     // Apply condition filter
     if (filterSettings.selectedConditions.length > 0) {
       filteredData = filteredData.filter(item =>
-        filterSettings.selectedConditions.includes(item.condition)
+        filterSettings.selectedConditions.some(
+          condition => item?.condition?.toLowerCase() === condition.toLowerCase()
+        )
       );
     }
 
     // Apply brand filter
     if (filterSettings.selectedBrands.length > 0) {
       filteredData = filteredData.filter(item =>
-        filterSettings.selectedBrands.includes(item.brand)
+        filterSettings.selectedBrands.some(
+          brand => item?.brand?.toLowerCase() === brand.toLowerCase()
+        )
       );
     }
 
     // Apply state filter
     if (filterSettings.selectedStates.length > 0) {
       filteredData = filteredData.filter(item =>
-        filterSettings.selectedStates.includes(item.state)
+        filterSettings.selectedStates.some(
+          state => item?.store?.state?.toLowerCase() === state.toLowerCase()
+        )
       );
     }
 
     // Apply category filter
     if (filterSettings.selectedCategories.length > 0) {
       filteredData = filteredData.filter(item =>
-        filterSettings.selectedCategories.includes(item.category)
+        filterSettings.selectedCategories.some(
+          category => item?.category?.toLowerCase() === category.toLowerCase()
+        )
       );
     }
 
     // Apply price filter
-    const minPrice = parseFloat(filterSettings.minPrice.replace(/,/g, ''));
-    const maxPrice = parseFloat(filterSettings.maxPrice.replace(/,/g, ''));
-    
-    filteredData = filteredData.filter(item => {
-      const itemPrice = parseFloat(item.price?.toString().replace(/,/g, '') || '0');
-      return itemPrice >= minPrice && itemPrice <= maxPrice;
-    });
+    try {
+      const minPrice = parseFloat(filterSettings.minPrice.replace(/,/g, '')) || 0;
+      const maxPrice = parseFloat(filterSettings.maxPrice.replace(/,/g, '')) || Infinity;
+      
+      filteredData = filteredData.filter(item => {
+        const itemPrice = parseFloat(
+          (item?.discounted_price || item?.original_price || 0)
+            .toString()
+            .replace(/,/g, '')
+        ) || 0;
+        return itemPrice >= minPrice && itemPrice <= maxPrice;
+      });
+    } catch (error) {
+      console.error('Error applying price filter:', error);
+    }
 
     // Apply verified sellers filter
     if (filterSettings.filters.verifiedSellersOnly) {
-      filteredData = filteredData.filter(item => item.seller?.isVerified === true);
+      filteredData = filteredData.filter(
+        item => item?.store?.is_verified === true
+      );
     }
 
     // Apply pickup only filter
     if (filterSettings.filters.pickupOnly) {
-      filteredData = filteredData.filter(item => item.pickupAvailable === true);
+      filteredData = filteredData.filter(
+        item => item?.pickup_available === true
+      );
     }
 
     // Apply delivery only filter
     if (filterSettings.filters.deliveryOnly) {
-      filteredData = filteredData.filter(item => item.deliveryAvailable === true);
+      filteredData = filteredData.filter(
+        item => item?.delivery_available === true
+      );
     }
 
-    // Apply sellers near me filter (you'll need to implement location logic)
+    // Apply sellers near me filter
+    // Note: This requires location data. Implement when location service is available
     if (filterSettings.filters.sellersNearMe) {
-      // Add your location-based filtering logic here
-      // This might involve calculating distance between user and seller locations
+      // TODO: Implement location-based filtering
+      // This would involve:
+      // 1. Getting user's current location
+      // 2. Calculating distance to each seller
+      // 3. Filtering based on a distance threshold
+      console.log('Sellers near me filter is active but requires location implementation');
+    }
+
+    // Apply state location only filter
+    if (filterSettings.filters.stateLocationOnly) {
+      // This filter requires the user's current state
+      // For now, it will use the selectedStates if available
+      if (filterSettings.selectedStates.length > 0) {
+        filteredData = filteredData.filter(item =>
+          filterSettings.selectedStates.some(
+            state => item?.store?.state?.toLowerCase() === state.toLowerCase()
+          )
+        );
+      }
     }
 
     return filteredData;
