@@ -632,12 +632,14 @@ export const useGetCancelledOrders = () => {
 };
 
 // ========== REJECT ORDER MUTATION ============
+
+// https://api.movbay.com/order/<str:pk>/cancel/
 export const useRejectOrder = (orderId: any) => {
   const queryClient = useQueryClient()
   const rejectOrder = useMutation({
     mutationFn: async (data: any) => {
       const token = (await AsyncStorage.getItem("movebay_token")) || ""
-      return post_requests(`/order/${orderId}/reject`, data, token)
+      return post_requests(`/order/${orderId}/cancel`, data, token)
     },
     onSuccess: () => {
       // Invalidate all order queries to refresh the data
@@ -681,6 +683,8 @@ export const useMarkOrderOutForDelivery = (orderId: any) => {
   })
   return markOutForDelivery
 }
+
+
 
 // ========== MARK ORDER AS COMPLETED ============
 export const useMarkOrderCompleted = (orderId: any) => {
@@ -1019,3 +1023,20 @@ export const useGetNotification = () => {
     refetch,
   };
 };
+
+
+export const useDeleteNotification = (id: any) => {
+  const queryClient = useQueryClient()
+  
+  const deleteNotification = useMutation({
+    mutationFn: async () => {
+      const token = (await AsyncStorage.getItem("movebay_token")) || ""
+      return delete_requests(`/notification/${id}/`, token)
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["notification"] })
+    },
+  })
+  return deleteNotification
+}
+

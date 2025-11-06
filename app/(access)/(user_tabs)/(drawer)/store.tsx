@@ -11,6 +11,7 @@ import Ionicons from '@expo/vector-icons/Ionicons'
 import { router } from 'expo-router'
 import { FlatList } from 'react-native'
 import Products from '@/components/Products'
+import { Toast } from 'react-native-toast-notifications'
 
 const Store = () => {
 
@@ -21,9 +22,9 @@ const Store = () => {
 
     const {storeData, isLoading} = useGetStore()
     const {userProductData, isLoading: productLoading, refetch} = useGetUserProducts()
-    const userData = userProductData?.data?.results
+    const userData = userProductData?.data
     console.log('This is store data', storeData?.data)
-    console.log('This is user product data', userProductData?.data)
+    console.log('This is user product data', userProductData?.data[0].store.id)
 
     const ItemSeparator = () => <View style={{ height: 15 }} />
     const insets = useSafeAreaInsets()
@@ -48,9 +49,9 @@ const Store = () => {
     const ListHeaderComponent = () => (
       <View className=''>
         <View className='flex-row justify-between items-center'>
-          <View className='w-20 h-20 object-cover overflow-hidden flex rounded-full border-2 border-green-800 p-1'>
+          <Pressable className='w-20 h-20 object-cover overflow-hidden flex rounded-full border-4 border-gray-200'>
             <Image source={{uri: storeData?.data?.store_image}} style={{width: '100%', height: '100%', objectFit: 'cover', borderRadius: 50}}/>
-          </View>
+          </Pressable>
 
           <View>
             <Text className='text-center text-xl' style={{fontFamily: 'HankenGrotesk_600SemiBold'}}>{storeData?.data?.product_count}</Text>
@@ -75,14 +76,14 @@ const Store = () => {
           </View>
         </View>
 
-        <View className='flex-row items-center justify-between pt-5'>
+        {/* <View className='flex-row items-center justify-between pt-5'>
           <View className='w-[100%]'>
             <SolidLightButton text='Share Profile'/>
           </View>
-        </View>
+        </View> */}
 
         {/* Add some spacing before products */}
-        <View className='pt-5' />
+        <View className='pt-8' />
       </View>
     )
 

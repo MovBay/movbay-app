@@ -174,21 +174,12 @@ export const useFilters = () => {
       );
     }
 
-    // Apply sellers near me filter
-    // Note: This requires location data. Implement when location service is available
     if (filterSettings.filters.sellersNearMe) {
-      // TODO: Implement location-based filtering
-      // This would involve:
-      // 1. Getting user's current location
-      // 2. Calculating distance to each seller
-      // 3. Filtering based on a distance threshold
       console.log('Sellers near me filter is active but requires location implementation');
     }
 
     // Apply state location only filter
     if (filterSettings.filters.stateLocationOnly) {
-      // This filter requires the user's current state
-      // For now, it will use the selectedStates if available
       if (filterSettings.selectedStates.length > 0) {
         filteredData = filteredData.filter(item =>
           filterSettings.selectedStates.some(

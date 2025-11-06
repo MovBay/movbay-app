@@ -1,172 +1,89 @@
-import { View, Text, ScrollView, TouchableOpacity, Alert, RefreshControl } from 'react-native'
+import { View, Text, ScrollView, TouchableOpacity, Alert, RefreshControl, Modal } from 'react-native'
 import React, { useState } from 'react'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { StatusBar } from 'expo-status-bar'
 import { Ionicons, MaterialIcons } from '@expo/vector-icons'
-import { useGetNotification } from '@/hooks/mutations/sellerAuth'
+import { useDeleteNotification, useGetNotification } from '@/hooks/mutations/sellerAuth'
+import { OnboardArrowHeader } from '@/components/btns/OnboardHeader'
+import { router } from 'expo-router'
+import { Toast } from 'react-native-toast-notifications'
+import { SolidLightButton, SolidMainButton } from '@/components/btns/CustomButtoms'
+import LoadingOverlay from '@/components/LoadingOverlay'
 
-// Mock notification data
-const mockNotifications = [
-  {
-    id: 1,
-    title: "New Ride Request",
-    message: "You have a new delivery request from Downtown Store to Ikeja",
-    type: "ride_request",
-    timestamp: "2 minutes ago",
-    isRead: false,
-    icon: "bicycle"
-  },
-  {
-    id: 2,
-    title: "Ride Completed",
-    message: "Great job! You've successfully completed a delivery to Victoria Island",
-    type: "ride_completed",
-    timestamp: "1 hour ago",
-    isRead: true,
-    icon: "checkmark-circle"
-  },
-  {
-    id: 3,
-    title: "Payment Received",
-    message: "₦2,500 has been added to your wallet for completed deliveries",
-    type: "payment",
-    timestamp: "3 hours ago",
-    isRead: false,
-    icon: "wallet"
-  },
-  {
-    id: 4,
-    title: "Weekly Summary",
-    message: "You completed 15 deliveries this week and earned ₦18,750",
-    type: "summary",
-    timestamp: "1 day ago",
-    isRead: true,
-    icon: "stats-chart"
-  },
-  {
-    id: 5,
-    title: "Profile Update Required",
-    message: "Please update your vehicle information to continue receiving rides",
-    type: "profile_update",
-    timestamp: "2 days ago",
-    isRead: false,
-    icon: "person-circle"
-  }
-]
 
 const Notification = () => {
-  const [notifications, setNotifications] = useState(mockNotifications)
-  const [refreshing, setRefreshing] = useState(false)
+    const [refreshing, setRefreshing] = useState(false)
 
-  const {getNotification, isLoading} = useGetNotification()
-  const myNotification = getNotification?.data.data
-  console.log('Notification', myNotification)
+    const {getNotification, isLoading, refetch} = useGetNotification()
+    const myNotification = getNotification?.data?.data
+    // console.log('Notification', myNotification)
 
-  const getNotificationIcon = (type: string) => {
-    switch (type) {
-      case 'ride_request':
-        return { name: 'bicycle', color: '#3B82F6', bgColor: '#DBEAFE' }
-      case 'ride_completed':
-        return { name: 'checkmark-circle', color: '#10B981', bgColor: '#D1FAE5' }
-      case 'payment':
-        return { name: 'wallet', color: '#F59E0B', bgColor: '#FEF3C7' }
-      case 'summary':
-        return { name: 'stats-chart', color: '#8B5CF6', bgColor: '#EDE9FE' }
-      case 'profile_update':
-        return { name: 'person-circle', color: '#EF4444', bgColor: '#FEE2E2' }
-      default:
-        return { name: 'notifications', color: '#6B7280', bgColor: '#F3F4F6' }
+    const [showDialog, setShowDialog] = useState(false);
+    const [selectedItem, setSelectedItem] = useState<any | null>(null);
+  
+    const handlePress = () => {
+      setShowDialog(true);
+    };
+  
+    const closeDialog = () => {
+      setShowDialog(false);
+    };
+  
+    const { mutate: deleteNotification, isPending } = useDeleteNotification(selectedItem?.id)
+    
+    const handleDeleteNotification = async () => {
+      try {
+        closeDialog()
+        await deleteNotification(selectedItem?.id, {
+          onSuccess: (res) => {
+            setSelectedItem(null)
+            Toast.show('Notification Deleted Successfully', {type: 'success'})
+            
+            refetch()
+            console.log('Notification deleted successfully:', res)
+          },
+
+        onError: (error) => {
+            console.error('Error deleting Notification:', error)
+          }
+        })
+      
+      } catch (error) {
+        console.error("Error deleting Notification:", error)
+      }
     }
-  }
 
-  const handleDeleteNotification = (id: number, title: string) => {
-    Alert.alert(
-      "Delete Notification",
-      `Are you sure you want to delete "${title}"?`,
-      [
-        {
-          text: "Cancel",
-          style: "cancel"
-        },
-        {
-          text: "Delete",
-          style: "destructive",
-          onPress: () => {
-            setNotifications(prev => prev.filter(notification => notification.id !== id))
-          }
-        }
-      ]
-    )
-  }
-
-
-
-  const deleteAllNotifications = () => {
-    Alert.alert(
-      "Delete All Notifications",
-      "Are you sure you want to delete all notifications? This action cannot be undone.",
-      [
-        {
-          text: "Cancel",
-          style: "cancel"
-        },
-        {
-          text: "Delete All",
-          style: "destructive",
-          onPress: () => {
-            setNotifications([])
-          }
-        }
-      ]
-    )
-  }
-
-  const onRefresh = () => {
-    setRefreshing(true)
-    // Simulate API call
-    setTimeout(() => {
+    const onRefresh = () => {
+      setRefreshing(true)
+      refetch()
       setRefreshing(false)
-      // You can add logic here to fetch new notifications
-    }, 2000)
-  }
+    }
 
 
 
   return (
     <SafeAreaView className="flex-1 bg-white">
       <StatusBar style="dark" />
+      <LoadingOverlay visible={isLoading || isPending}/>
       
       {/* Header */}
-      <View className="px-5 py-4 border-b border-gray-100">
-        <View className="flex-row items-center justify-between">
+      <View className="px-5 py-4 pb-0 border-b border-gray-100">
+        <View className="flex-row items-center">
           <View>
-            <Text
-              style={{ fontFamily: "HankenGrotesk_500Medium" }}
-              className="text-xl font-bold text-neutral-900"
-            >
-              Notifications
-            </Text>
-            <Text
-              style={{ fontFamily: "HankenGrotesk_500Medium" }}
-              className="text-sm text-neutral-600"
-            >
-              {notifications.length} notification{notifications.length !== 1 ? 's' : ''}
-            </Text>
+            <OnboardArrowHeader onPressBtn={()=>router.back()}/>
           </View>
-          
-          {notifications.length > 0 && (
-            <TouchableOpacity
-              onPress={deleteAllNotifications}
-              className="bg-red-50 px-3 py-2 rounded-full"
-            >
-              <MaterialIcons name="delete-sweep" size={16} color="#DC2626" />
-            </TouchableOpacity>
-          )}
         </View>
       </View>
 
+        <Text
+          style={{ fontFamily: "HankenGrotesk_500Medium" }}
+          className="text-xl font-bold text-neutral-900 px-5 pt-5"
+        >
+          Notifications
+        </Text>
+
       {/* Notifications List */}
-      {notifications.length > 0 ? (
+      {myNotification && myNotification?.length > 0 ? (
         <ScrollView 
           className="flex-1"
           showsVerticalScrollIndicator={false}
@@ -175,9 +92,7 @@ const Notification = () => {
           }
         >
           <View className="px-5 py-2">
-            {notifications.map((notification) => {
-              const iconConfig = getNotificationIcon(notification.type)
-              
+            {myNotification && myNotification.map((notification: any) => {
               return (
                 <TouchableOpacity
                   key={notification.id}
@@ -186,13 +101,12 @@ const Notification = () => {
                   <View className="flex-row items-start">
                     {/* Icon */}
                     <View 
-                      className="w-12 h-12 rounded-full items-center justify-center mr-3"
-                      style={{ backgroundColor: iconConfig.bgColor }}
+                      className="w-12 h-12 rounded-full items-center bg-orange-100 justify-center mr-3"
                     >
                       <Ionicons 
-                        name={iconConfig.name as any} 
+                        name={'notifications'} 
                         size={24} 
-                        color={iconConfig.color} 
+                        color={'#F59E0B'} 
                       />
                     </View>
                     
@@ -200,8 +114,8 @@ const Notification = () => {
                     <View className="flex-1 mr-2">
                       <View className="flex-row items-start justify-between mb-1">
                         <Text
-                          style={{ fontFamily: "HankenGrotesk_500Medium" }}
-                          className="text-base font-semibold text-neutral-900"
+                          style={{ fontFamily: "HankenGrotesk_700Bold" }}
+                          className="text-base font-semibold text-green-900"
                         >
                           {notification.title}
                         </Text>
@@ -218,13 +132,18 @@ const Notification = () => {
                         style={{ fontFamily: "HankenGrotesk_500Medium" }}
                         className="text-xs text-neutral-400"
                       >
-                        {notification.timestamp}
+                        {new Date(notification.created_at).toLocaleDateString('en-US', {
+                          month: 'short',
+                          day: 'numeric',
+                          hour: 'numeric',
+                          minute: '2-digit'
+                        })}
                       </Text>
                     </View>
                     
                     {/* Delete Button */}
                     <TouchableOpacity
-                      onPress={() => handleDeleteNotification(notification.id, notification.title)}
+                      onPress={()=>{setSelectedItem(notification); handlePress()}}
                       className="p-2 rounded-full h-fit bg-red-50"
                     >
                       <MaterialIcons name="delete-outline" size={20} color="#EF4444" />
@@ -239,7 +158,6 @@ const Notification = () => {
           <View className="h-20" />
         </ScrollView>
       ) : (
-        /* Empty State */
         <View className="flex-1 items-center justify-center px-8">
           <View className="bg-gray-100 w-24 h-24 rounded-full items-center justify-center mb-6">
             <Ionicons name="notifications-off-outline" size={48} color="#9CA3AF" />
@@ -258,21 +176,40 @@ const Notification = () => {
           >
             You're all caught up! Notifications about your rides, payments, and updates will appear here.
           </Text>
-          
-          <TouchableOpacity
-            onPress={onRefresh}
-            className="bg-[#F75F15] px-6 py-3 rounded-full flex-row items-center"
-          >
-            <Ionicons name="refresh" size={20} color="white" className="mr-2" />
-            <Text
-              style={{ fontFamily: "HankenGrotesk_500Medium" }}
-              className="text-white font-semibold ml-2"
-            >
-              Refresh
-            </Text>
-          </TouchableOpacity>
         </View>
       )}
+
+
+      <Modal
+          visible={showDialog}
+          transparent={true}
+          animationType="fade"
+          onRequestClose={closeDialog}
+        >
+          <View className='flex-1 justify-center items-center bg-black/50'>
+            <View className='bg-white rounded-2xl p-8 mx-6 w-[90%]'>
+              <View className='items-center justify-center m-auto rounded-full p-5 bg-neutral-100 w-fit mb-5'>
+                <Ionicons name="trash-sharp" size={30} color={'gray'}/>
+              </View>
+              <Text className='text-xl text-center mb-2' style={{fontFamily: 'HankenGrotesk_600SemiBold'}}>
+                Delete Notification
+              </Text>
+              <Text className='text-neutral-500 text-center mb-6 w-[90%] m-auto text-sm' style={{fontFamily: 'HankenGrotesk_500Medium'}}>
+                Are you sure you want to proceed?
+              </Text>
+
+              <View className='flex-row items-center justify-between'>
+                <View className='w-[49%]'>
+                  <SolidLightButton onPress={closeDialog} text='No'/>
+                </View>
+
+                <View className='w-[49%]'>
+                  <SolidMainButton onPress={handleDeleteNotification} text='Yes'/>
+                </View>
+              </View>
+            </View>
+          </View>
+      </Modal>
     </SafeAreaView>
   )
 }

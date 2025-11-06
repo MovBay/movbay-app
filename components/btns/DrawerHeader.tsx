@@ -1,6 +1,7 @@
 import Ionicons from "@expo/vector-icons/Ionicons";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { Button } from "@rneui/themed";
+import { router } from "expo-router";
 import { TouchableOpacity, View } from "react-native";
 
 interface ButtonProps {
@@ -49,7 +50,7 @@ export const DrawerHeader = ({onPress}: ButtonProps)=>{
             <Button
                     type="solid"
                     size="sm"
-                    onPress={()=>console.log('Bag pressed')}
+                    onPress={()=>router.push('/(access)/(user_stacks)/cart')}
                     buttonStyle={{
                         backgroundColor: "#FEEEE6",
                         borderRadius: 100,
@@ -62,6 +63,7 @@ export const DrawerHeader = ({onPress}: ButtonProps)=>{
                     size={25}
                     color={"#F75F15"}
                 /> */}
+                
                 <Ionicons name='bag-outline' size={20}/>
             </Button>
         </View>

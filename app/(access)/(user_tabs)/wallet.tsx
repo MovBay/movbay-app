@@ -60,7 +60,7 @@ const Wallet = () => {
       // Check if balance increased (credit)
       if (previousBalance.current !== null && currentBalance > previousBalance.current) {
         const creditAmount = currentBalance - previousBalance.current
-        toast.show(`${creditAmount} Credited Successfully`, { type: "success" })
+        toast.show(`₦${creditAmount.toLocaleString()}.00 Credited Successfully to your wallet`, { type: "success" })
       }
       previousBalance.current = currentBalance
     }
@@ -296,7 +296,7 @@ const Wallet = () => {
 
           <View className='bg-orange-50 p-5 rounded-2xl w-[49%]'>
             <View className=''>
-              <Text style={{fontFamily: 'HankenGrotesk_500Medium'}} className='text-xl text-orange-600'>₦ {walletData?.data?.total_withdrawal}</Text>
+              <Text style={{fontFamily: 'HankenGrotesk_500Medium'}} className='text-xl text-orange-600'>₦ {walletData?.data?.total_withdrawal.toLocaleString()}.00</Text>
             </View>
             <Text className='text-base pt-2.5' style={{fontFamily: 'HankenGrotesk_500Medium'}}>Total Withdrawal</Text>
           </View>

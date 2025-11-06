@@ -7,8 +7,9 @@ import { router, useLocalSearchParams } from "expo-router"
 import MaterialIcons from "@expo/vector-icons/MaterialIcons"
 import Ionicons from "@expo/vector-icons/Ionicons"
 import { SolidLightButton, SolidMainButton } from "@/components/btns/CustomButtoms"
-import { useComfirmOrder } from "@/hooks/mutations/sellerAuth"
+import { useComfirmOrder, useRejectOrder } from "@/hooks/mutations/sellerAuth"
 import LoadingOverlay from "@/components/LoadingOverlay"
+import { Toast } from "react-native-toast-notifications"
 
 const { width: screenWidth, height: SCREEN_HEIGHT } = Dimensions.get("window")
 
@@ -165,6 +166,7 @@ const OrderConfirm = () => {
   const [order, setOrder] = useState<any>(null)
 
   const { mutate: confirmOrder, isPending } = useComfirmOrder(orderId)
+  const {mutate: cancleOrder, isPending: cancelPending} = useRejectOrder(orderId)
 
   console.log('This is new datas', order)
 
@@ -198,8 +200,31 @@ const OrderConfirm = () => {
     console.log("Chat with buyer:", order.buyer.username)
   }
 
+
   const handleCancelOrder = () => {
-    console.log("Cancel order:", order.order_id)
+    console.log("🔍 Attempting to confirm order:", orderId)
+    console.log("🔍 Order data:", order)
+
+    cancleOrder(
+      {},
+      {
+        onSuccess: (data) => {
+          console.log("✅ Order Canceled successfully:", data)
+          Toast.show("Order Canceled successfully", {type: 'success'})
+          router.back()
+          // setShowSuccessModal(true)
+        },
+        onError: (error) => {
+          console.error("❌ Error Canceled order:", error)
+          console.error("❌ Error details:", {
+            message: error?.message,
+            data: (error as any)?.response?.data.data.message,
+          })
+          setErrorDetails((error as any)?.response?.data)
+          setShowErrorModal(true)
+        },
+      },
+    )
   }
 
   const handleConfirmOrder = () => {
@@ -242,7 +267,7 @@ const OrderConfirm = () => {
 
   return (
     <SafeAreaView className="bg-white flex-1">
-      <LoadingOverlay visible={isPending} />
+      <LoadingOverlay visible={isPending || cancelPending} />
 
       <View className="flex-row items-center px-4 py-1 border-b border-gray-100">
         <Pressable onPress={handleBackPress} className="w-10 h-10 rounded-full bg-white items-center justify-center">

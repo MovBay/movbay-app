@@ -73,10 +73,8 @@ export default function HomeScreen() {
     }
   }, [])
 
-  // Refresh filters when screen comes into focus
   useFocusEffect(
     useCallback(() => {
-      // Refresh filters from storage when returning to this screen
       refreshFilters()
     }, [refreshFilters])
   )
@@ -88,7 +86,6 @@ export default function HomeScreen() {
       let isCancelled = false
 
       const silentRefetch = async () => {
-        // Check if already refetching or unmounted
         if (isRefetchingRef.current || !isMountedRef.current) {
           return
         }
@@ -99,13 +96,12 @@ export default function HomeScreen() {
           isRefetchingRef.current = true
 
           try {
-            // Refetch profile with error handling
             if (!isCancelled && isMountedRef.current && typeof refetchProfile === "function") {
               try {
                 await refetchProfile()
               } catch (err: any) {
                 if (isMountedRef.current) {
-                  console.log("Background profile refetch failed:", err?.message)
+                  // console.log("Background profile refetch failed:", err?.message)
                 }
               }
             }
@@ -114,13 +110,12 @@ export default function HomeScreen() {
             await new Promise((resolve) => setTimeout(resolve, 100))
             if (isCancelled || !isMountedRef.current) return
 
-            // Refetch products with error handling
             if (!isCancelled && isMountedRef.current && typeof refetchProducts === "function") {
               try {
                 await refetchProducts()
               } catch (err: any) {
                 if (isMountedRef.current) {
-                  console.log("Background products refetch failed:", err?.message)
+                  // console.log("Background products refetch failed:", err?.message)
                 }
               }
             }
@@ -128,20 +123,18 @@ export default function HomeScreen() {
             // Small delay between requests
             await new Promise((resolve) => setTimeout(resolve, 100))
             if (isCancelled || !isMountedRef.current) return
-
-            // Refetch store status with error handling
             if (!isCancelled && isMountedRef.current && typeof storeRefetch === "function") {
               try {
                 await storeRefetch()
               } catch (err: any) {
                 if (isMountedRef.current) {
-                  console.log("Background store status refetch failed:", err?.message)
+                  // console.log("Background store status refetch failed:", err?.message)
                 }
               }
             }
           } catch (error) {
             if (isMountedRef.current) {
-              console.log("Silent background refetch error:", error)
+              // console.log("Silent background refetch error:", error)
             }
           } finally {
             if (isMountedRef.current) {
@@ -182,7 +175,7 @@ export default function HomeScreen() {
       if (isMountedRef.current && typeof refetchProfile === "function") {
         promises.push(
           refetchProfile().catch((err) => {
-            console.log("Manual profile refetch failed:", err?.message)
+            // console.log("Manual profile refetch failed:", err?.message)
           })
         )
       }
@@ -190,7 +183,7 @@ export default function HomeScreen() {
       if (isMountedRef.current && typeof refetchProducts === "function") {
         promises.push(
           refetchProducts().catch((err) => {
-            console.log("Manual products refetch failed:", err?.message)
+            // console.log("Manual products refetch failed:", err?.message)
           })
         )
       }
@@ -198,7 +191,7 @@ export default function HomeScreen() {
       if (isMountedRef.current && typeof storeRefetch === "function") {
         promises.push(
           storeRefetch().catch((err) => {
-            console.log("Manual store refetch failed:", err?.message)
+            // console.log("Manual store refetch failed:", err?.message)
           })
         )
       }
@@ -207,7 +200,7 @@ export default function HomeScreen() {
       if (isMountedRef.current && typeof refreshFilters === "function") {
         promises.push(
           refreshFilters().catch((err) => {
-            console.log("Manual filters refresh failed:", err?.message)
+            // console.log("Manual filters refresh failed:", err?.message)
           })
         )
       }
@@ -340,7 +333,7 @@ export default function HomeScreen() {
 
         // Note: sellers near me would require location implementation
         if (filterSettings.filters.sellersNearMe) {
-          console.log('Sellers near me filter active - requires location implementation')
+          // console.log('Sellers near me filter active - requires location implementation')
         }
       } catch (error) {
         console.error('Error applying filters:', error)
@@ -743,7 +736,6 @@ export default function HomeScreen() {
   const EmptyComponent = useCallback(
     () => (
       <View className="h-[30vh] w-full items-center justify-center px-6">
-        <MaterialIcons name="search-off" size={48} color="#d1d5db" />
         <Text
           style={{
             fontFamily: "HankenGrotesk_600SemiBold",

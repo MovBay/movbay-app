@@ -489,151 +489,185 @@ const UserCheckout = () => {
   }
 
   // FIXED: Enhanced function to map items with proper delivery data
-  const enrichItemsWithDeliveryData = (items: any[]) => {
-    if (!parsedOrderData?.selected_couriers) {
-      return items.map(item => ({
-        amount: Number(item.amount),
-        product: Number(item.product),
-        store: Number(item.store),
-        quantity: Number(item.quantity),
-        delivery_method: item.delivery_method || 'movbay',
-        courier_id: item.courier_id || 'DHL Express',
-        request_token: item.request_token || 'request_token',
-        service_code: item.service_code || 'service_id',
-        shiiping_amount: Number(item.shiiping_amount || 0),
-      }))
-    }
-
-    // Map items with their corresponding courier data
-    return items.map(item => {
-      // Find the courier data for this item's store
-      const courierData = parsedOrderData.selected_couriers.find(
-        (courier: any) => courier.store === item.store
-      )
-      
-      const selectedCourier = courierData?.selected_courier
-      
-      // Determine delivery method based on courier_id
-      let deliveryMethod = 'movbay'
-      if (selectedCourier?.courier_id) {
-        const courierId = selectedCourier.courier_id.toLowerCase()
-        if (courierId.includes('ship') || courierId.includes('shiip') || courierId.includes('bubble')) {
-          deliveryMethod = 'ship_bubble'
-        } else if (courierId.includes('movbay') || courierId.includes('dispatch')) {
-          deliveryMethod = 'movbay'
-        } else {
-          deliveryMethod = 'ship_bubble' // default to ship_bubble for third-party couriers
-        }
-      }
-      
-      return {
-        amount: Number(item.amount),
-        product: Number(item.product),
-        store: Number(item.store),
-        quantity: Number(item.quantity),
-        delivery_method: deliveryMethod,
-        courier_id: selectedCourier?.courier_id || 'DHL Express',
-        request_token: courierData?.request_token || 'request_token',
-        service_code: selectedCourier?.service_code || 'service_id',
-        shiiping_amount: Number(selectedCourier?.total || 0),
-      }
+const enrichItemsWithDeliveryData = (items: any[]) => {
+  if (!parsedOrderData?.selected_couriers || parsedOrderData.selected_couriers.length === 0) {
+    console.error("No selected couriers found in order data")
+    toast.show("Please select delivery couriers first", {
+      type: "error",
+      placement: "top",
     })
+    return []
   }
 
-  const proceedWithPayment = async () => {
-    closeConfirmationModal()
+  // <View style={styles.webViewHeader}>
+  //     <TouchableOpacity 
+  //         onPress={()=>router.back()}
+  //         style={styles.closeButton}
+  //         className='bg-gray-100 rounded-full p-2'
+  //     >
+  //         <Ionicons name="arrow-back" size={20} color="#000" />
+  //     </TouchableOpacity>
+  //     <Text style={styles.headerTitle}>Back to Order History</Text>
+  //     <View style={styles.headerSpacer} />
+  // </View>
+  
+
+  // Map items with their corresponding courier data
+  return items.map(item => {
+    const courierData = parsedOrderData.selected_couriers.find(
+      (courier: any) => courier.store_id === item.store
+    )
     
-    if (!parsedOrderData) {
-      toast.show("Order data not available", {
-        type: "error",
-        placement: "top",
-      })
-      return
+    if (!courierData || !courierData.selected_courier) {
+      console.error(`No courier found for store ${item.store}`)
+      return null
     }
+    
+    const selectedCourier = courierData.selected_courier
 
-    setIsProcessing(true)
-
-    try {
-      const paymentData = getPaymentMethodData(selectedPaymentMethod)
-      const finalTotalInt = Math.round(parsedOrderData.total_amount + totalDeliveryFee - discount)
-      
-      // FIXED: Use the items from parsedOrderData
-      const enrichedItems = enrichItemsWithDeliveryData(parsedOrderData.items || [])
-      
-      // FIXED: Map delivery fields correctly (fullname instead of full_name)
-      const apiPayload = {
-        delivery: {
-          fullname: parsedOrderData.delivery.full_name,
-          phone_number: parsedOrderData.delivery.phone_number,
-          email: parsedOrderData.delivery.email,
-          landmark: parsedOrderData.delivery.landmark,
-          delivery_address: parsedOrderData.delivery.delivery_address,
-          city: parsedOrderData.delivery.city,
-          state: parsedOrderData.delivery.state,
-          alternative_address: parsedOrderData.delivery.alternative_address || "",
-          alternative_name: parsedOrderData.delivery.alternative_name || "",
-          alternative_email: parsedOrderData.delivery.alternative_email || "",
-          postal_code: Number(parsedOrderData.delivery.postal_code) || 0
-        },
-        total_amount: finalTotalInt,
-        items: enrichedItems,
-        payment_method: paymentData.payment_method,
-        provider_name: paymentData.provider_name,
+    
+    // Determine delivery method based on courier_id
+    let deliveryMethod = 'movbay'
+    if (selectedCourier.courier_id) {
+      const courierId = selectedCourier.courier_id.toLowerCase()
+      if (courierId.includes('movbay') || courierId.includes('dispatch')) {
+        deliveryMethod = 'movbay'
+      } else if (courierId.includes('test') || courierId.includes('bubble') || 
+                 courierId.includes('dhl') || courierId.includes('fedex')) {
+        deliveryMethod = 'ship_bubble'
+      } else {
+        deliveryMethod = 'ship_bubble' // default to ship_bubble for third-party couriers
       }
+    }
+    
+    return {
+      store: Number(item.store),
+      product: Number(item.product),
+      amount: Number(item.amount),
+      quantity: Number(item.quantity),
+      shiiping_amount: Number(selectedCourier.total || 0),
+      courier_id: selectedCourier.courier_id || '',
+      request_token: courierData.request_token || '',
+      service_code: selectedCourier.service_code || '',
+      delivery_method: deliveryMethod,
+    }
+  }).filter(item => item !== null) // Remove any null items
+}
 
-      console.log("Final API Payload:", JSON.stringify(apiPayload, null, 2))
+const proceedWithPayment = async () => {
+  closeConfirmationModal()
+  
+  if (!parsedOrderData) {
+    toast.show("Order data not available", {
+      type: "error",
+      placement: "top",
+    })
+    return
+  }
 
-      mutate(apiPayload, {
-        onSuccess: async (response) => {
-          console.log("Order created successfully:", response.data)
-          setOrderDatas(response.data)
-          
-          await sendLocalNotification({
-            ...response,
-            total_amount: finalTotalInt,
-          })
-          toast.show("Order placed successfully!", {
-            type: "success",
-            placement: "top",
-          })
-          
-          router.push({
-            pathname: "/(access)/(user_stacks)/order-success",
-            params: {
-              orderData: JSON.stringify(response.data),
-              totalAmount: finalTotalInt.toString(),
-              paymentMethod: selectedPaymentMethod
-            }
-          })
-        },
-        onError: (error) => {
-          console.error("Order creation error:", error)
-          console.error("Full error details:", {
-            data: getErrorMessage(error),
-          })
+  // Validate that selected_couriers exists
+  if (!parsedOrderData.selected_couriers || parsedOrderData.selected_couriers.length === 0) {
+    toast.show("Please select delivery couriers first", {
+      type: "error",
+      placement: "top",
+    })
+    router.back() // Go back to delivery summary
+    return
+  }
 
-         toast.show(getErrorMessage(error), {
-          type: "danger", 
-          placement: "top",
-        })
-        },
-        onSettled: () => {
-          setIsProcessing(false)
-        }
-      })
+  setIsProcessing(true)
 
-    } catch (error) {
-      console.error("Payment error:", error)
-      const errorMessage = getErrorMessage(error)
-      
-      toast.show(errorMessage, {
+  try {
+    const paymentData = getPaymentMethodData(selectedPaymentMethod)
+    const finalTotalInt = Math.round(parsedOrderData.total_amount + totalDeliveryFee - discount)
+    
+    // Use enriched items with proper courier data
+    const enrichedItems = enrichItemsWithDeliveryData(parsedOrderData.items || [])
+    
+    // Validate enriched items
+    if (enrichedItems.length === 0) {
+      toast.show("Unable to process order. Missing courier information.", {
         type: "error",
         placement: "top",
-        duration: 5000,
       })
       setIsProcessing(false)
+      return
     }
+    
+    // Map delivery fields correctly (fullname instead of full_name)
+    const apiPayload = {
+      delivery: {
+        fullname: parsedOrderData.delivery.full_name,
+        phone_number: parsedOrderData.delivery.phone_number,
+        email: parsedOrderData.delivery.email,
+        landmark: parsedOrderData.delivery.landmark,
+        delivery_address: parsedOrderData.delivery.delivery_address,
+        city: parsedOrderData.delivery.city,
+        state: parsedOrderData.delivery.state,
+        alternative_address: parsedOrderData.delivery.alternative_address || "",
+        alternative_name: parsedOrderData.delivery.alternative_name || "",
+        alternative_email: parsedOrderData.delivery.alternative_email || "",
+        postal_code: Number(parsedOrderData.delivery.postal_code) || 0
+      },
+      total_amount: finalTotalInt,
+      items: enrichedItems,
+      payment_method: paymentData.payment_method,
+      provider_name: paymentData.provider_name,
+    }
+
+    console.log("Final API Payload:", JSON.stringify(apiPayload, null, 2))
+
+    mutate(apiPayload, {
+      onSuccess: async (response) => {
+        console.log("Order created successfully:", response.data)
+        setOrderDatas(response.data)
+        
+        await sendLocalNotification({
+          ...response,
+          total_amount: finalTotalInt,
+        })
+        toast.show("Order placed successfully!", {
+          type: "success",
+          placement: "top",
+        })
+        
+        router.push({
+          pathname: "/(access)/(user_stacks)/order-success",
+          params: {
+            orderData: JSON.stringify(response.data),
+            totalAmount: finalTotalInt.toString(),
+            paymentMethod: selectedPaymentMethod
+          }
+        })
+      },
+      onError: (error) => {
+        console.error("Order creation error:", error)
+        console.error("Full error details:", {
+          data: getErrorMessage(error),
+        })
+
+       toast.show(getErrorMessage(error), {
+        type: "danger", 
+        placement: "top",
+      })
+      },
+      onSettled: () => {
+        setIsProcessing(false)
+      }
+    })
+
+  } catch (error) {
+    console.error("Payment error:", error)
+    const errorMessage = getErrorMessage(error)
+    
+    toast.show(errorMessage, {
+      type: "error",
+      placement: "top",
+      duration: 5000,
+    })
+    setIsProcessing(false)
   }
+}
 
   // Product Item Card Component
   const ProductItemCard = ({ item }: { item: DeliveryItem }) => (

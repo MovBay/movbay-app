@@ -5,10 +5,12 @@ import { SafeAreaView } from 'react-native-safe-area-context'
 import LoadingOverlay from '@/components/LoadingOverlay'
 import { OnboardArrowTextHeader } from '@/components/btns/OnboardHeader'
 import { router, useLocalSearchParams, useFocusEffect } from 'expo-router'
-import { MaterialIcons } from '@expo/vector-icons'
+import { Ionicons, MaterialIcons } from '@expo/vector-icons'
 import { SolidLightButton, SolidMainButton } from '@/components/btns/CustomButtoms'
 import { useTrackOrders } from '@/hooks/mutations/sellerAuth'
 import { useToast } from 'react-native-toast-notifications'
+import { StyleSheet } from 'react-native'
+import WebView from 'react-native-webview'
 
 const TrackOrder = () => {
   const [currentOrderStatus, setCurrentOrderStatus] = useState(0)
@@ -18,8 +20,13 @@ const TrackOrder = () => {
   const orderID = parsedOrderData?.order_id
   const { newTrackOrder, isLoading, refetch } = useTrackOrders(orderID)
   const newOrderTrackData = newTrackOrder?.data
+  const notMarked = newTrackOrder?.data
+  const isShipBubble = newOrderTrackData?.type === 'ship_bubble'
+  const shipBubbleUrl = newOrderTrackData?.data || newOrderTrackData?.data
 
-  console.log('This is order track', newOrderTrackData)
+  console.log('This is order track', newTrackOrder?.data)
+  console.log('Is ShipBubble:', isShipBubble)
+  console.log('ShipBubble URL:', shipBubbleUrl)
 
   // Refetch data whenever the screen comes into focus
   useFocusEffect(
@@ -32,12 +39,11 @@ const TrackOrder = () => {
 
   // Determine order status and update state when API data changes
   useEffect(() => {
-    if (newOrderTrackData) {
+    if (newOrderTrackData && !isShipBubble) {
       const status = determineOrderStatus(newOrderTrackData)
       setCurrentOrderStatus(status)
     }
-  }, [newOrderTrackData])
-
+  }, [newOrderTrackData, isShipBubble])
 
   // Function to determine order status based on API response
   const determineOrderStatus = (trackData: any) => {
@@ -89,12 +95,9 @@ const TrackOrder = () => {
     }
   }, [newOrderTrackData?.driver?.user?.phone_number, toast])
 
-  // Message courier functionality (placeholder for future implementation)
   const handleMessageCourier = useCallback(() => {
-    // This can be implemented when messaging feature is ready
     toast.show("Messaging feature coming soon!", { type: "info" })
   }, [toast])
-
 
   const handleRateProduct = useCallback(() => {
     const productId = newOrderTrackData?.order_items?.[0]?.product?.id || 
@@ -106,7 +109,7 @@ const TrackOrder = () => {
       params: {
         orderData: JSON.stringify(newOrderTrackData),
         orderID: orderID,
-        productId: productId // Add product ID to params
+        productId: productId
       }
     })
   }, [newOrderTrackData, orderID, parsedOrderData])
@@ -188,10 +191,89 @@ const TrackOrder = () => {
     }
   }, [orderID, refetch])
 
+  // Handle WebView back button
+  const handleWebViewClose = useCallback(() => {
+    router.back()
+  }, [])
+
+
+  if(!isLoading && notMarked === undefined){
+    return (
+      <SafeAreaView style={styles.fullScreenContainer}>
+          <StatusBar style='dark'/>
+          <View style={styles.webViewHeader}>
+            <TouchableOpacity 
+              onPress={handleWebViewClose}
+              style={styles.closeButton}
+            >
+              <Ionicons name="arrow-back" size={24} color="#000" />
+            </TouchableOpacity>
+            <Text style={styles.headerTitle}>Track Your Order</Text>
+            <View style={styles.headerSpacer} />
+          </View>
+          <View className='justify-center w-[90%] m-auto mt-[15rem]'>
+            <View className='mb-6 rounded-full bg-orange-100 p-6 w-fit m-auto justify-center'>
+              <Ionicons name="notifications" size={64} color="#F75F15" style={{textAlign: 'center'}}/>
+            </View>
+            <Text className='text-center text-xl' style={{fontFamily: 'HankenGrotesk_600SemiBold'}}>Order not yet marked for Delivery</Text>
+            <Text className='text-center'>Waiting for seller to mark your order for delivery</Text>
+          </View>
+      </SafeAreaView>
+    )
+  }
+
+  // Render ShipBubble WebView if type is ship_bubble
+  if (isShipBubble && shipBubbleUrl) {
+    return (
+      <SafeAreaView style={styles.fullScreenContainer}>
+        <StatusBar style='dark'/>
+        <View style={styles.webViewHeader}>
+          <TouchableOpacity 
+            onPress={handleWebViewClose}
+            style={styles.closeButton}
+          >
+            <Ionicons name="arrow-back" size={24} color="#000" />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Track Your Order</Text>
+          <View style={styles.headerSpacer} />
+        </View>
+        
+        <WebView
+          style={styles.fullScreenWebView}
+          source={{ uri: shipBubbleUrl }}
+          startInLoadingState={true}
+          scalesPageToFit={true}
+          javaScriptEnabled={true}
+          domStorageEnabled={true}
+          mixedContentMode="compatibility"
+          renderLoading={() => (
+            <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+              <LoadingOverlay visible={true} />
+            </View>
+          )}
+          onError={(syntheticEvent) => {
+            const { nativeEvent } = syntheticEvent
+            console.error('WebView error: ', nativeEvent)
+            toast.show('Failed to load tracking page', { type: 'danger' })
+          }}
+        />
+      </SafeAreaView>
+    )
+  }
+
+  // Show loading state if still fetching data
+  if (isLoading && !newOrderTrackData) {
+    return (
+      <SafeAreaView className="flex-1 bg-white">
+        <StatusBar style="dark" />
+        <LoadingOverlay visible={true} />
+      </SafeAreaView>
+    )
+  }
+
   return (
     <SafeAreaView className="flex-1 bg-white">
       <StatusBar style="dark" />
-      {/* Loading Overlay */}
       <LoadingOverlay visible={isLoading} />
 
       {/* Header with optional refresh button */}
@@ -260,22 +342,6 @@ const TrackOrder = () => {
                   {newOrderTrackData?.driver?.user?.fullname || 'Driver Name'}
                 </Text>
               </View>
-              {/* <View className="flex-row justify-between">
-                <Text className="text-gray-600 text-sm" style={{ fontFamily: "HankenGrotesk_400Regular" }}>
-                  Vehicle Type:
-                </Text>
-                <Text className="text-gray-900 text-sm" style={{ fontFamily: "HankenGrotesk_500Medium" }}>
-                  {newOrderTrackData?.driver?.kyc_verification?.[0]?.vehicle_type.toUpperCase() || 'N/A'}
-                </Text>
-              </View>
-              <View className="flex-row justify-between">
-                <Text className="text-gray-600 text-sm" style={{ fontFamily: "HankenGrotesk_400Regular" }}>
-                  Vehicle Color:
-                </Text>
-                <Text className="text-gray-900 text-sm" style={{ fontFamily: "HankenGrotesk_500Medium" }}>
-                  {newOrderTrackData?.driver?.kyc_verification?.[0]?.vehicle_color.toUpperCase() || 'N/A'}
-                </Text>
-              </View> */}
               <View className="flex-row justify-between">
                 <Text className="text-gray-600 text-sm" style={{ fontFamily: "HankenGrotesk_400Regular" }}>
                   Vehicle Plate Number:
@@ -359,3 +425,78 @@ const TrackOrder = () => {
 }
 
 export default TrackOrder
+
+const styles = StyleSheet.create({
+  fullScreenContainer: {
+    flex: 1,
+    backgroundColor: 'white',
+  },
+
+  fullScreenWebView: {
+    flex: 1,
+  },
+
+  webViewHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E5E5',
+    backgroundColor: 'white',
+  },
+
+  closeButton: {
+    padding: 8,
+  },
+
+  headerTitle: {
+    fontSize: 16,
+    fontFamily: 'HankenGrotesk_600SemiBold',
+    color: '#000',
+  },
+
+  headerSpacer: {
+    width: 40,
+  },
+
+  container: {
+    flex: 1,
+  },
+  
+  inputStyle: {
+    borderRadius: 7,
+    paddingHorizontal: 16,
+    paddingVertical: 16,
+    fontFamily: "HankenGrotesk_400Regular",
+    backgroundColor: '#F6F6F6',
+  },
+  
+  titleStyle: {
+    fontFamily: "HankenGrotesk_500Medium",
+    fontSize: 14,
+    color: "#3A3541",
+    paddingBottom: 8,
+    paddingTop: 6
+  },
+
+  modalOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+  },
+
+  modalBackdrop: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+  },
+});

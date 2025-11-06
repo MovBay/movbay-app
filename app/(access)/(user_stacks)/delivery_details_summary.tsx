@@ -35,6 +35,7 @@ interface Courier {
 
 interface StoreData {
   store: string;
+  store_id?: string | number;
   status: string;
   message: string;
   store_image: any;
@@ -246,6 +247,7 @@ const DeliveryDetailsSummary = () => {
     if (orderData) {
       try {
         const parsed = JSON.parse(orderData as string)
+        console.log("Parsed Order Data:", parsed)
         setParsedData(parsed)
         
         // Auto-select first courier for each store
@@ -275,47 +277,56 @@ const DeliveryDetailsSummary = () => {
     }))
   }
 
-  const handleProceedToPayment = () => {
-    if (!parsedData) return
-    
-    // Check if all stores have a selected courier
-    const storesCount = parsedData.stores_couriers?.length || 0
-    const selectionsCount = Object.keys(selectedCouriers).length
-    
-    if (selectionsCount < storesCount) {
-      toast.show("Please select a delivery courier for all stores", {
-        type: "warning",
-        placement: "top",
-      })
-      return
-    }
+const handleProceedToPayment = () => {
+  if (!parsedData) return
+  
+  // Check if all stores have a selected courier
+  const storesCount = parsedData.stores_couriers?.length || 0
+  const selectionsCount = Object.keys(selectedCouriers).length
+  
+  if (selectionsCount < storesCount) {
+    toast.show("Please select a delivery courier for all stores", {
+      type: "warning",
+      placement: "top",
+    })
+    return
+  }
 
-    if (parsedData.metadata?.saveForNextTime) {
-      toast.show("Delivery details have been saved for future orders!", {
-        type: "success",
-        placement: "top",
-      })
-    }
-
-    // Add selected couriers to order data
-    const selectedCouriersData = parsedData.stores_couriers?.map(storeData => ({
-      store: storeData.store,
-      request_token: storeData.data.request_token,
-      selected_courier: storeData.data.couriers.find(
-        c => c.courier_id === selectedCouriers[storeData.store]
-      )
-    }))
-
-    const finalData = {
-      ...parsedData,
-      selected_couriers: selectedCouriersData
-    }
-
-    router.push({
-      pathname: "/(access)/(user_stacks)/user_checkout",
-      params: { finalOrderData: JSON.stringify(finalData) }
+  if (parsedData.metadata?.saveForNextTime) {
+    toast.show("Delivery details have been saved for future orders!", {
+      type: "success",
+      placement: "top",
     })
   }
+
+  // CRITICAL FIX: Build selected_couriers with complete data structure
+  const selectedCouriersData = parsedData.stores_couriers?.map(storeData => {
+    const selectedCourier = storeData.data.couriers.find(
+      c => c.courier_id === selectedCouriers[storeData.store]
+    )
+    
+    return {
+      store: storeData.store,
+      store_id: storeData.store_id,
+      request_token: storeData.data.request_token,
+      selected_courier: selectedCourier
+    }
+  })
+
+  // console.log("Selected Couriers Data:", selectedCouriersData)
+
+  const finalData = {
+    ...parsedData,
+    selected_couriers: selectedCouriersData
+  }
+
+  // console.log("Final Data to Checkout:", JSON.stringify(finalData, null, 2))
+
+  router.push({
+    pathname: "/(access)/(user_stacks)/user_checkout",
+    params: { finalOrderData: JSON.stringify(finalData) }
+  })
+}
 
   if (!parsedData) {
     return (

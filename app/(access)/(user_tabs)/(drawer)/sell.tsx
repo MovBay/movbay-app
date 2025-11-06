@@ -21,7 +21,7 @@ const Sell =()=> {
     navigation.dispatch(DrawerActions.openDrawer())
   }
   const {storeData, refetch, isLoading} = useGetStore()
-  // console.log('Store Data:', storeData?.data)
+  console.log('Store Data:', storeData?.data)
   
   // State for pull-to-refresh
   const [refreshing, setRefreshing] = useState(false);
@@ -86,12 +86,14 @@ const Sell =()=> {
                 <View className='flex-row justify-between items-center'>
     
                   <View className='relative'>
-                    <View className='w-24 h-24 object-cover overflow-hidden flex rounded-full border-2 border-green-800 p-1'>
+                    <View className='w-24 h-24 object-cover overflow-hidden flex rounded-full border-2 border-gray-200 p-1'>
                       <Image source={{uri: storeData?.data?.store_image}} style={{width: '100%', height: '100%', objectFit: 'cover', borderRadius: 50}}/>
                     </View>
+                    {storeData?.data?.is_verified &&
                     <View className='bg-white absolute top-1 right-0 p-0.5 rounded-full'>
                       <MaterialIcons name='verified' size={25} color={'#4285F4'}/>
                     </View>
+                    }
                   </View>
     
                   <View>
@@ -100,8 +102,16 @@ const Sell =()=> {
                   </View>
     
                   <View>
-                      <Text className='text-lg text-center' style={{fontFamily: 'HankenGrotesk_600SemiBold'}}>5-Star</Text>
-                      <Text className='text-sm text-center' style={{fontFamily: 'HankenGrotesk_400Regular'}}>Badge</Text>
+                      {storeData?.data?.is_verified ? 
+                        <Pressable className='rounded-full bg-green-100 px-4 py-2 flex-row items-center'>
+                          <Text className='text-xs text-green-600' style={{fontFamily: 'HankenGrotesk_500Medium'}}>Verified</Text>
+                        </Pressable>: 
+                        <Pressable className='rounded-full bg-red-100 px-4 py-2 flex-row items-center'>
+                          <Text className='text-xs text-red-700' style={{fontFamily: 'HankenGrotesk_500Medium'}}>Not Verified</Text>
+                        </Pressable>
+                    }
+
+
                   </View>
                 </View>
     
@@ -122,8 +132,13 @@ const Sell =()=> {
                   </View>
                   <Text className='text-sm pt-2.5' style={{fontFamily: 'HankenGrotesk_500Medium'}}>Product Listed</Text>
                 </View>
+
+                <Pressable className='bg-gray-100  p-5 rounded-2xl w-[49%]' onPress={()=>router.push('/(access)/(user_stacks)/user_story_post')}>
+                  <MaterialIcons name='add' size={25} style={{margin: 'auto'}}/>
+                  <Text className='text-sm pt-1 text-center' style={{fontFamily: 'HankenGrotesk_500Medium'}}>Post on story</Text>
+                </Pressable>
     
-                <View className='bg-[#FFF7EB] p-5 rounded-2xl w-[49%]'>
+                {/* <View className='bg-[#FFF7EB] p-5 rounded-2xl w-[49%]'>
                   <View className='flex-row justify-between'>
                     <Text style={{fontFamily: 'HankenGrotesk_500Medium'}} className='text-xl text-orange-500'>{storeData?.data?.order_count}</Text>
                     <View className='flex-row gap-1 items-center'>
@@ -132,11 +147,11 @@ const Sell =()=> {
                     </View>
                   </View>
                   <Text className='text-sm pt-2.5' style={{fontFamily: 'HankenGrotesk_500Medium'}}>Orders This Week</Text>
-                </View>
+                </View> */}
               </Animated.View>
     
               <Animated.View className='flex-row justify-between pt-5 pb-20' entering={FadeInDown.duration(500).delay(600).springify()}>
-                <View className='bg-[#F3EBFF] p-5 rounded-2xl w-[49%]'>
+                {/* <View className='bg-[#F3EBFF] p-5 rounded-2xl w-[49%]'>
                   <View className='flex-row justify-between'>
                     <Text style={{fontFamily: 'HankenGrotesk_500Medium'}} className='text-xl text-purple-600'>₦182,000</Text>
                     <View className='flex-row gap-1 items-center'>
@@ -145,12 +160,12 @@ const Sell =()=> {
                     </View>
                   </View>
                   <Text className='text-sm pt-2.5' style={{fontFamily: 'HankenGrotesk_500Medium'}}>Earnings This Month</Text>
-                </View>
+                </View> */}
     
-                <Pressable className='bg-gray-100  p-5 rounded-2xl w-[49%]' onPress={()=>router.push('/(access)/(user_stacks)/user_story_post')}>
+                {/* <Pressable className='bg-gray-100  p-5 rounded-2xl w-[49%]' onPress={()=>router.push('/(access)/(user_stacks)/user_story_post')}>
                   <MaterialIcons name='add' size={25} style={{margin: 'auto'}}/>
                   <Text className='text-sm pt-1 text-center' style={{fontFamily: 'HankenGrotesk_500Medium'}}>Post on story</Text>
-                </Pressable>
+                </Pressable> */}
               </Animated.View>
     
               <Pressable onPress={()=> router.push('/(access)/(user_stacks)/courier/deliver-parcel-home')} className='absolute bottom-10 right-8 bg-[#F75F15] p-4 py-3.5 rounded-full border-4 border-gray-200'>

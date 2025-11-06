@@ -23,12 +23,15 @@ import {
   useGetOutForDeliveryOrders,
   useGetCompletedOrders,
   useGetCancelledOrders,
+  useRejectOrder,
 } from "@/hooks/mutations/sellerAuth"
 import { MaterialIcons } from "@expo/vector-icons"
 import LoadingOverlay from "@/components/LoadingOverlay"
 import { DrawerHeaderMany } from "@/components/btns/DrawerHeader"
 import { DrawerActions, useNavigation, useFocusEffect } from "@react-navigation/native"
 import { useNotification } from "@/context/NotificationContext"
+import { Toast } from "react-native-toast-notifications"
+import { Linking } from "react-native"
 
 const { height: SCREEN_HEIGHT } = Dimensions.get("window")
 
@@ -452,15 +455,40 @@ const Orders = () => {
     setSelectedOrder(null)
   }, [])
 
-  const handleConfirmReject = useCallback(
-    (order: Order) => {
-      console.log("Rejecting order:", order.order_id)
-      // In a real app, you'd call a mutation here to reject the order
-      // For now, just refetch all orders to reflect potential changes
-      onRefresh() // Use onRefresh to refetch all data
-    },
-    [onRefresh],
-  )
+  const {mutate: cancleOrder, isPending: cancelPending} = useRejectOrder(selectedOrder?.order_id)
+
+    const handleConfirmReject = () => {
+      cancleOrder(
+        {},
+        {
+          onSuccess: (data) => {
+            console.log("✅ Order Canceled successfully:", data)
+            Toast.show("Order Canceled successfully", {type: 'success'})
+            // setShowSuccessModal(true)
+          },
+          onError: (error) => {
+            console.error("❌ Error Canceled order:", error)
+            console.error("❌ Error details:", {
+              message: error?.message,
+              data: (error as any)?.response?.data.data.message,
+            })
+            Toast.show((error as any)?.response?.data, {type: 'success'})
+
+          },
+        },
+      )
+    }
+  
+
+  // const handleConfirmReject = useCallback(
+  //   (order: Order) => {
+  //     console.log("Rejecting order:", order.order_id)
+  //     // In a real app, you'd call a mutation here to reject the order
+  //     // For now, just refetch all orders to reflect potential changes
+  //     onRefresh() // Use onRefresh to refetch all data
+  //   },
+  //   [onRefresh],
+  // )
 
   const handleViewToConfirm = useCallback((order: Order) => {
     router.push({
@@ -493,9 +521,9 @@ const Orders = () => {
   const handleCallCourier = useCallback((order: Order) => {
     console.log("Calling courier for order:", order.order_id)
     // Implement call functionality, e.g.:
-    // if (order.delivery.phone_number) {
-    //   Linking.openURL(`tel:${order.delivery.phone_number}`);
-    // }
+    if (order.delivery.phone_number) {
+      Linking.openURL(`tel:${order.delivery.phone_number}`);
+    }
   }, [])
 
   const handleTrackCourier = useCallback((order: Order) => {
@@ -557,10 +585,10 @@ const Orders = () => {
         case "New Orders":
           return (
             <View className="flex-row justify-between">
-              <View className="w-[48%]">
+              {/* <View className="w-[48%]">
                 <SolidLightButton text="Reject Order" onPress={() => handleRejectOrder(order)} />
-              </View>
-              <View className="w-[48%]">
+              </View> */}
+              <View className="w-full">
                 <SolidMainButton text="View to Confirm" onPress={() => handleViewToConfirm(order)} />
               </View>
             </View>
@@ -582,9 +610,6 @@ const Orders = () => {
           } else {
             return (
               <View className="flex-row justify-between">
-                <View className="w-[48%]">
-                  <SolidLightButton text="Cancel Order" onPress={() => handleCancelOrder(order)} />
-                </View>
                 <View className="w-[48%]">
                   <SolidMainButton text="Mark for Delivery" onPress={() => handleMarkForDelivery(order)} />
                 </View>
@@ -683,7 +708,7 @@ const Orders = () => {
     <SafeAreaView className="flex-1 bg-gray-50">
       <StatusBar style="dark" />
       {/* Global loading overlay for initial data fetch */}
-      <LoadingOverlay visible={globalLoading} />
+      <LoadingOverlay visible={globalLoading || cancelPending} />
       <View className="flex-row items-center gap-2 mb-6 px-4 pt-2">
         <DrawerHeaderMany onPress={openDrawer} />
         <Text className="text-2xl text-center m-auto" style={{ fontFamily: "HankenGrotesk_600SemiBold" }}>
