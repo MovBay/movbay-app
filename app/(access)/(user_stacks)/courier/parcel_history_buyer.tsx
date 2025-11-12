@@ -1,19 +1,120 @@
-import { View, Text, TouchableOpacity, Image, ScrollView, Modal, Animated, Dimensions, PanResponder, RefreshControl } from 'react-native'
+import { View, Text, TouchableOpacity, Image, ScrollView, Modal, Animated, Dimensions, PanResponder, RefreshControl, Linking, Alert } from 'react-native'
 import React, { useState, useRef, useEffect, useCallback } from 'react'
 import { StatusBar } from 'expo-status-bar'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { OnboardArrowTextHeader } from '@/components/btns/OnboardHeader'
 import { router, useFocusEffect } from 'expo-router'
 import { KeyboardAwareScrollView } from 'react-native-keyboard-controller'
-import { SolidLightButton, SolidMainButton } from '@/components/btns/CustomButtoms'
-import { Ionicons, MaterialIcons } from '@expo/vector-icons'
+import { SolidLightButton, SolidLightGreenButton, SolidMainButton } from '@/components/btns/CustomButtoms'
+import { Ionicons, MaterialIcons, FontAwesome5 } from '@expo/vector-icons'
 import LoadingOverlay from '@/components/LoadingOverlay'
 import { useGetUserCompletedParcelOrders, useGetUserOngoingParcelOrders } from '@/hooks/mutations/sellerAuth'
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window')
 
+// Helper function to get icon based on package type
+const getPackageIcon = (packageType: string) => {
+  const type = packageType?.toLowerCase() || ''
+  
+  const iconMap: { [key: string]: { name: string; library: 'Ionicons' | 'MaterialIcons' | 'FontAwesome5'; color: string } } = {
+    'envelope': { name: 'mail', library: 'Ionicons', color: '#3B82F6' },
+    'parcel': { name: 'cube', library: 'Ionicons', color: '#F75F15' },
+    'food': { name: 'restaurant', library: 'Ionicons', color: '#10B981' },
+    'fragile': { name: 'notifications', library: 'Ionicons', color: 'gray' },
+    'electronics': { name: 'laptop', library: 'Ionicons', color: '#8B5CF6' },
+    'box': { name: 'cube-outline', library: 'Ionicons', color: '#F59E0B' },
+    'crate': { name: 'grid', library: 'Ionicons', color: '#6B7280' },
+    'pallet': { name: 'apps', library: 'Ionicons', color: '#059669' },
+    'others': { name: 'ellipsis-horizontal', library: 'Ionicons', color: '#6B7280' },
+  }
+
+  return iconMap[type] || iconMap['others']
+}
+
+// Animated Delivery In Progress Component
+const DeliveryInProgress = () => {
+  const bikeAnimation = useRef(new Animated.Value(0)).current
+  const pulseAnimation = useRef(new Animated.Value(1)).current
+
+  useEffect(() => {
+    // Bike moving animation
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(bikeAnimation, {
+          toValue: 1,
+          duration: 2000,
+          useNativeDriver: true,
+        }),
+        Animated.timing(bikeAnimation, {
+          toValue: 0,
+          duration: 2000,
+          useNativeDriver: true,
+        }),
+      ])
+    ).start()
+
+    // Pulse animation for the status indicator
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulseAnimation, {
+          toValue: 1.2,
+          duration: 1000,
+          useNativeDriver: true,
+        }),
+        Animated.timing(pulseAnimation, {
+          toValue: 1,
+          duration: 1000,
+          useNativeDriver: true,
+        }),
+      ])
+    ).start()
+  }, [])
+
+  const translateX = bikeAnimation.interpolate({
+    inputRange: [0, 1],
+    outputRange: [-20, 20],
+  })
+
+  return (
+    <View className="bg-white rounded-xl p-6 mb-4 items-center">
+      <View className="items-center mb-2">
+        <Text className="text-lg font-semibold text-gray-800 mb-2" style={{ fontFamily: "HankenGrotesk_600SemiBold" }}>
+          Delivery In Progress
+        </Text>
+        <Text className="text-sm text-gray-600 text-center" style={{ fontFamily: "HankenGrotesk_400Regular" }}>
+          Your rider is on the way to deliver your parcel
+        </Text>
+      </View>
+
+      {/* Animated Road/Path */}
+      <View className="w-full h-12 relative overflow-hidden mb-0">
+        <View className="absolute top-1/2 left-0 right-0 h-0.5 bg-gray-200" style={{ transform: [{ translateY: -1 }] }} />
+        
+        <Animated.View 
+          style={{ 
+            transform: [{ translateX }],
+            position: 'absolute',
+            top: 8,
+            left: '45%',
+          }}
+        >
+          <Ionicons name="bicycle" size={28} color="#F75F15" />
+        </Animated.View>
+        <View className="absolute left-0 top-1/2 w-3 h-3 bg-gray-500 rounded-full" style={{ transform: [{ translateY: -6 }] }} />
+        <View className="absolute right-0 top-1/2 w-3 h-3 bg-green-700 rounded-full" style={{ transform: [{ translateY: -6 }] }} />
+      </View>
+
+      <View className="flex-row items-center gap-3">
+        <View className="w-2 h-2 bg-orange-500 rounded-full" />
+        <View className="w-2 h-2 bg-orange-300 rounded-full" />
+        <View className="w-2 h-2 bg-orange-200 rounded-full" />
+      </View>
+    </View>
+  )
+}
+
 // Custom Bottom Sheet Component for Parcel Details
-const ParcelDetailsBottomSheet = ({ visible, onClose, parcel }: any) => {
+const ParcelDetailsBottomSheet = ({ visible, onClose, parcel, isOngoing }: any) => {
   const slideAnim = useRef(new Animated.Value(SCREEN_HEIGHT)).current
   const backdropOpacity = useRef(new Animated.Value(0)).current
 
@@ -68,7 +169,34 @@ const ParcelDetailsBottomSheet = ({ visible, onClose, parcel }: any) => {
     },
   })
 
+  const handleCallRider = () => {
+    const phoneNumber = parcel?.package_ride[0]?.rider?.phone_number
+    
+    if (!phoneNumber) {
+      Alert.alert('No Contact', 'Rider contact information is not available yet.')
+      return
+    }
+
+    Alert.alert(
+      'Call Rider',
+      `Do you want to call ${parcel?.driver?.name || parcel?.assigned_driver?.name || 'the rider'}?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Call',
+          onPress: () => {
+            Linking.openURL(`tel:${phoneNumber}`).catch(() => {
+              Alert.alert('Error', 'Unable to make a call. Please try again.')
+            })
+          },
+        },
+      ]
+    )
+  }
+
   if (!visible || !parcel) return null
+
+  const packageIcon = getPackageIcon(parcel.package_type)
 
   return (
     <Modal
@@ -106,7 +234,7 @@ const ParcelDetailsBottomSheet = ({ visible, onClose, parcel }: any) => {
             backgroundColor: 'white',
             borderTopLeftRadius: 20,
             borderTopRightRadius: 20,
-            maxHeight: SCREEN_HEIGHT * 0.8,
+            maxHeight: SCREEN_HEIGHT * 0.85,
             paddingTop: 20,
             paddingBottom: 40,
           }}
@@ -129,12 +257,25 @@ const ParcelDetailsBottomSheet = ({ visible, onClose, parcel }: any) => {
 
           {/* Parcel Information */}
           <ScrollView className="px-4 mb-4" showsVerticalScrollIndicator={false}>
+            {isOngoing && parcel.completed !== true && parcel?.package_ride[0]?.out_for_delivery !== false  && <DeliveryInProgress />}
+
             <View className="bg-gray-50 rounded-xl p-4 mb-4">
               <View className="flex-row items-center">
                 <View className="w-16 h-16 bg-white rounded-lg mr-3 overflow-hidden items-center justify-center">
-                    <View className="bg-orange-100 rounded-full p-2">
-                        <Ionicons name="pizza" size={24} color="#F75F15" />
-                    </View>
+                  <View 
+                    className="rounded-full p-2" 
+                    style={{ backgroundColor: `${packageIcon.color}20` }}
+                  >
+                    {packageIcon.library === 'Ionicons' && (
+                      <Ionicons name={packageIcon.name as any} size={24} color={packageIcon.color} />
+                    )}
+                    {packageIcon.library === 'MaterialIcons' && (
+                      <MaterialIcons name={packageIcon.name as any} size={24} color={packageIcon.color} />
+                    )}
+                    {packageIcon.library === 'FontAwesome5' && (
+                      <FontAwesome5 name={packageIcon.name as any} size={24} color={packageIcon.color} />
+                    )}
+                  </View>
                 </View>
                 
                 <View className="flex-1">
@@ -146,74 +287,96 @@ const ParcelDetailsBottomSheet = ({ visible, onClose, parcel }: any) => {
                   </Text>
                   <View className="flex-row justify-between items-center">
                     <Text className="text-lg font-bold text-black" style={{ fontFamily: "HankenGrotesk_600SemiBold" }}>
-                      ₦{(parcel.amount || parcel.price)?.toLocaleString()}
+                      ₦{(parcel?.package_ride[0]?.fare_amount)?.toLocaleString()}
                     </Text>
-                    <Text className="text-xs text-gray-500" style={{ fontFamily: "HankenGrotesk_400Regular" }}>
+                    {/* <Text className="text-xs text-gray-500" style={{ fontFamily: "HankenGrotesk_400Regular" }}>
                       {new Date(parcel.createdAt || parcel.date).toLocaleDateString()}
-                    </Text>
+                    </Text> */}
                   </View>
                 </View>
               </View>
             </View>
 
+            {/* Driver Information */}
+            {(parcel.package_ride[0]?.rider) && (
+              <View className="bg-purple-50 rounded-xl p-4 mb-4">
+                <Text className="text-sm font-semibold mb-3" style={{ fontFamily: "HankenGrotesk_600SemiBold" }}>
+                  Driver Information
+                </Text>
+                <View className="flex-row items-center gap-2 mb-2">
+                  <Ionicons name="person" size={16} color="#4B5563" />
+                  <Text className="text-sm text-gray-700" style={{ fontFamily: "HankenGrotesk_500Medium" }}>
+                    {parcel.package_ride[0]?.rider?.fullname}
+                  </Text>
+                </View>
+                {(parcel.package_ride[0]?.rider?.phone_number) && (
+                  <View className="flex-row items-center gap-2">
+                    <Ionicons name="call" size={16} color="#4B5563" />
+                    <Text className="text-xs text-gray-600" style={{ fontFamily: "HankenGrotesk_400Regular" }}>
+                      {parcel.package_ride[0]?.rider?.phone_number}
+                    </Text>
+                  </View>
+                )}
+              </View>
+            )}
+
             {/* Pickup Information */}
-            <View className="p-4 mb-4">
-              <Text className="text-sm font-semibold mb-2" style={{ fontFamily: "HankenGrotesk_600SemiBold" }}>
+            <View className="bg-gray-50 rounded-xl p-4 mb-4">
+              <Text className="text-sm font-semibold mb-3" style={{ fontFamily: "HankenGrotesk_600SemiBold" }}>
                 Pickup Information
               </Text>
-              <View className="flex-row items-center gap-2 mb-1">
-                <Ionicons name="location" size={15} color="#4B5563" />
-                <Text className="text-sm text-gray-700" style={{ fontFamily: "HankenGrotesk_500Medium" }}>
-                  From: {parcel.pick_address || 'N/A'}
+              <View className="flex-row items-start gap-2 mb-2">
+                <Ionicons name="location" size={16} color="#4B5563" style={{ marginTop: 2 }} />
+                <Text className="text-sm text-gray-700 flex-1" style={{ fontFamily: "HankenGrotesk_500Medium" }}>
+                  {parcel.pick_address || 'N/A'}
                 </Text>
               </View>
-              <Text className="text-xs text-gray-600" style={{ fontFamily: "HankenGrotesk_400Regular" }}>
-                Contact: {parcel.sender.phone_number || 'N/A'}
-              </Text>
+              <View className="flex-row items-center gap-2">
+                <Ionicons name="call" size={16} color="#4B5563" />
+                <Text className="text-xs text-gray-600" style={{ fontFamily: "HankenGrotesk_400Regular" }}>
+                  {parcel.sender?.phone_number || 'N/A'}
+                </Text>
+              </View>
             </View>
 
             {/* Delivery Information */}
             <View className="bg-blue-50 rounded-xl p-4 mb-4">
-              <Text className="text-sm font-semibold mb-2" style={{ fontFamily: "HankenGrotesk_600SemiBold" }}>
+              <Text className="text-sm font-semibold mb-3" style={{ fontFamily: "HankenGrotesk_600SemiBold" }}>
                 Delivery Information
               </Text>
-              <View className="flex-row items-center gap-2 mb-1">
-                <Ionicons name="location-sharp" size={15} color="#4B5563" />
-                <Text className="text-sm text-gray-700" style={{ fontFamily: "HankenGrotesk_500Medium" }}>
-                  To: {parcel.drop_address || 'N/A'}
+              <View className="flex-row items-start gap-2 mb-2">
+                <Ionicons name="location-sharp" size={16} color="#4B5563" style={{ marginTop: 2 }} />
+                <Text className="text-sm text-gray-700 flex-1" style={{ fontFamily: "HankenGrotesk_500Medium" }}>
+                  {parcel.drop_address || 'N/A'}
                 </Text>
               </View>
-              <Text className="text-xs text-gray-600" style={{ fontFamily: "HankenGrotesk_400Regular" }}>
-                Contact: {parcel.alternative_number || 'N/A'}
-              </Text>
+              <View className="flex-row items-center gap-2">
+                <Ionicons name="call" size={16} color="#4B5563" />
+                <Text className="text-xs text-gray-600" style={{ fontFamily: "HankenGrotesk_400Regular" }}>
+                  {parcel.alternative_number || 'N/A'}
+                </Text>
+              </View>
             </View>
 
-            {/* Driver Information */}
-            {(parcel.driver || parcel.assigned_driver) && (
-              <View className="bg-purple-50 rounded-xl p-4 mb-4">
-                <Text className="text-sm font-semibold mb-2" style={{ fontFamily: "HankenGrotesk_600SemiBold" }}>
-                  Driver Information
-                </Text>
-                <View className="flex-row items-center gap-2 mb-1">
-                  <Ionicons name="person" size={15} color="#4B5563" />
-                  <Text className="text-sm text-gray-700" style={{ fontFamily: "HankenGrotesk_500Medium" }}>
-                    {parcel.driver?.name || parcel.assigned_driver?.name || 'Not assigned yet'}
-                  </Text>
-                </View>
-                {(parcel.driver?.phone || parcel.assigned_driver?.phone) && (
-                  <Text className="text-xs text-gray-600" style={{ fontFamily: "HankenGrotesk_400Regular" }}>
-                    Phone: {parcel.driver?.phone || parcel.assigned_driver?.phone}
-                  </Text>
-                )}
-              </View>
-            )}
+
           </ScrollView>
 
           {/* Bottom Actions */}
-          <View className="px-4">
-            <SolidMainButton text="Close" onPress={() => {
-              onClose()
-            }} />
+          <View className="px-4 gap-2">
+            {/* Call Rider Button - Only show for ongoing parcels with driver info */}
+            {isOngoing && (parcel.package_ride[0]?.rider?.phone_number) && (
+              <TouchableOpacity
+                className="bg-green-800 py-4 rounded-full flex-row items-center justify-center"
+                onPress={handleCallRider}
+              >
+                <Ionicons name="call" size={20} color="white" />
+                <Text className="text-white font-semibold ml-2" style={{ fontFamily: "HankenGrotesk_600SemiBold" }}>
+                  Call Rider
+                </Text>
+              </TouchableOpacity>
+            )}
+            
+            <SolidLightGreenButton text="Close" onPress={onClose} />
           </View>
         </Animated.View>
       </View>
@@ -232,10 +395,11 @@ const ParcelHistoryBuyer = () => {
   const { newUserCompletedParcelOrdersData, isLoading: completedLoading, refetch: refetchCompleted } = useGetUserCompletedParcelOrders()
   
   // Get the actual data from hooks
-  const ongoingParcels = newUserOngoinParcelOrdersData || []
+  const ongoingParcels = newUserOngoinParcelOrdersData?.data || []
   const completedParcels = newUserCompletedParcelOrdersData?.data || []
 
   console.log('This is the parcel', completedParcels)
+  console.log('This is the ongoingParcels parcel', ongoingParcels)
 
   // Combined loading state
   const isLoading = ongoingLoading || completedLoading
@@ -273,7 +437,6 @@ const ParcelHistoryBuyer = () => {
     setShowBottomSheet(false)
     setSelectedParcel(null)
   }
-
 
   // Empty state component for ongoing parcels
   const EmptyOngoingState = () => (
@@ -318,24 +481,36 @@ const ParcelHistoryBuyer = () => {
   // Component to render parcel item (matches screenshot design)
   const renderParcelItem = (parcel: any, index: any, isCompleted: boolean = false) => {
     const parcelType = parcel.package_type
-    const parcelAmount = parcel.amount || parcel.price || 0
+    const parcelAmount = parcel?.package_ride[0]?.fare_amount || 0
     const parcelDate = new Date(parcel.createdAt || parcel.date || Date.now()).toLocaleDateString()
+    const packageIcon = getPackageIcon(parcelType)
     
     return (
       <View key={parcel._id || parcel.id || index} className="bg-white rounded-xl p-4 mb-4 relative">
         {/* Status Badge in Top Right */}
         <View className={`absolute top-3 right-3 ${isCompleted ? 'bg-green-100' : 'bg-orange-100'} rounded-full px-3 py-1`}>
           <Text className={`text-xs font-medium ${isCompleted ? 'text-green-600' : 'text-orange-600'}`} style={{ fontFamily: "HankenGrotesk_500Medium" }}>
-            {parcel.completed === true ? 'Completed': 'Ongoin'}
+            {parcel.completed === true ? 'Completed' : 'Ongoing'}
           </Text>
         </View>
 
         <View className="flex-row items-center mb-4 pr-20">
-          {/* Icon based on parcel type */}
+          {/* Dynamic Icon based on parcel type */}
           <View className="w-20 h-20 mr-4 items-center justify-center">
-              <View className="bg-orange-100 rounded-full p-3">
-                <MaterialIcons name="local-shipping" size={32} color="#F75F15" />
-              </View>
+            <View 
+              className="rounded-full p-3" 
+              style={{ backgroundColor: `${packageIcon.color}20` }}
+            >
+              {packageIcon.library === 'Ionicons' && (
+                <Ionicons name={packageIcon.name as any} size={32} color={packageIcon.color} />
+              )}
+              {packageIcon.library === 'MaterialIcons' && (
+                <MaterialIcons name={packageIcon.name as any} size={32} color={packageIcon.color} />
+              )}
+              {packageIcon.library === 'FontAwesome5' && (
+                <FontAwesome5 name={packageIcon.name as any} size={32} color={packageIcon.color} />
+              )}
+            </View>
           </View>
           
           <View className="flex-1">
@@ -356,7 +531,7 @@ const ParcelHistoryBuyer = () => {
         <View className='flex-row justify-between items-center'>
           <View className='w-[100%]'>
             <TouchableOpacity className='bg-[#F6F6F6] border border-gray-200 p-4 rounded-full' onPress={() => handleViewParcel(parcel)}>
-                <Text style={{fontFamily: 'HankenGrotesk_600SemiBold'}} className='text-center text-sm'>View Details</Text>
+              <Text style={{fontFamily: 'HankenGrotesk_600SemiBold'}} className='text-center text-sm'>View Details</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -463,6 +638,7 @@ const ParcelHistoryBuyer = () => {
         visible={showBottomSheet}
         onClose={handleCloseBottomSheet}
         parcel={selectedParcel}
+        isOngoing={activeTab === 'Ongoing'}
       />
     </SafeAreaView>
   )

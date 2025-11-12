@@ -5,9 +5,10 @@ import { View, Text, TouchableOpacity, Modal, Dimensions, Image, Linking, Activi
 import { Ionicons, MaterialIcons } from "@expo/vector-icons"
 import { SolidMainButton } from "./btns/CustomButtoms"
 import { useToast } from "react-native-toast-notifications"
-import { useCallback, useMemo } from "react"
+import { useCallback, useMemo, useEffect } from "react"
 import { useRouter } from "expo-router"
 import { useOrderDelivered, useOrderPickedUp, usePackageDelivered, usePackagePickedUp } from "@/hooks/mutations/ridersAuth"
+import { useNotification } from "@/context/NotificationContext"
 
 const { height } = Dimensions.get("window")
 
@@ -29,21 +30,69 @@ const AcceptedRideDetailsBottomSheet: React.FC<AcceptedRideDetailsBottomSheetPro
   const toast = useToast()
   const router = useRouter()
 
+  // Get notification context
+  const { 
+    setOnPaymentReceivedNotification, 
+    setOnRideCancelledNotification 
+  } = useNotification()
+
   const { mutate: markOrderForPickup, isPending: isOrderPickupPending } = useOrderPickedUp(ride?.order?.order_id)
   const { mutate: markOrderAsDelivered, isPending: isOrderDeliveryPending } = useOrderDelivered(ride?.order?.order_id)
 
   const { mutate: markPackageForPickup, isPending: isPackagePickupPending } = usePackagePickedUp(ride?.id)
   const { mutate: markPackageAsDelivered, isPending: isPackageDeliveryPending } = usePackageDelivered(ride?.package_delivery?.id)
 
+  // Handle payment received notification
+  const handlePaymentReceived = useCallback(() => {
+    console.log("💰 Payment received notification - refreshing ride data...")
+    onRefetchMyRide()
+    toast.show("Payment received! You can now proceed with pickup.", { type: "success" })
+  }, [onRefetchMyRide, toast])
+
+  // Handle ride cancelled notification
+  const handleRideCancelled = useCallback(() => {
+    console.log("❌ Ride cancelled notification - refreshing and closing...")
+    onRefetchMyRide()
+    toast.show("This ride has been cancelled by the sender.", { type: "warning" })
+    // Close the bottom sheet after a short delay
+    setTimeout(() => {
+      onClose()
+    }, 2000)
+  }, [onRefetchMyRide, toast, onClose])
+
+  // Set up notification handlers when component mounts
+  useEffect(() => {
+    if (isVisible && ride) {
+      console.log("🔔 Setting up notification handlers for ride:", ride.id)
+      setOnPaymentReceivedNotification(handlePaymentReceived)
+      setOnRideCancelledNotification(handleRideCancelled)
+    }
+
+    // Cleanup function
+    return () => {
+      // Clear handlers when component unmounts or ride changes
+      if (!isVisible) {
+        console.log("🔕 Clearing notification handlers")
+      }
+    }
+  }, [isVisible, ride, setOnPaymentReceivedNotification, setOnRideCancelledNotification, handlePaymentReceived, handleRideCancelled])
+
   // Memoize computed values
   const orderStatus = useMemo(() => ride?.out_for_delivery, [ride?.out_for_delivery])
   const isCompleted = useMemo(() => ride?.completed === true, [ride?.completed])
   const isOutForDelivery = useMemo(() => orderStatus === true, [orderStatus])
+  const isPaid = useMemo(() => ride?.paid === true, [ride?.paid])
 
   const buttonText = useMemo(() => {
     if (isCompleted) return "Ride Completed"
+    if (!isPaid) return "Waiting for Sender's Payment..."
     return isOutForDelivery ? "Mark as Delivered" : "Mark for Pickup"
-  }, [isOutForDelivery, isCompleted])
+  }, [isOutForDelivery, isCompleted, isPaid])
+
+  // Check if button should be disabled
+  const isButtonDisabled = useMemo(() => {
+    return isCompleted || !isPaid
+  }, [isCompleted, isPaid])
 
   // Fix: Define the correct pending states based on delivery type and current status
   const isPending = useMemo(() => {
@@ -92,8 +141,8 @@ const AcceptedRideDetailsBottomSheet: React.FC<AcceptedRideDetailsBottomSheetPro
   const addressData = useMemo(() => {
     if (ride?.delivery_type === "Package" && ride?.package_delivery) {
       return {
-        pickup: ride.package_delivery.pickup_address || "Pickup address not available",
-        dropoff: ride.package_delivery.dropoff_address || "Dropoff address not available",
+        pickup: ride.package_delivery.pick_address || "Pickup address not available",
+        dropoff: ride.package_delivery.drop_address || "Dropoff address not available",
       }
     } else {
       const storeAddress = ride?.order?.order_items?.[0]?.product?.store?.address1
@@ -163,6 +212,11 @@ const AcceptedRideDetailsBottomSheet: React.FC<AcceptedRideDetailsBottomSheetPro
         return
       }
 
+      if (!isPaid) {
+        toast.show("Waiting for user's payment to proceed", { type: "warning" })
+        return
+      }
+
       let fullAddress = ""
 
       // Check if it's a package delivery
@@ -226,7 +280,7 @@ const AcceptedRideDetailsBottomSheet: React.FC<AcceptedRideDetailsBottomSheetPro
       const errorMessage = `Error processing pickup: ${error.message || "Unknown error"}`
       toast.show(errorMessage, { type: "danger" })
     }
-  }, [ride, getCoordinatesFromAddress, markOrderForPickup, markPackageForPickup, toast, onMarkForPickup, onClose, isCompleted, onRefetchMyRide])
+  }, [ride, getCoordinatesFromAddress, markOrderForPickup, markPackageForPickup, toast, onMarkForPickup, onClose, isCompleted, isPaid, onRefetchMyRide])
 
   const handleMarkAsDelivered = useCallback(async () => {
     try {
@@ -235,6 +289,11 @@ const AcceptedRideDetailsBottomSheet: React.FC<AcceptedRideDetailsBottomSheetPro
 
       if (isCompleted) {
         toast.show("This ride is already completed", { type: "info" })
+        return
+      }
+
+      if (!isPaid) {
+        toast.show("Waiting for user's payment to proceed", { type: "warning" })
         return
       }
 
@@ -356,17 +415,17 @@ const AcceptedRideDetailsBottomSheet: React.FC<AcceptedRideDetailsBottomSheetPro
 
       toast.show(errorMessage, { type: "danger" })
     }
-  }, [ride, getCoordinatesFromAddress, markOrderAsDelivered, markPackageAsDelivered, toast, onRefetchMyRide, onClose, isCompleted, router])
+  }, [ride, getCoordinatesFromAddress, markOrderAsDelivered, markPackageAsDelivered, toast, onRefetchMyRide, onClose, isCompleted, isPaid, router])
 
   const handleMainAction = useCallback(() => {
-    if (isCompleted) return
+    if (isButtonDisabled) return
 
     if (isOutForDelivery) {
       handleMarkAsDelivered()
     } else {
       handleMarkForPickup()
     }
-  }, [isCompleted, isOutForDelivery, handleMarkAsDelivered, handleMarkForPickup])
+  }, [isButtonDisabled, isOutForDelivery, handleMarkAsDelivered, handleMarkForPickup])
 
   // Early return if no ride data - moved after all hooks
   if (!ride) return null
@@ -423,6 +482,8 @@ const AcceptedRideDetailsBottomSheet: React.FC<AcceptedRideDetailsBottomSheetPro
                 className={`px-3 py-1 rounded-full ${
                   isCompleted 
                     ? "bg-gray-100" 
+                    : !isPaid
+                    ? "bg-yellow-100"
                     : isOutForDelivery 
                     ? "bg-green-100" 
                     : ride?.delivery_type === "Package" 
@@ -434,6 +495,8 @@ const AcceptedRideDetailsBottomSheet: React.FC<AcceptedRideDetailsBottomSheetPro
                   className={`text-xs font-semibold ${
                     isCompleted 
                       ? "text-gray-600" 
+                      : !isPaid
+                      ? "text-yellow-700"
                       : isOutForDelivery 
                       ? "text-green-700" 
                       : ride?.delivery_type === "Package" 
@@ -443,6 +506,8 @@ const AcceptedRideDetailsBottomSheet: React.FC<AcceptedRideDetailsBottomSheetPro
                 >
                   {isCompleted 
                     ? "Completed" 
+                    : !isPaid
+                    ? "Awaiting Payment"
                     : isOutForDelivery 
                     ? "Out for Delivery" 
                     : ride?.delivery_type === "Package" 
@@ -502,9 +567,18 @@ const AcceptedRideDetailsBottomSheet: React.FC<AcceptedRideDetailsBottomSheetPro
                 <Text style={{ fontFamily: "HankenGrotesk_500Medium" }} className="text-neutral-600 text-sm">
                   Payment:
                 </Text>
-                <Text style={{ fontFamily: "HankenGrotesk_500Medium" }} className="text-neutral-900 font-bold text-sm">
-                  ₦{ride.fare_amount}
-                </Text>
+                <View className="flex-row items-center gap-2">
+                  <Text style={{ fontFamily: "HankenGrotesk_500Medium" }} className="text-neutral-900 font-bold text-sm">
+                    ₦{ride.fare_amount}
+                  </Text>
+                  {!isPaid && (
+                    <View className="bg-yellow-100 px-2 py-0.5 rounded-full">
+                      <Text style={{ fontFamily: "HankenGrotesk_500Medium" }} className="text-yellow-700 text-xs">
+                        Unpaid
+                      </Text>
+                    </View>
+                  )}
+                </View>
               </View>
               <View className="flex-row justify-between items-center mb-2">
                 <Text style={{ fontFamily: "HankenGrotesk_500Medium" }} className="text-neutral-600 text-sm">
@@ -587,8 +661,8 @@ const AcceptedRideDetailsBottomSheet: React.FC<AcceptedRideDetailsBottomSheetPro
                 <ActivityIndicator size={"small"} color={"white"} />
               </View>
             ) : (
-              <View className={isCompleted ? "opacity-50" : ""}>
-                <SolidMainButton text={buttonText} onPress={isCompleted ? () => {} : handleMainAction} />
+              <View className={isButtonDisabled ? "opacity-50" : ""}>
+                <SolidMainButton text={buttonText} onPress={isButtonDisabled ? () => {} : handleMainAction} />
               </View>
             )}
           </View>

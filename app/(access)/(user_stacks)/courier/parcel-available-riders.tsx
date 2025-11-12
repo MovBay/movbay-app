@@ -19,6 +19,7 @@ import { router, useLocalSearchParams } from "expo-router"
 import { useToast } from "react-native-toast-notifications"
 import { SolidInactiveButton, SolidMainButton } from "@/components/btns/CustomButtoms"
 import { useGetNearbyRides, useSendRidersRequest } from '@/hooks/mutations/parcelAuth'
+import { useCancelRide } from "@/hooks/mutations/sellerAuth"
 import LoadingOverlay from "@/components/LoadingOverlay"
 import { useNotification } from "@/context/NotificationContext"
 import { Easing } from "react-native-reanimated"
@@ -152,21 +153,21 @@ const WaveLoader = () => {
 const ParcelAvailableRiders = ({ navigation }: { navigation?: any }) => {
   const [selectedRiderId, setSelectedRiderId] = useState<string | null>(null)
   const [isWaitingForAcceptance, setIsWaitingForAcceptance] = useState(false)
-  const [rideAccepted, setRideAccepted] = useState(false) // New state for ride acceptance
+  const [rideAccepted, setRideAccepted] = useState(false)
   const [summaryData, setSummaryData] = useState<SummaryData | null>(null)
   const [riders, setRiders] = useState<Rider[]>([])
   const [refreshing, setRefreshing] = useState(false)
-
   const [packageId, setPackageID] = useState<string | null>(null)
   const [mutationResponse, setMutationResponse] = useState<any>(null);
   const { setOnAcceptedRideNotification, shouldRefresh, clearRefreshFlag } = useNotification()
   
   const params = useLocalSearchParams()
   const toast = useToast()
-  const progressAnim = useRef(new Animated.Value(1)).current // Start at 1 (full) instead of 0
+  const progressAnim = useRef(new Animated.Value(1)).current
 
-  // Call the hook after summaryData is available
-  const {mutate, isPending} = useSendRidersRequest(selectedRiderId)
+  // Hooks
+  const {mutate: sendRideRequest, isPending: isSendingRequest} = useSendRidersRequest(selectedRiderId)
+  const {mutate: cancelRide, isPending: isCancellingRide} = useCancelRide(selectedRiderId)
   const { nearbyRides, isLoading, isError, refetch } = useGetNearbyRides(
     summaryData?.pickupAddress, 
     summaryData?.dropOffAddress
@@ -261,11 +262,11 @@ const ParcelAvailableRiders = ({ navigation }: { navigation?: any }) => {
       console.log('Payload to be sent:', payload);
 
       // Send the request
-      mutate(payload, {
+      sendRideRequest(payload, {
         onSuccess: (response: any) => {
           const newPackageId = response?.data?.data?.id || response?.data?.id || response?.id;
           setPackageID(newPackageId);
-          setMutationResponse(response); // Store the full response
+          setMutationResponse(response);
           setRideAccepted(false);
           setIsWaitingForAcceptance(true);
         },
@@ -275,7 +276,7 @@ const ParcelAvailableRiders = ({ navigation }: { navigation?: any }) => {
         }
       });
     }
-  }, [selectedRider, summaryData, mutate, toast])
+  }, [selectedRider, summaryData, sendRideRequest, toast])
 
   const onRefresh = useCallback(() => {
     setRefreshing(true)
@@ -326,13 +327,42 @@ const ParcelAvailableRiders = ({ navigation }: { navigation?: any }) => {
     }
   }, [])
 
+  // Updated handleCancelRequest with API call
   const handleCancelRequest = useCallback(() => {
-    setIsWaitingForAcceptance(false)
-    setRideAccepted(false)
-    progressAnim.stopAnimation()
-    progressAnim.setValue(1) // Reset to full
-    setSelectedRiderId(null)
-  }, [progressAnim])
+    if (!packageId) {
+      // If there's no packageId yet, just close the modal
+      setIsWaitingForAcceptance(false)
+      setRideAccepted(false)
+      progressAnim.stopAnimation()
+      progressAnim.setValue(1)
+      setSelectedRiderId(null)
+      return;
+    }
+
+    // Call the cancel ride API
+    cancelRide(undefined, {
+      onSuccess: (response) => {
+        console.log('Ride cancelled successfully:', response);
+        toast.show('Ride request cancelled successfully', { type: 'success' });
+        
+        // Reset all states
+        setIsWaitingForAcceptance(false)
+        setRideAccepted(false)
+        progressAnim.stopAnimation()
+        progressAnim.setValue(1)
+        setSelectedRiderId(null)
+        setPackageID(null)
+        setMutationResponse(null)
+        
+        // Optionally refresh the riders list
+        onRefresh()
+      },
+      onError: (error) => {
+        console.error('Failed to cancel ride:', error);
+        toast.show('Failed to cancel ride request. Please try again.', { type: 'error' });
+      }
+    });
+  }, [packageId, cancelRide, toast, progressAnim, onRefresh])
 
   const handleProceedToPayment = useCallback(() => {
     setIsWaitingForAcceptance(false);
@@ -659,24 +689,30 @@ const ParcelAvailableRiders = ({ navigation }: { navigation?: any }) => {
             }}>
               <TouchableOpacity
                 onPress={handleCancelRequest}
+                disabled={isCancellingRide}
                 style={{
-                  backgroundColor: '#f3f4f6',
+                  backgroundColor: isCancellingRide ? '#f3f4f6' : '#f3f4f6',
                   paddingVertical: 14,
                   borderRadius: 100,
                   flex: 1,
                   borderWidth: 1,
-                  borderColor: '#e5e7eb'
+                  borderColor: '#e5e7eb',
+                  opacity: isCancellingRide ? 0.5 : 1
                 }}
               >
-                <Text style={{
-                  fontFamily: "HankenGrotesk_500Medium",
-                  color: '#6b7280',
-                  textAlign: 'center',
-                  fontSize: 12,
-                  fontWeight: '600'
-                }}>
-                  Cancel
-                </Text>
+                {isCancellingRide ? (
+                  <ActivityIndicator size="small" color="#6b7280" />
+                ) : (
+                  <Text style={{
+                    fontFamily: "HankenGrotesk_500Medium",
+                    color: '#6b7280',
+                    textAlign: 'center',
+                    fontSize: 12,
+                    fontWeight: '600'
+                  }}>
+                    Cancel
+                  </Text>
+                )}
               </TouchableOpacity>
 
               <View className="" style={{flex: 2}}>
@@ -825,23 +861,29 @@ const ParcelAvailableRiders = ({ navigation }: { navigation?: any }) => {
             <WaveLoader />
             <TouchableOpacity
               onPress={handleCancelRequest}
+              disabled={isCancellingRide}
               style={{
-                backgroundColor: '#e5e7eb',
+                backgroundColor: isCancellingRide ? '#f3f4f6' : '#e5e7eb',
                 paddingVertical: 14,
                 borderRadius: 50,
                 width: '100%',
-                marginTop: 30
+                marginTop: 30,
+                opacity: isCancellingRide ? 0.5 : 1
               }}
             >
-              <Text style={{
-                fontFamily: "HankenGrotesk_500Medium",
-                color: '#374151',
-                textAlign: 'center',
-                fontSize: 12,
-                fontWeight: '600'
-              }}>
-                Cancel Request
-              </Text>
+              {isCancellingRide ? (
+                <ActivityIndicator size="small" color="#374151" />
+              ) : (
+                <Text style={{
+                  fontFamily: "HankenGrotesk_500Medium",
+                  color: '#374151',
+                  textAlign: 'center',
+                  fontSize: 12,
+                  fontWeight: '600'
+                }}>
+                  Cancel Request
+                </Text>
+              )}
             </TouchableOpacity>
           </>
         )}
@@ -852,8 +894,8 @@ const ParcelAvailableRiders = ({ navigation }: { navigation?: any }) => {
   return (
     <SafeAreaView className="flex-1 bg-gray-50 px-4">
       <StatusBar style="dark" />
-      {/* Show loading overlay only when API request is pending, not when waiting for acceptance */}
-      <LoadingOverlay visible={isPending} />
+      {/* Show loading overlay when sending request or cancelling */}
+      <LoadingOverlay visible={isSendingRequest || isCancellingRide} />
 
       <View className="flex-row justify-between items-center mb-6">
         <OnboardArrowTextHeader onPressBtn={() => router.back()} />

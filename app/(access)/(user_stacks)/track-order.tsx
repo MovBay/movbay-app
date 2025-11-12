@@ -209,7 +209,7 @@ const TrackOrder = () => {
               <Ionicons name="arrow-back" size={24} color="#000" />
             </TouchableOpacity>
             <Text style={styles.headerTitle}>Track Your Order</Text>
-            <View style={styles.headerSpacer} />
+            <View style={styles.headerSpacer} />  
           </View>
           <View className='justify-center w-[90%] m-auto mt-[15rem]'>
             <View className='mb-6 rounded-full bg-orange-100 p-6 w-fit m-auto justify-center'>

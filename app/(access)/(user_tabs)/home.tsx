@@ -4,7 +4,7 @@ import { shopCategory } from "@/constants/datas"
 import { useProfile } from "@/hooks/mutations/auth"
 import { useCart } from "@/context/cart-context"
 import { useFavorites } from "@/context/favorite-context"
-import { useGetProductsOriginal, useGetStoreStatus } from "@/hooks/mutations/sellerAuth"
+import { useGetNotification, useGetProductsOriginal, useGetStoreStatus } from "@/hooks/mutations/sellerAuth"
 import Ionicons from "@expo/vector-icons/Ionicons"
 import MaterialIcons from "@expo/vector-icons/MaterialIcons"
 import { router, useFocusEffect } from "expo-router"
@@ -18,6 +18,9 @@ import { useFilters } from "@/hooks/useFilter"
 
 export default function HomeScreen() {
   const { profile, isLoading, refetch: refetchProfile } = useProfile()
+  const {getNotification, isLoading: notificationLoading, refetch} = useGetNotification()
+  const myNotification = getNotification?.data?.data
+  // console.log('Notification', myNotification)
   const {
     productData,
     isLoading: productLoading,
@@ -443,14 +446,29 @@ export default function HomeScreen() {
               className="bg-neutral-100 w-fit relative flex justify-center items-center rounded-full p-2"
             >
               <Ionicons name="notifications-outline" color={"#0F0F0F"} size={20} />
-              <View className="absolute top-[-4px] right-[-2px]">
-                <Text
-                  style={{ fontFamily: "HankenGrotesk_500Medium" }}
-                  className="text-xs text-red-600"
-                >
-                  <MaterialIcons name="circle" size={8} />
-                </Text>
-              </View>
+              {!notificationLoading && (
+                <>
+                  {myNotification && myNotification.length !== 0 ? (
+                    <View className="absolute top-[-8px] right-[-2px] bg-red-100 border-2 border-white justify-center items-center rounded-full p-1.5 py-0.5">
+                      <Text
+                        style={{ fontFamily: "HankenGrotesk_500Medium" }}
+                        className="text-xs text-red-600"
+                      >
+                        {myNotification?.length}
+                      </Text>
+                    </View>) : (
+
+                    <View className="absolute top-[-8px] right-[-2px] bg-red-100 border-2 border-white justify-center items-center rounded-full p-1.5 py-0.5">
+                      <Text
+                        style={{ fontFamily: "HankenGrotesk_500Medium" }}
+                        className="text-xs text-red-600"
+                      >
+                        {myNotification?.length}
+                      </Text>
+                    </View>
+                  )}
+                </>   
+              )}
             </Pressable>
             <Pressable
               className="bg-neutral-100 w-fit flex justify-center relative items-center rounded-full p-2"

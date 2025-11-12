@@ -7,7 +7,7 @@ import { KeyboardAwareScrollView } from "react-native-keyboard-controller"
 import MaterialIcons from "@expo/vector-icons/MaterialIcons"
 import Ionicons from "@expo/vector-icons/Ionicons"
 import { SolidLightButton, SolidMainButton } from "@/components/btns/CustomButtoms"
-import { useFollowStore, useGetFollowedStores, useGetSingleProductReviews, useGetSingleProducts, useGetSingleRelatedProduct, useGetStore, useUnFollowStore } from "@/hooks/mutations/sellerAuth"
+import { useFollowStore, useGetFollowing, useGetSingleProductReviews, useGetSingleProducts, useGetSingleRelatedProduct, useGetStore, useUnFollowStore } from "@/hooks/mutations/sellerAuth"
 import ProductSkeleton from "@/components/ProductSkeleton"
 import LoadingOverlay from "@/components/LoadingOverlay"
 import { Video, ResizeMode } from "expo-av"
@@ -224,12 +224,6 @@ const HorizontalProductList = ({
   )
 }
 
-
-const isStoreFollowed = (storeId:any, followedStores:any) => {
-  if (!followedStores || !Array.isArray(followedStores)) return false;
-  return followedStores.some(item => item.followed_store.id === storeId);
-};
-
 const Product = () => {
   const { id } = useLocalSearchParams<{ id: string }>()
   const [selectedImageIndex, setSelectedImageIndex] = useState(0)
@@ -237,18 +231,17 @@ const Product = () => {
   const [isVideoModalVisible, setIsVideoModalVisible] = useState(false)
   const [isSuccessModalVisible, setIsSuccessModalVisible] = useState(false)
 
-  const { userProductData, isLoading } = useGetSingleProducts(id)
+  const { userProductData, isLoading, refetch } = useGetSingleProducts(id)
   const {userRelatedProductData, isLoading: productLoading} = useGetSingleRelatedProduct(id)
   const eachData = userProductData?.data
   const {storeData, isLoading: storeLoading} = useGetStore()
   const {singleProductReviewData, isLoading: reivewLoading} = useGetSingleProductReviews(id)
   const reviews = singleProductReviewData?.data
 
-  const {getFollowedStores, } = useGetFollowedStores()
+  const {getFollowedStores, } = useGetFollowing()
 
   const followedStoresData = getFollowedStores?.data || []
   const currentStoreId = eachData?.store?.id
-  const isCurrentStoreFollowed = isStoreFollowed(currentStoreId, followedStoresData)
   const {isPending, mutate} = useFollowStore(storeData?.data?.id || "")
   const {isPending: unFollowPending, mutate: unfollowMutate} = useUnFollowStore(storeData?.data?.id || "")
 
@@ -284,29 +277,16 @@ const Product = () => {
     }
 
     try {
-      if (isCurrentStoreFollowed) {
-        // Unfollow the store
-        await unfollowMutate(currentStoreId, {
-          onSuccess: (response) => {
-            console.log("This is Response", response.data)
-            Toast.show("Store unfollowed successfully", { type: "success" })
-          },
-        })
-      } else {
-        // Follow the store
         await mutate(currentStoreId, {
           onSuccess: (response) => {
             console.log("This is Response", response.data)
-            Toast.show("Store followed successfully", { type: "success" })
+            Toast.show( response.data.message, { type: "success" })
+            refetch()
           },
         })
-      }
     } catch (error) {
       console.error("Error following/unfollowing store:", error)
-      const errorMessage = isCurrentStoreFollowed 
-        ? "Failed to unfollow store" 
-        : "Failed to follow store"
-      Toast.show(errorMessage, { type: "error" })
+      Toast.show('Error performing action', { type: "error" })
     }
   }
 
@@ -875,7 +855,7 @@ const Product = () => {
                             </Pressable>
                           ): (
                             <>
-                              { isCurrentStoreFollowed ? (
+                              { eachData?.store?.is_following ? (
                                 <Pressable
                                   onPress={handleFollowUnfollowStore}
                                   className="bg-[#F75F15] p-3 rounded-full px-4">

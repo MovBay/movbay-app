@@ -30,10 +30,12 @@ interface NotificationContextType {
   tokenSent: boolean;
   shouldRefresh: boolean;
   clearRefreshFlag: () => void;
-  // Add callback for ride updates
+  // Callback handlers
   onNewRideNotification?: () => void;
   setOnNewRideNotification: (callback: () => void) => void;
   setOnAcceptedRideNotification: (callback: () => void) => void;
+  setOnPaymentReceivedNotification: (callback: () => void) => void;
+  setOnRideCancelledNotification: (callback: () => void) => void;
 }
 
 const NotificationContext = createContext<NotificationContextType | undefined>(
@@ -67,7 +69,6 @@ const sendTokenToBackend = async (token: string) => {
     );
     console.log('✅ Push token sent successfully:', response.data);
     
-    // Store the sent token for reference (optional - you can remove this if not needed)
     await AsyncStorage.setItem("last_sent_push_token", token);
     await AsyncStorage.setItem("token_sent_timestamp", Date.now().toString());
     
@@ -99,6 +100,8 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({
   const [shouldRefresh, setShouldRefresh] = useState<boolean>(false);
   const [onNewRideNotification, setOnNewRideNotificationState] = useState<(() => void) | undefined>(undefined);
   const [onAcceptedRideNotification, setOnAcceptedRideNotificationState] = useState<(() => void) | undefined>(undefined);
+  const [onPaymentReceivedNotification, setOnPaymentReceivedNotificationState] = useState<(() => void) | undefined>(undefined);
+  const [onRideCancelledNotification, setOnRideCancelledNotificationState] = useState<(() => void) | undefined>(undefined);
 
   const notificationListener = useRef<Notifications.EventSubscription | undefined>(undefined);
   const responseListener = useRef<Notifications.EventSubscription | undefined>(undefined);
@@ -114,11 +117,18 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({
 
   const setOnAcceptedRideNotification = (callback: () => void) => {
     setOnAcceptedRideNotificationState(() => callback);
-  }
+  };
+
+  const setOnPaymentReceivedNotification = (callback: () => void) => {
+    setOnPaymentReceivedNotificationState(() => callback);
+  };
+
+  const setOnRideCancelledNotification = (callback: () => void) => {
+    setOnRideCancelledNotificationState(() => callback);
+  };
 
   useEffect(() => {
     const initializeNotifications = async () => {
-      // Prevent multiple initializations
       if (initializationRef.current) {
         return;
       }
@@ -127,11 +137,9 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({
       try {
         console.log('🚀 Initializing notifications on app open...');
         
-        // Register for push notifications and get token
         const token = await registerForPushNotificationsAsync();
         setExpoPushToken(token);
 
-        // Always send token to backend on app open
         if (token) {
           console.log('📤 Sending token to backend on app open...');
           const success = await sendTokenToBackend(token);
@@ -158,7 +166,6 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({
         setNotification(notification);
         setShouldRefresh(true);
         
-        // Get notification title and check if it's about new rides
         const notificationTitle = notification.request.content.title;
         const cleanTitle = typeof notificationTitle === 'string' 
           ? notificationTitle.trim() 
@@ -166,18 +173,27 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({
         
         console.log("🔔 Received notification title:", `"${cleanTitle}"`);
         
-        // Trigger ride refresh for new ride notifications
+        // Handle different notification types
         if (cleanTitle === "New Ride Alert on movbay" && onNewRideNotification) {
-          console.log("🔄 Triggering ride refresh for new order...");
+          console.log("🔄 Triggering ride refresh for new ride...");
           onNewRideNotification();
         }
 
         if (cleanTitle === "Ride Accepted" && onAcceptedRideNotification) {
-          console.log("🔄 Triggering ride refresh for new order...");
+          console.log("🔄 Triggering ride refresh for accepted ride...");
           onAcceptedRideNotification();
         }
+
+        if (cleanTitle === "Sender's has made payment" && onPaymentReceivedNotification) {
+          console.log("💰 Triggering refresh for payment received...");
+          onPaymentReceivedNotification();
+        }
+
+        if (cleanTitle === "Ride has been canceled by sender" && onRideCancelledNotification) {
+          console.log("❌ Triggering refresh for ride cancellation...");
+          onRideCancelledNotification();
+        }
         
-        // Platform-specific handling for better visibility
         if (Platform.OS === 'android') {
           console.log("📱 Android notification received - should show alert");
         }
@@ -185,45 +201,49 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({
 
     responseListener.current =
       Notifications.addNotificationResponseReceivedListener((response) => {
-        // Get the notification title properly
         const notificationTitle = response.notification.request.content.title;
         
         console.log("🔔 Notification Response - Raw title:", notificationTitle);
         console.log("🔔 Notification Response - Title type:", typeof(notificationTitle));
         
-        // Clean the title (remove extra quotes and whitespace)
         const cleanTitle = typeof notificationTitle === 'string' 
           ? notificationTitle.trim() 
           : String(notificationTitle || '').replace(/^"|"$/g, '').trim();
         
         console.log("🔔 Cleaned notification title:", `"${cleanTitle}"`);
         
-        // Use exact string matching
+        // Handle notification tap actions
         if (cleanTitle === "Your Order has been Confirmed") {
           console.log("🚀 Navigating to order history buyer...");
           router.push('/(access)/(user_stacks)/order_history_buyer');
         } 
-
         else if (cleanTitle === "New Message") {
-          console.log("🚀 Navigating to order history buyer...");
-          router.push('/(access)/(user_tabs)/message');
+          console.log("🚀 Navigating to messages...");
+          router.push('/(access)/(user_tabs)/message'); 
         } 
-
         else if (cleanTitle === "New Order Available") {
           console.log("🚀 Navigating to orders...");
           router.push('/(access)/(user_tabs)/(drawer)/orders');
           
-          // Also trigger ride refresh
           if (onNewRideNotification) {
             console.log("🔄 Triggering ride refresh from notification response...");
             onNewRideNotification();
           }
-        } 
+        }
+        else if (cleanTitle === "Sender's has made payment") {
+          console.log("💰 Payment received - refreshing ride data...");
+          if (onPaymentReceivedNotification) {
+            onPaymentReceivedNotification();
+          }
+        }
+        else if (cleanTitle === "Ride has been canceled by sender") {
+          console.log("❌ Ride cancelled - refreshing data...");
+          if (onRideCancelledNotification) {
+            onRideCancelledNotification();
+          }
+        }
         else {
           console.log("🤷‍♂️ No matching title found for:", `"${cleanTitle}"`);
-          console.log("📋 Available titles to match:");
-          console.log('  - "Your Order has been Confirmed"');
-          console.log('  - "New Order Available"');
         }
         
         setShouldRefresh(true);
@@ -237,7 +257,12 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({
         Notifications.removeNotificationSubscription(responseListener.current);
       }
     };
-  }, [onNewRideNotification, onAcceptedRideNotification]); // Add dependency to re-setup listeners when callback changes
+  }, [
+    onNewRideNotification, 
+    onAcceptedRideNotification,
+    onPaymentReceivedNotification,
+    onRideCancelledNotification
+  ]);
 
   return (
     <NotificationContext.Provider
@@ -250,44 +275,12 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({
         clearRefreshFlag,
         onNewRideNotification,
         setOnNewRideNotification,
-        setOnAcceptedRideNotification
+        setOnAcceptedRideNotification,
+        setOnPaymentReceivedNotification,
+        setOnRideCancelledNotification
       }}
     >
       {children}
     </NotificationContext.Provider>
   );
 };
-
-
-
-    // <View style={{ 
-    //           flexDirection: 'row', 
-    //           gap: 12, 
-    //           width: '100%' 
-    //         }}>
-    //           <TouchableOpacity
-    //             onPress={handleCancelRequest}
-    //             style={{
-    //               backgroundColor: '#f3f4f6',
-    //               paddingVertical: 14,
-    //               borderRadius: 100,
-    //               flex: 1,
-    //               borderWidth: 1,
-    //               borderColor: '#e5e7eb'
-    //             }}
-    //           >
-    //             <Text style={{
-    //               fontFamily: "HankenGrotesk_500Medium",
-    //               color: '#6b7280',
-    //               textAlign: 'center',
-    //               fontSize: 13,
-    //               fontWeight: '600'
-    //             }}>
-    //               Cancel
-    //             </Text>
-    //           </TouchableOpacity>
-
-    //           <View className="" style={{flex: 2}}>
-    //             <SolidMainButton onPress={handleProceedToPayment} text="Proceed to Payment"/>
-    //           </View>
-    // </View>

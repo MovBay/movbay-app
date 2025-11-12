@@ -245,11 +245,11 @@ const Login = () => {
                 text={'Login'} 
                 onPress={handleSubmit(onSubmit)}
               />
-              <Text className='text-center text-neutral-400'> -- or with -- </Text>
+              {/* <Text className='text-center text-neutral-400'> -- or with -- </Text>
               <GoogleButton 
                 text='Google' 
                 onPress={() => console.log('Google login pressed')}
-              />
+              /> */}
             </View>
 
             <View className='pt-5 flex-row gap-4 justify-center'>

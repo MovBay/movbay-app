@@ -33,23 +33,16 @@ export const useSendRidersRequest = (id: any) => {
 
 export const useGetNearbyRides = (pickUpAddress: any, deliveryAddress: any) => {
   const { data, isLoading, isError, isFetched, refetch } = useQuery({
-    queryKey: ["nearby", pickUpAddress, deliveryAddress], // Include parameters in queryKey
+    queryKey: ["nearby", pickUpAddress, deliveryAddress],
     queryFn: async () => {
       const token = (await AsyncStorage.getItem("movebay_token")) || "";
-      
-      // Properly encode the URL parameters
       const encodedPickup = encodeURIComponent(pickUpAddress);
       const encodedDelivery = encodeURIComponent(deliveryAddress);
       
       const url = `/logistics/get-nearby-riders/?pickup_address=${encodedPickup}&delivery_address=${encodedDelivery}`;
-    //   console.log('Fetching nearby rides from:', url);
-      
       return get_requests(url, token);
     },
-    // Only run the query if both addresses are available
     enabled: !!pickUpAddress && !!deliveryAddress,
-    // refetchInterval: 30000,
-    // refetchIntervalInBackground: true,
   });
 
   return {

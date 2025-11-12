@@ -6,28 +6,43 @@ import { KeyboardAwareScrollView } from "react-native-keyboard-controller"
 import { OnboardArrowTextHeader } from "@/components/btns/OnboardHeader"
 import { Ionicons } from '@expo/vector-icons'
 import * as Clipboard from 'expo-clipboard'
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { useProfile } from "@/hooks/mutations/auth"
+import { useGetReferralsDetails } from "@/hooks/mutations/sellerAuth"
+import LoadingOverlay from "@/components/LoadingOverlay"
 
 const Referral = () => {
     const [copied, setCopied] = useState(false)
     const {profile, isLoading} = useProfile()
-    // console.log('This is user profile data', profile?.data)
+    const {getReferrals, isLoading: referralLoading} = useGetReferralsDetails()
+    const myReferralsData = getReferrals?.data?.data
+    console.log('This is referral data', myReferralsData)
+    const referralLink = profile?.data?.referral_code
 
-  
-  const referralLink = profile?.data?.referral_code
+    // Calculate total people referred and total earned
+    const referralStats = useMemo(() => {
+      if (!myReferralsData || !Array.isArray(myReferralsData)) {
+        return { peopleReferred: 0, totalEarned: 0 }
+      }
 
-  
+      const peopleReferred = myReferralsData.length
+      const totalEarned = myReferralsData.reduce((sum, referral) => {
+        return sum + (referral.bonus || 0)
+      }, 0)
 
-  const handleCopyLink = async () => {
-    await Clipboard.setStringAsync(referralLink)
-    setCopied(true)
-    setTimeout(() => setCopied(false), 2000)
-  }
+      return { peopleReferred, totalEarned }
+    }, [myReferralsData])
+
+    const handleCopyLink = async () => {
+      await Clipboard.setStringAsync(referralLink)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    }
 
   return (
     <SafeAreaView className="flex-1 bg-white">
       <StatusBar style="dark" />
+      <LoadingOverlay visible={referralLoading || isLoading}/>
 
       <View className="flex-1">
         <KeyboardAwareScrollView
@@ -90,25 +105,7 @@ const Referral = () => {
                       People Referred
                     </Text>
                     <Text className="text-base text-neutral-800 font-medium" style={{fontFamily: 'HankenGrotesk_500Medium'}}>
-                      12
-                    </Text>
-                  </View>
-
-                  <View className="flex-row justify-between items-center">
-                    <Text className="text-base text-neutral-600" style={{fontFamily: 'HankenGrotesk_400Regular'}}>
-                      Successful Signups
-                    </Text>
-                    <Text className="text-base text-neutral-800 font-medium" style={{fontFamily: 'HankenGrotesk_500Medium'}}>
-                      9
-                    </Text>
-                  </View>
-
-                  <View className="flex-row justify-between items-center">
-                    <Text className="text-base text-neutral-600" style={{fontFamily: 'HankenGrotesk_400Regular'}}>
-                      First Purchases Made
-                    </Text>
-                    <Text className="text-base text-neutral-800 font-medium" style={{fontFamily: 'HankenGrotesk_500Medium'}}>
-                      9
+                      {referralStats.peopleReferred}
                     </Text>
                   </View>
 
@@ -117,7 +114,7 @@ const Referral = () => {
                       Total Earned
                     </Text>
                     <Text className="text-lg font-bold text-neutral-800" style={{fontFamily: 'HankenGrotesk_700Bold'}}>
-                      ₦7,000
+                      ₦{referralStats.totalEarned.toLocaleString()}
                     </Text>
                   </View>
                 </View>

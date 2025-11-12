@@ -898,7 +898,7 @@ export const useUnFollowStore = (id: any) => {
   const unFollowStore = useMutation({
     mutationFn: async (storeId: any) => {
       const token = (await AsyncStorage.getItem("movebay_token")) || ""
-      return post_requests(`/unfollow/${storeId}/`, {}, token)
+      return post_requests(`/follow/${storeId}/`, {}, token)
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["follow"] })
@@ -914,9 +914,9 @@ export const useUnFollowStore = (id: any) => {
 }
 
 
-export const useGetFollowedStores = () => {
+export const useGetFollowing = () => {
   const { data, isLoading, isError, isFetched, refetch } = useQuery({
-    queryKey: ["follow"],
+    queryKey: ["following"],
     queryFn: async () => {
       const token = (await AsyncStorage.getItem("movebay_token")) || "";
       return get_requests(`/following/`, token);
@@ -935,7 +935,7 @@ export const useGetFollowedStores = () => {
 
 export const useGetFollowers = () => {
   const { data, isLoading, isError, isFetched, refetch } = useQuery({
-    queryKey: ["follow"],
+    queryKey: ["followers"],
     queryFn: async () => {
       const token = (await AsyncStorage.getItem("movebay_token")) || "";
       return get_requests(`/followers/`, token);
@@ -1040,3 +1040,40 @@ export const useDeleteNotification = (id: any) => {
   return deleteNotification
 }
 
+export const useCancelRide = (id: any) => {
+  const queryClient = useQueryClient()
+  
+  const cancelRide = useMutation({
+    mutationFn: async () => {
+      const token = (await AsyncStorage.getItem("movebay_token")) || ""
+      return delete_requests(`/logistics/cancel-ride/${id}/`, token)
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["ride"] })
+    },
+  })
+  return cancelRide
+}
+
+
+
+
+export const useGetReferralsDetails = () => {
+  const { data, isLoading, isError, isFetched, refetch } = useQuery({
+    queryKey: ["referrals"],
+    queryFn: async () => {
+      const token = (await AsyncStorage.getItem("movebay_token")) || "";
+      return get_requests(`/users/referrals/`, token);
+    },
+  });
+
+  return {
+    getReferrals: data,
+    isLoading,
+    isError,
+    isFetched,
+    refetch,
+  };
+};
+
+// https://api.movbay.com/logistics/cancel-ride/<str:pk>/

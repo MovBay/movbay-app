@@ -3,49 +3,30 @@ import React, { useCallback } from 'react'
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { StatusBar } from 'expo-status-bar'
 import { Image } from 'react-native'
-import { useFollowStore, useGetFollowedStores, useGetOpenStore, useGetStore, useGetUserProducts, useUnFollowStore } from '@/hooks/mutations/sellerAuth'
+import { useFollowStore, useGetOpenStore, useGetStore, useGetUserProducts, useUnFollowStore } from '@/hooks/mutations/sellerAuth'
 import { SolidLightButton, SolidMainButton } from '@/components/btns/CustomButtoms'
 import { router, useLocalSearchParams } from 'expo-router'
 import { OnboardArrowHeader } from '@/components/btns/OnboardHeader'
 import Products from '@/components/Products'
 import { Toast } from 'react-native-toast-notifications'
 
-// Fixed helper function with proper type conversion
-const isStoreFollowed = (storeId: any, followedStores: any) => {
-  if (!followedStores || !Array.isArray(followedStores)) return false;
-  
-  // Convert storeId to number for comparison since API returns numbers
-  const numericStoreId = parseInt(storeId?.toString());
-  
-  return followedStores.some(item => {
-    const followedStoreId = item?.followed_store?.id;
-    return followedStoreId === numericStoreId;
-  });
-};
 
 const ViewSellerStore = () => {
   // Get the storeId from the route parameters
   const { storeId } = useLocalSearchParams<{ storeId: string }>()
   
   // Pass the storeId to your hook
-  const { openStore, isLoading } = useGetOpenStore(storeId)
+  const { openStore, isLoading, refetch:storeRefetch } = useGetOpenStore(storeId)
   const { userProductData, isLoading: productLoading, refetch } = useGetUserProducts()
   const { storeData, refetch: refetchStoreData } = useGetStore() // Get current user's store data
   const openStoreData = openStore?.data
-
+  
   const ItemSeparator = () => <View style={{ height: 15 }} />
   const insets = useSafeAreaInsets()
-  const { getFollowedStores } = useGetFollowedStores()
   
-  const followedStoresData = getFollowedStores?.data || []
-  const isCurrentStoreFollowed = isStoreFollowed(storeId, followedStoresData)
-  
-  // Convert storeId to proper type for hooks
   const numericStoreId = parseInt(storeId?.toString() || '0')
   const { isPending, mutate } = useFollowStore(numericStoreId)
   const { isPending: unFollowPending, mutate: unfollowMutate } = useUnFollowStore(numericStoreId)
-
-  // Check if this is the current user's own store
   const isOwnStore = storeData?.data?.id === numericStoreId
 
   const handleFollowUnfollowStore = async () => {
@@ -53,23 +34,14 @@ const ViewSellerStore = () => {
       Toast.show("Store ID not found", { type: "error" })
       return
     }
-
     try {
-      if (isCurrentStoreFollowed) {
-        await unfollowMutate(numericStoreId)
-        refetchStoreData()
-        Toast.show("Store unfollowed successfully", { type: "success" })
-      } else {
-        await mutate(numericStoreId)
-        refetchStoreData()
-        Toast.show("Store followed successfully", { type: "success" })
-      }
+      await mutate(numericStoreId)
+      refetchStoreData()
+      storeRefetch()
+      Toast.show("Store followed successfully", { type: "success" })
     } catch (error) {
       console.error("Error following/unfollowing store:", error)
-      const errorMessage = isCurrentStoreFollowed 
-        ? "Failed to unfollow store" 
-        : "Failed to follow store"
-      Toast.show(errorMessage, { type: "error" })
+      Toast.show('Failed to peform action', { type: "error" })
     }
   }
 
@@ -147,7 +119,7 @@ const ViewSellerStore = () => {
           ) : (
             <View className='w-[49%]'>
               <SolidMainButton 
-                text={isCurrentStoreFollowed ? 'Unfollow' : 'Follow'} 
+                text={openStoreData?.is_following ? 'Unfollow' : 'Follow'} 
                 onPress={handleFollowUnfollowStore}
               />
             </View>

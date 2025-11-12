@@ -12,18 +12,18 @@ import {
 } from 'react-native';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useGetFollowedStores, useGetFollowers } from '@/hooks/mutations/sellerAuth';
+import { useGetFollowing, useGetFollowers } from '@/hooks/mutations/sellerAuth';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 
 const UserFollows = () => {
   const [activeTab, setActiveTab] = useState<'followers' | 'following'>('followers');
   
   // Get followed stores data from API
-  const { getFollowedStores, isLoading } = useGetFollowedStores();
-  const followedStoresData = getFollowedStores?.data || [];
+  const { getFollowedStores, isLoading } = useGetFollowing();
+  const followedStoresData = getFollowedStores?.data?.following || [];
 
   const {getFollowers, isLoading: isFollowersLoading} = useGetFollowers()
-  const followersData = getFollowers?.data || [];
+  const followersData = getFollowers?.data?.followers || [];
   console.log('Followers data:', followersData);
   console.log('Followed stores data:', followedStoresData);
 
@@ -69,20 +69,20 @@ const UserFollows = () => {
 
   // Render followed store item
   const renderFollowedStoreItem = (item: any, index: number) => (
-    <View key={`followed-store-${item.followed_store.id}`} className="flex-row items-center py-4 border-b border-gray-100">
+    <View key={`followed-store-${item.id}-${index}`} className="flex-row items-center py-4 border-b border-gray-100">
       <View className="w-14 h-14 rounded-full mr-3 overflow-hidden bg-gray-200">
         <Image 
-          source={{ uri: item?.followed_store?.store_image }} 
+          source={{ uri: item?.store_image }} 
           className="w-full h-full"
           style={{ objectFit: 'cover' }}
         />
       </View>
       <View className="flex-1">
         <Text className="text-lg font-semibold text-gray-800 mb-0.5" style={{ fontFamily: 'HankenGrotesk_600SemiBold' }}>
-          {item?.followed_store?.name}
+          {item?.name}
         </Text>
         <Text className="text-xs text-gray-500" style={{ fontFamily: 'HankenGrotesk_400Regular' }}>
-          Followed on {new Date(item.followed_at).toLocaleDateString('en-US', {
+          Followed on {new Date(item?.followed_at).toLocaleDateString('en-US', {
             year: 'numeric',
             month: 'short',
             day: 'numeric'
@@ -92,7 +92,7 @@ const UserFollows = () => {
       <View className="items-end">
         <TouchableOpacity
           className="bg-[#FEEEE6] px-4 py-2 rounded-full"
-          onPress={() => router.push(`/(access)/(user_stacks)/viewSellerStore?storeId=${item.followed_store.id}`)}
+          onPress={() => router.push(`/(access)/(user_stacks)/viewSellerStore?storeId=${item?.id}`)}
         >
           <Text className="text-orange-700 text-sm font-medium" style={{ fontFamily: 'HankenGrotesk_500Medium' }}>
             View Store
@@ -102,20 +102,51 @@ const UserFollows = () => {
     </View>
   );
 
+  const renderFollowers = (item: any, index: number) => (
+    <View key={`follower-${item.referral_code}-${index}`} className="flex-row items-center py-4 border-b border-gray-100">
+      <View className="w-14 h-14 rounded-full mr-3 overflow-hidden bg-gray-200">
+        <Image 
+          source={{ uri: item?.profile_picture }} 
+          className="w-full h-full"
+          style={{ objectFit: 'cover' }}
+        />
+      </View>
+      <View className="flex-1">
+        <Text className="text-lg font-semibold text-gray-800 mb-0.5" style={{ fontFamily: 'HankenGrotesk_600SemiBold' }}>
+          {item?.fullname}
+        </Text>
+        <Text className="text-xs text-gray-500" style={{ fontFamily: 'HankenGrotesk_400Regular' }}>
+          Followed on {new Date(item?.followed_at).toLocaleDateString('en-US', {
+            year: 'numeric',
+            month: 'short',
+            day: 'numeric'
+          })}
+        </Text>
+      </View>
+      <View className="items-end">
+       <Text className='text-sm text-gray-500' style={{fontFamily: 'HankenGrotesk_400Regular'}}>@{item?.username}</Text>
+      </View>
+    </View>
+  );
+
   // Get content based on active tab
   const getTabContent = () => {
-    if (isLoading) {
+    if (activeTab === 'followers' && isFollowersLoading) {
+      return <LoadingComponent />;
+    }
+
+    if (activeTab === 'following' && isLoading) {
       return <LoadingComponent />;
     }
 
     if (activeTab === 'followers') {
-      if( followersData.length === 0) {
+      if(followersData.length === 0) {
         return <EmptyFollowersComponent />;
       }
 
       return (
         <View className="flex-1">
-          {followersData.map((item:any, index:any) => renderFollowedStoreItem(item, index))}
+          {followersData.map((item:any, index:any) => renderFollowers(item, index))}
         </View>
       )
     } else {
@@ -142,7 +173,7 @@ const UserFollows = () => {
         <View className="flex-row items-center">
             
           {/* Tabs */}
-          <View className="flex-row flex-1 py-5">
+          <View className="flex-row flex-1 py-5 border-b border-gray-100">
             <TouchableOpacity
               className={`px-5 py-2 mx-2 rounded-full ${
                 activeTab === 'followers' ? 'bg-[#FEEEE6]' : ''
@@ -155,7 +186,7 @@ const UserFollows = () => {
                 }`} 
                 style={{ fontFamily: 'HankenGrotesk_600SemiBold' }}
               >
-                Followers
+                Followers ({followersData.length})
               </Text>
             </TouchableOpacity>
             

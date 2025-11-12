@@ -6,7 +6,7 @@ import { SafeAreaView } from 'react-native-safe-area-context'
 import { Controller, useForm } from "react-hook-form";
 import { ErrorMessage } from "@hookform/error-message"
 import { Button, Icon } from "@rneui/themed";
-import { SolidMainButton } from '@/components/btns/CustomButtoms'
+import { GoogleButton, SolidMainButton } from '@/components/btns/CustomButtoms'
 import { KeyboardAwareScrollView } from 'react-native-keyboard-controller'
 import { router } from 'expo-router'
 import { Toast } from 'react-native-toast-notifications'
@@ -42,6 +42,7 @@ const UserRegister = () => {
             phone_number: "",
             password: "",
             password2: "",
+            referral_code: ""
         },
     });
 
@@ -51,6 +52,7 @@ const UserRegister = () => {
             fullname: data.fullname,
             username: data.username,
             email: data.email,
+            referral_code: data.referral_code,
             phone_number: formatPhoneNumber(data.phone_number),
             password: data.password,
             password2: data.password2,
@@ -360,16 +362,48 @@ const UserRegister = () => {
                         />
                     </View>
 
+                    <View className='mb-5'>
+                        <Text style={styles.titleStyle}>Referral Code</Text>
+                        <Controller
+                            name="referral_code"
+                            control={control}
+                            render={({ field: { onChange, onBlur, value } }) => (
+
+                                <TextInput 
+                                    placeholder='Enter referral code'
+                                    placeholderTextColor={"#AFAFAF"}
+                                    onChangeText={onChange}
+                                    onBlur={onBlur}
+                                    value={value}
+                                    keyboardType="default"
+                                    style={styles.inputStyle}
+                                    autoCapitalize="words"
+                                    autoCorrect={false}
+                                />
+                            )}
+                        />
+                        <ErrorMessage
+                            errors={errors}
+                            name="referral_code"
+                            render={({ message }) => (
+                                <Text className="pl-2 pt-3 text-sm text-red-600">
+                                    {message}
+                                </Text>
+                            )}
+                        />
+                    </View>
+
 
                     <View className='flex-col gap-4'>
                         <SolidMainButton text='Signup' onPress={handleSubmit(onSubmit)}/>
-                       
+                        {/* <Text className='text-center text-neutral-400'> -- or with -- </Text>
+                        <GoogleButton 
+                            text='Google' 
+                            onPress={() => console.log('Google login pressed')}
+                        /> */}
                     </View>
-
                     <View className='pt-5 flex-row gap-4 justify-center'>
-
                         <Text className='text-[#3A3541] text-base' style={{fontFamily: 'HankenGrotesk_400Regular'}}>Don't have an account?</Text>
-
                         <Button
                             type="clear"
                             size="sm"
