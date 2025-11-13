@@ -449,19 +449,19 @@ export default function HomeScreen() {
               {!notificationLoading && (
                 <>
                   {myNotification && myNotification.length !== 0 ? (
-                    <View className="absolute top-[-8px] right-[-2px] bg-red-100 border-2 border-white justify-center items-center rounded-full p-1.5 py-0.5">
+                    <View className="absolute top-[-5px] right-[-2px] bg-red-500 border-2 border-white justify-center items-center rounded-full p-1 py-0">
                       <Text
                         style={{ fontFamily: "HankenGrotesk_500Medium" }}
-                        className="text-xs text-red-600"
+                        className="text-[5px] text-red-600"
                       >
-                        {myNotification?.length}
+                        {/* {myNotification?.length} */}
                       </Text>
                     </View>) : (
 
-                    <View className="absolute top-[-8px] right-[-2px] bg-red-100 border-2 border-white justify-center items-center rounded-full p-1.5 py-0.5">
+                    <View className="absolute top-[-5px] right-[-2px] bg-red-100 border-2 border-white justify-center items-center rounded-full p-1 py-0">
                       <Text
                         style={{ fontFamily: "HankenGrotesk_500Medium" }}
-                        className="text-xs text-red-600"
+                        className="text-[8px] text-red-600"
                       >
                         {myNotification?.length}
                       </Text>

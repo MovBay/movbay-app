@@ -17,7 +17,7 @@ import { SolidLightButton, SolidMainButton } from "@/components/btns/CustomButto
 import MaterialIcons from "@expo/vector-icons/MaterialIcons"
 import {
   useFollowStore,
-  useGetFollowedStores,
+  useGetFollowing,
   useGetOpenStore,
   useGetSingleStatus,
   useGetStore,
@@ -49,26 +49,16 @@ interface ImageLoadingState {
   [key: number]: boolean
 }
 
-const isStoreFollowed = (storeId: any, followedStores: any) => {
-  if (!followedStores || !Array.isArray(followedStores)) return false
-  return followedStores.some((item) => item.followed_store.id === storeId)
-}
-
 const UserStatusView = () => {
   const { id } = useLocalSearchParams<{ id: string }>()
   const { singleStatusData, isLoading } = useGetSingleStatus(id)
 
   const { storeData, isLoading: storeDataLoading } = useGetStore()
-  const { openStore, isLoading: openStoreLoading } = useGetOpenStore(singleStatusData?.data[0]?.store)
+  const { openStore, isLoading: openStoreLoading, refetch } = useGetOpenStore(singleStatusData?.data[0]?.store)
   const openStoreData = openStore?.data
   const storeId = openStoreData?.id
 
   console.log("This is single own status data", openStoreData)
-
-  const { getFollowedStores } = useGetFollowedStores()
-
-  const followedStoresData = getFollowedStores?.data || []
-  const isCurrentStoreFollowed = isStoreFollowed(storeId, followedStoresData)
 
   // Convert storeId to proper type for hooks
   const numericStoreId = Number.parseInt(storeId?.toString() || "0")
@@ -87,16 +77,17 @@ const UserStatusView = () => {
     }
 
     try {
-      if (isCurrentStoreFollowed) {
-        await unfollowMutate(numericStoreId)
-        Toast.show("Store unfollowed successfully", { type: "success" })
-      } else {
-        await mutate(numericStoreId)
-        Toast.show("Store followed successfully", { type: "success" })
-      }
+
+      await mutate(numericStoreId, {
+        onSuccess: (response) => {
+          console.log("This is Response", response.data)
+          Toast.show( response.data.message, { type: "success" })
+          refetch()
+        },
+      })
     } catch (error) {
       console.error("Error following/unfollowing store:", error)
-      const errorMessage = isCurrentStoreFollowed ? "Failed to unfollow store" : "Failed to follow store"
+      const errorMessage = "Failed to perform action"
       Toast.show(errorMessage, { type: "error" })
     }
   }
@@ -334,7 +325,7 @@ const UserStatusView = () => {
                 </TouchableOpacity>
               ) : (
                 <View>
-                  {isCurrentStoreFollowed ? (
+                  {openStoreData?.is_following ? (
                     <SolidLightButton text="unfollow" onPress={handleFollowUnfollowStore} />
                   ) : (
                     <SolidLightButton text="Follow" onPress={handleFollowUnfollowStore} />
